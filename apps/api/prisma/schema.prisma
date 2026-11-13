@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BulletKind {
+  RESPONSIBILITY
+  ACHIEVEMENT
+}
+
+enum ResumeStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+// Resume-owned identity. Key is (issuer, subject); email is never the key.
+model User {
+  id        String   @id @default(uuid())
+  issuer    String
+  subject   String
+  tenantId  String
+  createdAt DateTime @default(now())
+  lastSeen  DateTime @default(now())
+  profile   CareerProfile?
+
+  @@unique([issuer, subject])
+  @@index([tenantId])
+}
+
+model CareerProfile {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  tenantId     String
+  fullName     String
+  email        String?
+  phone        String?
+  location     String?
+  links        Json     @default("[]")
+  headline     String?
+  summary      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  experiences    Experience[]
+  skills         Skill[]
+  educations     Education[]
+  projects       Project[]
+  certifications Certification[]
+  languages      Language[]
+  resumes        Resume[]
+
+  @@index([tenantId])
+}
+
+model Experience {
+  id             String  @id @default(uuid())
+  profileId      String
+  employerName   String
+  jobTitle       String
+  employmentType String?
+  location       String?
+  startDate      String
+  endDate        String?
+  isCurrent      Boolean @default(false)
+  description    String?
+  displayOrder   Int     @default(0)
+
+  profile CareerProfile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  bullets ExperienceBullet[]
+
+  @@index([profileId])
+}
+
+model ExperienceBullet {
+  id               String     @id @default(uuid())
+  experienceId     String
+  kind             BulletKind @default(RESPONSIBILITY)
+  content          String
+  isUserConfirmed  Boolean    @default(true)
+  displayOrder     Int        @default(0)
+
+  experience Experience @relation(fields: [experienceId], references: [id], onDelete: Cascade)
+
+  @@index([experienceId])
+}
+
+model Skill {
+  id              String  @id @default(uuid())
+  profileId       String
+  name            String
+  category        String?
+  proficiency     String?
+  yearsUsed       Int?
+  isUserConfirmed Boolean @default(true)
+  displayOrder    Int     @default(0)
+
+  profile CareerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model Education {
+  id           String  @id @default(uuid())
+  profileId    String
+  institution  String
+  degree       String
+  field        String?
+  startDate    String?
+  endDate      String?
+  grade        String?
+  displayOrder Int     @default(0)
+
+  profile CareerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model Project {
+  id           String  @id @default(uuid())
+  profileId    String
+  name         String
+  url          String?
+  description  String?
+  technologies String[]
+  displayOrder Int     @default(0)
+
+  profile CareerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model Certification {
+  id           String  @id @default(uuid())
+  profileId    String
+  name         String
+  issuer       String?
+  issuedDate   String?
+  expiryDate   String?
+  displayOrder Int     @default(0)
+
+  profile CareerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model Language {
+  id           String  @id @default(uuid())
+  profileId    String
+  name         String
+  proficiency  String?
+  displayOrder Int     @default(0)
+
+  profile CareerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model Resume {
+  id              String       @id @default(uuid())
+  profileId       String
+  tenantId        String
+  name            String
+  targetRole      String?
+  templateId      String
+  templateVersion Int
+  status          ResumeStatus @default(DRAFT)
+  // [{ type: 'summary'|'experience'|..., visible: boolean }] in display order
+  sections        Json
+  // validated, allowlisted design overrides (accent colour, font size, page size)
+  overrides       Json         @default("{}")
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  profile  CareerProfile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  versions ResumeVersion[]
+
+  @@index([profileId])
+  @@index([tenantId])
+}
+
+model ResumeVersion {
+  id                 String   @id @default(uuid())
+  resumeId           String
+  versionNumber      Int
+  // Structured render model only. Never PDF/DOCX/HTML bytes.
+  structuredSnapshot Json
+  changeSummary      String?
+  createdAt          DateTime @default(now())
+
+  resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  @@unique([resumeId, versionNumber])
+}

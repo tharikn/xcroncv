@@ -1,0 +1,13 @@
+{
+  "name": "xcroncv",
+  "private": true,
+  "version": "0.1.0",
+  "description": "XCron CV - independent Resume Builder platform (microservice)",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "api:dev": "npm run start:dev -w apps/api",
+    "api:build": "npm run build -w apps/api",
+    "api:test": "npm run test -w apps/api",
+    "db:migrate": "npm run prisma:migrate -w apps/api"
+  }
+}
