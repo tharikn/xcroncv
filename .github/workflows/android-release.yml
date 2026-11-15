@@ -1,0 +1,105 @@
+name: Android APK release
+
+# Publishes the standalone XCron CV APK to GitHub Releases (asset: xcron-cv.apk).
+# The X Cron portal reads /releases/latest of this repo to show the download button.
+# Ship: bump versionCode + versionName in apps/android/app/build.gradle, commit, then
+#   git tag v<versionName> && git push origin v<versionName>
+# Or run manually (workflow_dispatch); the tag is derived from versionName.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      notes:
+        description: 'Release notes (markdown)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  release-apk:
+    runs-on: ubuntu-latest
+    env:
+      CAP_PROD: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # Capacitor 6 / AGP 8.2 need JDK 17.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - run: npm ci
+
+      - name: Build web bundle (android configuration)
+        run: npm run build:android -w apps/web
+
+      - name: Capacitor sync (https scheme, no cleartext)
+        working-directory: apps/web
+        run: npx cap sync android
+
+      - name: Verify shared keystore
+        run: test -f apps/android/app/debug.keystore
+
+      - name: Assemble APK
+        working-directory: apps/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Resolve tag + notes
+        id: meta
+        shell: bash
+        env:
+          INPUT_NOTES: ${{ github.event.inputs.notes }}
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            NAME=$(grep -E 'versionName\s+"' apps/android/app/build.gradle | head -1 | sed -E 's/.*versionName\s+"([^"]+)".*/\1/')
+            TAG="v${NAME}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "notes<<EOF" >> "$GITHUB_OUTPUT"
+          echo "${INPUT_NOTES}" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Write release manifest
+        run: |
+          node scripts/apk-release-manifest.mjs \
+            --out dist-apk-release \
+            --repo "${{ github.repository }}" \
+            --tag "${{ steps.meta.outputs.tag }}" \
+            --notes "${{ steps.meta.outputs.notes }}"
+          cp apps/android/app/build/outputs/apk/debug/app-debug.apk dist-apk-release/xcron-cv.apk
+          cat dist-apk-release/release-meta.env >> "$GITHUB_ENV"
+
+      - name: Verify tag matches versionName
+        run: |
+          if [[ "${{ steps.meta.outputs.tag }}" != "v${VERSION_NAME}" ]]; then
+            echo "Tag ${{ steps.meta.outputs.tag }} must be v${VERSION_NAME} (bump build.gradle first)."
+            exit 1
+          fi
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: XCron CV ${{ env.VERSION_NAME }}
+          body_path: dist-apk-release/release-body.md
+          files: |
+            dist-apk-release/xcron-cv.apk
+            dist-apk-release/version.json
+          generate_release_notes: true
+          fail_on_unmatched_files: true
