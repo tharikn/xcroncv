@@ -15,7 +15,10 @@
     "android:build": "npm run cap:sync && cd ../android && gradlew.bat assembleDebug",
     "build:dev": "ng build --configuration development",
     "serve:static": "node scripts/serve.mjs",
-    "ng:serve": "ng serve --port 4200"
+    "ng:serve": "ng serve --port 4200",
+    "build:android": "ng build --configuration android",
+    "cap:sync:android": "npm run build:android && cap sync android",
+    "android:release": "npm run cap:sync:android && cd ../android && gradlew assembleDebug"
   },
   "dependencies": {
     "@angular/animations": "^17.3.0",
