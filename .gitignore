@@ -17,3 +17,8 @@ apps/web/e52.cjs
 apps/web/eq.cjs
 .e2e-full*.log
 apps/android/.idea/
+
+# Live/prod env mirror (never commit)
+env-dev
+.env.*
+!.env.example
