@@ -1,6 +1,6 @@
 import { NgStyle } from '@angular/common';
 import {
-  AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, ViewChild, effect, computed, input, output, signal,
+  AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, ViewChild, effect, untracked, computed, input, output, signal,
 } from '@angular/core';
 import { IonIcon } from '@ionic/angular/standalone';
 import { ApiService } from '../../core/api.service';
@@ -36,7 +36,7 @@ const SECTION_KINDS: DocSectionType[] = ['summary', 'experience', 'skills', 'edu
   styleUrl: './visual-editor.component.scss',
   template: `
     <div class="ve" #root data-testid="visual-editor">
-      <div class="ve-bar" role="toolbar" [attr.aria-label]="'ve.bar' | t">
+      <div class="ve-bar" data-tour="ve-bar" role="toolbar" [attr.aria-label]="'ve.bar' | t">
         <button class="btn ghost sm icon" (click)="undo()" [disabled]="!canUndo()" [attr.aria-label]="'ve.undo' | t" [title]="'ve.undo' | t" data-testid="ve-undo"><ion-icon name="arrow-undo-outline" aria-hidden="true"></ion-icon></button>
         <button class="btn ghost sm icon" (click)="redo()" [disabled]="!canRedo()" [attr.aria-label]="'ve.redo' | t" [title]="'ve.redo' | t" data-testid="ve-redo"><ion-icon name="arrow-redo-outline" aria-hidden="true"></ion-icon></button>
         <span class="sep" aria-hidden="true"></span>
@@ -46,10 +46,10 @@ const SECTION_KINDS: DocSectionType[] = ['summary', 'experience', 'skills', 'edu
         <button class="btn ghost sm" (click)="setFit('width')" [attr.aria-pressed]="mode() === 'width'" data-testid="ve-fit-width">{{ 've.fitWidth' | t }}</button>
         <button class="btn ghost sm" (click)="setFit('page')" [attr.aria-pressed]="mode() === 'page'" data-testid="ve-fit-page">{{ 've.fitPage' | t }}</button>
         <span class="sep" aria-hidden="true"></span>
-        <button class="btn ghost sm" (click)="outline.set(!outline())" [attr.aria-expanded]="outline()" aria-controls="ve-outline" data-testid="ve-outline-btn"><ion-icon name="list-outline" aria-hidden="true"></ion-icon> {{ 've.outline' | t }}</button>
+        <button class="btn ghost sm" (click)="outline.set(!outline())" [attr.aria-expanded]="outline()" aria-controls="ve-outline" data-testid="ve-outline-btn" data-tour="ve-outline-btn"><ion-icon [name]="showOutline() ? 'list-outline' : 'add-outline'" aria-hidden="true"></ion-icon> {{ (showOutline() ? 've.outline' : 've.addSection') | t }}</button>
         <span class="grow"></span>
         <span class="badge" [class.warn]="status() === 'dirty' || status() === 'saving'" [class.ok]="status() === 'saved'" [class.err]="status() === 'error' || status() === 'conflict'" role="status" data-testid="ve-status">{{ statusLabel() | t }}</span>
-        <button class="btn ghost sm" (click)="saveVersion()" [disabled]="!model()" data-testid="ve-save-version"><ion-icon name="save-outline" aria-hidden="true"></ion-icon> {{ 've.saveVersion' | t }}</button>
+        <button class="btn ghost sm" (click)="saveVersion()" [disabled]="!model()" data-testid="ve-save-version" data-tour="ve-save-version"><ion-icon name="save-outline" aria-hidden="true"></ion-icon> {{ 've.saveVersion' | t }}</button>
       </div>
 
       @if (status() === 'conflict') {
@@ -65,6 +65,7 @@ const SECTION_KINDS: DocSectionType[] = ['summary', 'experience', 'skills', 'edu
       @if (outline()) {
         <section class="ve-outline" id="ve-outline" [attr.aria-label]="'ve.outline' | t" data-testid="ve-outline">
           <div class="row between"><h3>{{ 've.sections' | t }}</h3><button class="btn ghost sm icon" (click)="outline.set(false)" [attr.aria-label]="'common.dismiss' | t"><ion-icon name="close-outline" aria-hidden="true"></ion-icon></button></div>
+          @if (showOutline()) {
           <ul class="list">
             @for (s of doc()?.sections ?? []; track s.id; let i = $index) {
               <li class="row" [attr.data-testid]="'ve-out-' + s.id" [class.dim]="s.hidden">
@@ -76,6 +77,7 @@ const SECTION_KINDS: DocSectionType[] = ['summary', 'experience', 'skills', 'edu
               </li>
             }
           </ul>
+          }
           <label class="small" for="ve-add-sec">{{ 've.addSection' | t }}</label>
           <div class="row">
             <select id="ve-add-sec" #addSel data-testid="ve-add-section-type">
@@ -87,7 +89,7 @@ const SECTION_KINDS: DocSectionType[] = ['summary', 'experience', 'skills', 'edu
         </section>
       }
 
-      <div class="ve-viewport" #viewport (scroll)="queueReposition()" (wheel)="onWheel($event)" data-testid="ve-viewport">
+      <div class="ve-viewport" #viewport (scroll)="queueReposition()" (wheel)="onWheel($event)" data-testid="ve-viewport" data-tour="ve-canvas">
         @if (model(); as m) {
           <div class="sheet-wrap" [style.width.px]="pageW() * scale()" [style.height.px]="sheetH() * scale()">
             <ve-sheet #sheet [model]="m" [selection]="sel()" [editing]="editing()" [scale]="scale()" [pages]="pages()"
@@ -191,6 +193,8 @@ const SECTION_KINDS: DocSectionType[] = ['summary', 'experience', 'skills', 'edu
 })
 export class VisualEditorComponent implements AfterViewInit, OnDestroy {
   resume = input.required<Resume>();
+  /** Hosts that already show a Sections list (the edit page side panel) set this false: the editor then only offers Add section. */
+  showOutline = input(true);
   saved = output<Resume>();
 
   readonly kinds = SECTION_KINDS;
@@ -248,6 +252,7 @@ export class VisualEditorComponent implements AfterViewInit, OnDestroy {
     effect(() => {
       const r = this.resume();
       if (!this.inflight) this.updatedAt = r.updatedAt;
+      untracked(() => this.adoptHostSections(r.sections)); // must not track doc(): only a host change should reconcile
       const key = `${r.id}|${r.templateId}|${r.templateVersion}`;
       if (key !== this.loadedKey) { this.loadedKey = key; this.load(r); }
     }, { allowSignalWrites: true });
@@ -291,6 +296,13 @@ export class VisualEditorComponent implements AfterViewInit, OnDestroy {
     });
   }
 
+  /** The host's Sections panel changed order/visibility: mirror it into the document (no undo step) and save. */
+  private adoptHostSections(cfg: Resume['sections']) {
+    const d = this.doc(); if (!d || !cfg?.length) return;
+    const next = O.reconcileDoc(d, cfg);
+    if (next !== d) { this.doc.set(next); this.markDirty(); }
+  }
+
   /* ---------- state changes ---------- */
   private commitDoc(next: ResumeDoc, coalesce = '') {
     const cur = this.doc(); if (!cur || next === cur) return;
@@ -322,7 +334,7 @@ export class VisualEditorComponent implements AfterViewInit, OnDestroy {
       if (!doc || this.status() === 'conflict') { resolve(); return; }
       if (this.inflight) { resolve(); return; }
       this.inflight = true; this.sentDoc = doc; this.status.set('saving');
-      this.api.saveDraft(r.id, { overrides: { ...r.overrides, doc } }, this.updatedAt).subscribe({
+      this.api.saveDraft(r.id, { overrides: { ...r.overrides, doc }, sections: O.cfgFromDoc(doc, r.sections ?? []) }, this.updatedAt).subscribe({
         next: (res) => {
           this.inflight = false; this.updatedAt = res.updatedAt; this.persistedDoc = true;
           this.saved.emit(res);
@@ -367,7 +379,8 @@ export class VisualEditorComponent implements AfterViewInit, OnDestroy {
   onMeasured(h: number) { if (h !== this.contentH()) { this.contentH.set(h); this.refit(); } }
   refit() {
     const v = this.viewport?.nativeElement; const m = this.model(); if (!v || !m) return;
-    this.scale.set(fitScale(this.mode(), m.page.size, { w: v.clientWidth, h: v.clientHeight }, this.manual()));
+    const next = fitScale(this.mode(), m.page.size, { w: v.clientWidth, h: v.clientHeight }, this.manual());
+    if (Math.abs(next - this.scale()) > 0.004) this.scale.set(next); // ignore scrollbar-induced jitter (avoids resize/refit loops)
   }
   setFit(m: FitMode) { this.mode.set(m); this.refit(); }
   zoom(d: number) { this.manual.set(clamp(+(this.scale() + d).toFixed(2), 0.25, 2.5)); this.mode.set('manual'); this.refit(); }
@@ -425,14 +438,14 @@ export class VisualEditorComponent implements AfterViewInit, OnDestroy {
     if (e.enter && t.bullet !== undefined && e.text !== '') { // Enter in a bullet: continue in a fresh bullet below
       const nt: Target = { ...t, bullet: t.bullet + 1 };
       this.sel.set(nt); this.editing.set(true); this.cdr.detectChanges(); this.sheet?.beginEditing(nt);
-    }
+    } else if (e.enter) { this.cdr.detectChanges(); this.sheet?.focusTarget(t); }
   }
 
   /* ---------- context for the toolbar ---------- */
   textKey = computed(() => { const t = this.sel(); return t && O.isTextKey(t.el) ? t.el! : null; });
   imageKind = computed<'photo' | 'item' | null>(() => {
     const t = this.sel(); if (!t) return null;
-    if (t.el === 'header.photo' || (t.kind === 'header' && !t.el)) return 'photo';
+    if (t.el === 'header.photo' || (t.kind === 'header' && !this.doc()?.header.photo)) return 'photo'; // header selected and no photo yet: offer Add photo
     if (t.el?.endsWith('.image')) return 'item';
     return null;
   });
@@ -569,7 +582,7 @@ export class VisualEditorComponent implements AfterViewInit, OnDestroy {
   }
   imageSize(): number | null {
     const t = this.sel(); const d = this.doc(); if (!t || !d) return null;
-    if (t.el === 'header.photo' || (t.kind === 'header' && !t.el)) return d.header.photo?.sizePt ?? null;
+    if (t.el === 'header.photo' || t.kind === 'header') return d.header.photo?.sizePt ?? null;
     if (t.el?.endsWith('.image') && t.secId && t.itemId) return O.findItem(d, t.secId, t.itemId)?.image?.sizePt ?? null;
     return null;
   }

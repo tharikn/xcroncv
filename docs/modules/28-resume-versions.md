@@ -39,4 +39,5 @@ Newest first. Every change to this module adds a row: date, change, files, tests
 
 | Date | Change | Files | Tests |
 |---|---|---|---|
+| 2026-11-15 | The visual editor autosaves through the existing concurrency-checked `PUT /resumes/:id/draft` (409 on a stale `expectedUpdatedAt`; no new endpoint) and "Save version" flushes, then creates a version. Snapshots are the render model, so photo, edited text, sections and element styles are part of every version. Draft saves that omit `overrides.doc` keep the stored visual document (`mergeOverridesOnWrite`); `doc: null` resets it. Details in module 16-17-19. | api: `resumes.service.ts`, `render-model.builder.ts`; web: `features/visual-editor/visual-editor.component.ts` | api `test/visual-editor.spec.ts`; `e2e/visual-editor.spec.ts` (autosave payload, conflict, flush-before-export, version) |
 | 2026-11-14 | Change log section introduced (convention, see docs/CHANGELOG.md). No functional change. | - | - |

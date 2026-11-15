@@ -1,5 +1,6 @@
+import { TourService } from '../shared/tour/tour.service';
 import { DatePipe } from '@angular/common';
-import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild, signal } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -9,17 +10,17 @@ import { ExportService } from '../core/export.service';
 import { registerFlowIcons } from '../core/flow.icons';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 import {
-  Overrides, RenderModel, Resume, ResumeStatus, ResumeVersion, SECTION_LABELS, SectionConfig, TemplateSummary,
+  Overrides, Resume, ResumeStatus, ResumeVersion, SECTION_LABELS, SectionConfig, TemplateSummary,
 } from '../core/models';
 import { errorMessage, NotifyService } from '../core/notify.service';
 import { moveItem } from '../core/profile-mapper';
-import { ResumeSheetComponent } from '../shared/resume-sheet.component';
+import { VisualEditorComponent } from '../features/visual-editor/visual-editor.component';
 import { ResumeStepperComponent, StepId } from '../shared/resume-stepper.component';
 
 @Component({
   selector: 'app-resume-editor',
   standalone: true,
-  imports: [IonContent, IonHeader, IonToolbar, IonTitle, IonIcon, FormsModule, RouterLink, DatePipe, TranslatePipe, ResumeSheetComponent, ResumeStepperComponent],
+  imports: [IonContent, IonHeader, IonToolbar, IonTitle, IonIcon, FormsModule, RouterLink, DatePipe, TranslatePipe, ResumeStepperComponent, VisualEditorComponent],
   template: `
     <ion-header><ion-toolbar><ion-title>Edit resume</ion-title></ion-toolbar></ion-header>
     <ion-content>
@@ -29,13 +30,14 @@ import { ResumeStepperComponent, StepId } from '../shared/resume-stepper.compone
         @if (error()) { <div class="banner err" role="alert" data-testid="editor-error">{{ error() }}</div> }
         @if (conflict()) { <div class="banner warn" role="alert" data-testid="editor-conflict">This resume was changed somewhere else, so your save was not applied. Your edits are still here.
           <button class="btn ghost sm" data-testid="editor-reload" (click)="reloadLatest()">Load the latest (discard my edits)</button></div> }
-        @if (!r() && !error()) { <p class="muted">Loading…</p> }
+        @if (!r() && !error()) { <div class="sk-stack" role="status" aria-busy="true"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
 
         @if (r(); as res) {
           <div class="page-head">
             <h1 class="wrap">{{ res.name }}</h1>
             <span class="badge" [class.warn]="isDirty()" [class.ok]="!isDirty()" data-testid="save-state" role="status">
               {{ saving() ? 'Saving…' : isDirty() ? 'Unsaved changes' : 'All changes saved' }}</span>
+            <button type="button" class="btn ghost sm" data-testid="editor-guide" (click)="tour.replayEditor()">{{ 'tour.guide' | t }}</button>
           </div>
 
           @if (step() === 3) {
@@ -53,10 +55,8 @@ import { ResumeStepperComponent, StepId } from '../shared/resume-stepper.compone
                       <a class="btn ghost sm" [routerLink]="['/templates']" [queryParams]="{ resumeId: res.id }" data-testid="change-template">Change</a></div></div>
                 </div>
               </section>
-              <section class="card" aria-label="Preview" data-testid="editor-live-preview" data-tour="editor-canvas">
-                <p class="muted small">{{ 'ed.previewNote' | t }}</p>
-                @if (model(); as m) { <div class="paper"><app-resume-sheet [model]="m" [fitWidth]="true" /></div> }
-                @else { <p class="muted">{{ 'ed.previewLoading' | t }}</p> }
+              <section class="card ve-host" aria-label="Preview" data-testid="editor-live-preview" data-tour="editor-canvas">
+                <app-visual-editor #ed [resume]="res" [showOutline]="false" (saved)="onVeSaved($event)" />
               </section>
             </div>
             @if (panelOpen()) { <div class="sheet-backdrop" (click)="panelOpen.set(false)" data-testid="panel-backdrop"></div> }
@@ -126,7 +126,7 @@ import { ResumeStepperComponent, StepId } from '../shared/resume-stepper.compone
         }
       </div>
     </ion-content>
-    @if (r() && step() === 3) {
+    @if (r() && step() === 3 && !panelOpen()) {
       <div class="sticky-actions" data-testid="editor-actions">
         <button class="btn" data-testid="editor-save" (click)="save()" [disabled]="saving() || !isDirty() || !name.trim()"><ion-icon name="save-outline" aria-hidden="true"></ion-icon> Save</button>
         <button class="btn ghost panel-toggle" data-testid="open-panel" (click)="panelOpen.set(true)"><ion-icon name="color-palette-outline" aria-hidden="true"></ion-icon> {{ 'ed.customize' | t }}</button>
@@ -139,6 +139,7 @@ import { ResumeStepperComponent, StepId } from '../shared/resume-stepper.compone
   styles: [`
     .editor-grid { display: grid; gap: var(--space-4); grid-template-columns: minmax(0, 1fr); align-items: start; }
     .editor-main { display: grid; gap: var(--space-4); min-width: 0; }
+    .ve-host { display: flex; flex-direction: column; height: min(75vh, 60rem); min-height: 28rem; padding: 0; overflow: hidden; }
     .paper { background: var(--c-surface); padding: var(--space-3); border-radius: var(--radius); }
     .pcard { border-bottom: 1px solid var(--c-border); padding: var(--space-3) 0; }
     .pcard:last-child { border-bottom: 0; }
@@ -170,15 +171,15 @@ export class ResumeEditorPage implements OnInit, OnDestroy {
   /** Flow step: 3 = edit template, 4 = export (selected with ?step=export). */
   step = signal<StepId>(3);
   panelOpen = signal(false);
-  model = signal<RenderModel | null>(null);
   private sub?: Subscription;
+  @ViewChild('ed') ed?: VisualEditorComponent;
 
   name = ''; role = ''; status: ResumeStatus = 'DRAFT';
   sections: SectionConfig[] = [];
   ov: Overrides = {};
   private snapshot = '';
 
-  constructor(private api: ApiService, private notify: NotifyService, private exporter: ExportService, private router: Router, private route: ActivatedRoute) {}
+  constructor(private api: ApiService, private notify: NotifyService, private exporter: ExportService, private router: Router, private route: ActivatedRoute, public tour: TourService) {}
 
   ngOnInit() {
     registerFlowIcons();
@@ -191,6 +192,7 @@ export class ResumeEditorPage implements OnInit, OnDestroy {
 
   /** Step 3 -> 4: saves pending edits first so the export matches what the user sees. */
   async continueToExport() {
+    if (this.ed && !(await this.ed.flush())) return;
     if (this.isDirty() && this.name.trim()) {
       const ok = await new Promise<boolean>((resolve) => {
         this.saving.set(true);
@@ -201,7 +203,6 @@ export class ResumeEditorPage implements OnInit, OnDestroy {
     this.goStep(4);
   }
 
-  private loadModel() { this.api.renderModel(this.id).subscribe({ next: (m) => this.model.set(m), error: () => this.model.set(null) }); }
 
   /** Ionic caches pages in its stack, so reload on every entry (e.g. returning from the template gallery). */
   ionViewWillEnter() {
@@ -219,7 +220,6 @@ export class ResumeEditorPage implements OnInit, OnDestroy {
     this.r.set(res); this.name = res.name; this.role = res.targetRole ?? ''; this.status = res.status;
     this.sections = res.sections.map((s) => ({ ...s })); this.ov = { ...res.overrides };
     this.snapshot = this.json();
-    this.loadModel();
   }
   private cleanOv(): Overrides {
     const o: Overrides = {};
@@ -236,6 +236,8 @@ export class ResumeEditorPage implements OnInit, OnDestroy {
   templateName() { return this.tpl()?.name ?? this.r()?.templateId ?? ''; }
   accent() { return this.ov.accent ?? this.tpl()?.theme?.accent ?? '#000000'; }
   templateSize() { return this.tpl()?.theme?.baseSizePt ?? 10.5; }
+  /** The visual editor autosaved: adopt its updatedAt and, when nothing is pending here, its section order/visibility. */
+  onVeSaved(res: Resume) { if (this.isDirty()) this.r.set(res); else this.apply(res); }
   shift(i: number, d: number) { this.sections = moveItem(this.sections, i, i + d); }
 
   /** Saves through the concurrency-checked draft endpoint (a stale editor gets a 409 instead of overwriting newer work). */
@@ -268,6 +270,7 @@ export class ResumeEditorPage implements OnInit, OnDestroy {
   }
 
   async preview() {
+    if (this.ed && !(await this.ed.flush())) return;
     let blocked = false;
     if (this.isDirty() && this.name.trim()) await new Promise<void>((resolve) => {
       this.saving.set(true);

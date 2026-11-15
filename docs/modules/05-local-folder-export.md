@@ -7,7 +7,7 @@ Exports (PDF/HTML) are streamed from the API, never stored server-side, and save
 - **Other browsers / permission denied / no folder**: plain browser download. The UI never claims a location it cannot confirm.
 
 ## Behaviour rules
-- First export (web, folder supported): dialog explains local-only storage; "Choose folder" or "Just download" (remembered).
+- First export (web, folder supported): uses defaults and asks nothing - a plain download (the choice is recorded as declined). Choosing a folder stays available on the Files screen, and the editor export step links to it.
 - Success is reported only after read-back verification (`size === blob.size`); otherwise an error is shown.
 - Never overwrites: `nextVersionName` picks the next free `-v###` per resume and format.
 - Local Files screen (`/files`, nav "Files"): folder name + permission state, change/forget folder, list grouped by resume, open, share, rename (collision-checked, extension kept), delete (confirmed). Files in the index but missing on disk show "Missing from folder"; they are never recreated or uploaded.
@@ -19,7 +19,7 @@ Exports (PDF/HTML) are streamed from the API, never stored server-side, and save
 | `features/local-files/local-files.ts` | Pure helpers: `safeSegment`, `nextVersionName`, `validateRename`, `reconcile`, `formatBytes` |
 | `features/local-files/local-folder.service.ts` | Adapters (FSA / Capacitor / download), index, save/list/rename/remove/open/share |
 | `features/local-files/local-files.page.ts` | `/files` screen |
-| `core/export.service.ts` | Calls API, first-run prompt, saves via the folder service |
+| `core/export.service.ts` | Calls API, saves via the folder service |
 | hooks in shared files | route `files` (app.routes), nav item (shell), icons (app.component), `firstRunPrompt` option in e2e `setup.ts` |
 
 ## Tests
@@ -37,4 +37,5 @@ Newest first. Every change to this module adds a row: date, change, files, tests
 
 | Date | Change | Files | Tests |
 |---|---|---|---|
+| 2026-11-15 | First export no longer shows the local-storage options dialog; it silently uses a plain download so the user is never asked for extra details (folder choice remains on Files). | web `core/export.service.ts` | `e2e/local-files.spec.ts`, `e2e/resume-flow.spec.ts` |
 | 2026-11-14 | Change log section introduced (convention, see docs/CHANGELOG.md). No functional change. | - | - |

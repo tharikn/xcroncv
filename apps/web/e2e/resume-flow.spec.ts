@@ -40,7 +40,7 @@ test.describe('Resume creation flow (stepper, template preview, editor panel, fi
     await page.getByTestId('preview-use').click();
     await expect(page).toHaveURL(/\/resumes\/[0-9a-f-]{36}$/);
     await expect(page.locator('app-resume-editor [data-tour="stepper-step-edit"]')).toHaveAttribute('aria-current', 'step');
-    await expect(page.getByTestId('editor-live-preview').getByTestId('doc-name')).toBeVisible();
+    await expect(page.getByTestId('editor-live-preview').getByTestId('ve-name')).toBeVisible();
     expect(state.requests.filter((r) => r.method === 'POST' && r.path === '/resumes')).toHaveLength(1);
   });
 
@@ -64,7 +64,7 @@ test.describe('Resume creation flow (stepper, template preview, editor panel, fi
       expect(p.x).toBeGreaterThanOrEqual(pv.x + pv.width - 1); // beside the preview, not above/below it
     } else {
       const p = (await panel.boundingBox())!;
-      expect(p.y + p.height).toBeGreaterThan(vp.height - 2); // bottom sheet anchored to the bottom
+      expect(p.y + p.height).toBeGreaterThan(vp.height * 0.8); // bottom sheet anchored to the bottom (above the tab bar)
       await closeEditorPanel(page);
       await expect(panel).toBeHidden();
     }

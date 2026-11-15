@@ -233,13 +233,15 @@ export class VeSheetComponent implements AfterViewChecked {
     this.teardown(el);
     if (text === this.orig) { this.cancel.emit(); return; }
     this.commit.emit({ target, text, enter });
-    if (enter) setTimeout(() => (el.isConnected ? el.focus({ preventScroll: true }) : undefined));
   }
   private abort() {
     const el = this.editEl; if (!el) return;
     el.textContent = this.orig; this.teardown(el); this.cancel.emit();
     el.focus({ preventScroll: true });
   }
+
+  /** Keyboard users keep their place after Enter commits an edit. */
+  focusTarget(t: Target) { this.elementFor(t)?.focus({ preventScroll: true }); }
 
   /* ---------- queries used by the parent ---------- */
   elementFor(t: Target): HTMLElement | null {

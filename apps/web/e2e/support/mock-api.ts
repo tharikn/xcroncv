@@ -240,7 +240,7 @@ export function fakeToken(sub = 'e2e-user', ttlSec = 3600): string {
 export async function signIn(page: Page, sub = 'e2e-user', opts: { tour?: boolean } = {}) {
   const token = fakeToken(sub);
   // The first-run guided tour would cover the page in every other spec; mark it seen unless a spec opts in.
-  if (!opts.tour) await page.addInitScript((k) => { try { localStorage.setItem(k, '1'); } catch { /* ignore */ } }, `xcroncv.tour.done.${sub}`);
+  if (!opts.tour) await page.addInitScript((ks) => { try { for (const k of ks) localStorage.setItem(k, '1'); } catch { /* ignore */ } }, [`xcroncv.tour.done.${sub}`, `xcroncv.tour.editor.done.${sub}`]);
   // Seed once per tab: addInitScript re-runs on every navigation, which would undo a sign-out.
   await page.addInitScript((t) => { try { if (!sessionStorage.getItem('e2e.seeded')) { sessionStorage.setItem('e2e.seeded', '1'); sessionStorage.setItem('xcroncv.token', t); } } catch { /* ignore */ } }, token);
 }

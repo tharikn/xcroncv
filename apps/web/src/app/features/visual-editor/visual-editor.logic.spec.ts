@@ -228,3 +228,21 @@ describe('image validation', () => {
     expect(validateImageFile({ type: 'image/png', size: 9 * 1024 * 1024 })).toBe('size');
   });
 });
+
+describe('host Sections panel sync', () => {
+  it('derives config from the document and reconciles host changes back', () => {
+    const d = doc(); const [a, b] = d.sections;
+    const moved = O.toggleSectionHidden(O.moveSection(d, b.id, -1), a.id);
+    expect(O.cfgFromDoc(moved, [])).toEqual([{ type: 'experience', visible: true }, { type: 'summary', visible: false }, { type: 'skills', visible: true }]);
+    const back = O.reconcileDoc(moved, [{ type: 'summary', visible: true }, { type: 'skills', visible: false }, { type: 'experience', visible: true }]);
+    expect(back.sections.map((s) => s.type)).toEqual(['summary', 'skills', 'experience']);
+    expect(back.sections.map((s) => !!s.hidden)).toEqual([false, true, false]);
+    expect(O.reconcileDoc(back, O.cfgFromDoc(back, []))).toBe(back);
+  });
+  it('keeps custom sections in their slots', () => {
+    let d = O.addSection(doc(), 'custom', 'Awards', t, doc().sections[0].id);
+    d = { ...d, sections: [d.sections[1], ...d.sections.slice(0, 1), ...d.sections.slice(2)] };
+    const r = O.reconcileDoc(d, [{ type: 'skills', visible: true }, { type: 'summary', visible: true }, { type: 'experience', visible: true }]);
+    expect(r.sections.filter((s) => s.type === 'custom')).toHaveLength(1);
+  });
+});

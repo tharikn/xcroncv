@@ -71,7 +71,6 @@ test.describe('Visual editor', () => {
     const st = lastDoc(state).styles[key];
     expect(st).toMatchObject({ font: 'Courier', color: 'muted', align: 'center', spaceAfterPt: 2, bold: false });
     expect(st.sizePt).toBeGreaterThan(10.5);
-    await page.getByTestId('ve-color-btn').click(); // popover
     await page.getByTestId('ve-color-1f4e79').click();
     await expect(h2).toHaveCSS('color', 'rgb(31, 78, 121)');
     await page.getByTestId('ve-fmt-reset').click();
@@ -81,12 +80,12 @@ test.describe('Visual editor', () => {
   test('reorder sections and items with the arrow buttons and Alt+Arrow; saved order matches', async ({ page }) => {
     const state = await setup(page, { resume: true });
     await page.goto(URL_);
+    await expect(page.getByTestId('ve-section')).toHaveCount(4);
     expect(await order(page)).toEqual(['summary', 'experience', 'skills', 'education']);
     await sec(page, 'experience').locator('h2').click({ position: { x: 4, y: 4 } });
     await expect(page.getByTestId('ve-up')).toBeEnabled();
     await page.getByTestId('ve-up').click();
     expect(await order(page)).toEqual(['experience', 'summary', 'skills', 'education']);
-    await page.getByTestId('ve-up').click({ trial: true }).catch(() => undefined);
     await expect(page.getByTestId('ve-up')).toBeDisabled();
     await page.getByTestId('ve-down').click();
     await page.getByTestId('ve-down').click();
@@ -252,7 +251,7 @@ test.describe('Visual editor', () => {
     const tools = page.getByTestId('ve-tools');
     await expect(tools).toBeVisible();
     const box = (await tools.boundingBox())!; const vh = page.viewportSize()!.height;
-    expect(box.y + box.height).toBeGreaterThan(vh - 4); // docked to the bottom as a sheet
+    expect(box.y + box.height).toBeGreaterThan(vh - 110); // docked to the bottom (just above the shell tab bar)
     expect(box.width).toBeGreaterThan(page.viewportSize()!.width - 4);
     await page.getByTestId('ve-name').tap();
     await expect(page.getByTestId('ve-name')).toHaveAttribute('contenteditable', /.+/);

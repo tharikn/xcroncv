@@ -1,4 +1,4 @@
-import { TourStep } from './tour.config';
+import { TourPage, TourStep } from './tour.config';
 
 export interface Box { top: number; left: number; width: number; height: number }
 export interface Viewport { width: number; height: number }
@@ -68,4 +68,30 @@ export class TourFlow {
   skip(): void { this.finish(); }
   finish(): void { this.store.set(this.key(), '1'); this.active = false; }
   snapshot(): TourSnapshot { return { active: this.active, index: this.index }; }
+}
+
+export function pageNeedsResume(page: TourPage): boolean { return page === 'editor' || page === 'export'; }
+
+/** Does the current URL already show this tour page? */
+export function pageMatches(page: TourPage, url: string): boolean {
+  const [path, query = ''] = url.split('#')[0].split('?');
+  const p = path.replace(/\/+$/, '');
+  if (page === 'profile') return p === '/profile';
+  if (page === 'templates') return p === '/templates';
+  const editor = /^\/resumes\/[^/]+$/.test(p);
+  if (page === 'export') return editor && /(^|&)step=export(&|$)/.test(query);
+  return editor && !/(^|&)step=export(&|$)/.test(query);
+}
+
+/** Router target for a tour page, or null when it needs a resume and none is known. */
+export function pageRoute(page: TourPage, resumeId: string | null): { commands: string[]; query?: Record<string, string> } | null {
+  if (page === 'profile') return { commands: ['/profile'] };
+  if (page === 'templates') return { commands: ['/templates'] };
+  if (!resumeId) return null;
+  return page === 'export' ? { commands: ['/resumes', resumeId], query: { step: 'export' } } : { commands: ['/resumes', resumeId] };
+}
+
+/** Most recently updated resume id, or null. */
+export function latestResumeId(list: { id: string; updatedAt: string }[]): string | null {
+  return [...list].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))[0]?.id ?? null;
 }
