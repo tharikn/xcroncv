@@ -1,0 +1,74 @@
+import type { Catalog } from './en';
+import { FLOW_HI } from './flow-messages';
+import { VE_HI } from './editor-messages';
+
+/** Hindi. First-pass translation: have a native speaker review. */
+export const HI: Catalog = {
+  'nav.primary': 'मुख्य',
+  'nav.homeAria': 'XCron CV होम',
+  'nav.home': 'होम', 'nav.resumes': 'रिज़्यूमे', 'nav.files': 'फ़ाइलें', 'nav.templates': 'टेम्पलेट', 'nav.insights': 'इनसाइट्स',
+  'nav.careerTools': 'करियर टूल', 'nav.profile': 'प्रोफ़ाइल', 'nav.settings': 'सेटिंग्स',
+
+  'common.loading': 'लोड हो रहा है…', 'common.dismiss': 'बंद करें', 'common.cancel': 'रद्द करें', 'common.delete': 'हटाएँ',
+  'common.offline': 'आप ऑफ़लाइन हैं। दोबारा कनेक्ट होने तक सर्वर वाले बदलाव विफल होंगे।',
+  'common.working': 'काम जारी है…',
+  'common.sessionExpired': 'आपका सत्र समाप्त हो गया। जारी रखने के लिए फिर से साइन इन करें।',
+  'common.language': 'भाषा',
+
+  'err.network': 'सर्वर तक नहीं पहुँचा जा सका। सेटिंग्स में API पता और अपना कनेक्शन जाँचें।',
+  'err.unauthorized': 'आपका सत्र अब मान्य नहीं है। फिर से साइन इन करें।',
+  'err.forbidden': 'आपको इसकी अनुमति नहीं है।',
+  'err.rateLimited': 'बहुत अधिक अनुरोध। थोड़ी देर रुककर फिर प्रयास करें।',
+  'err.server': 'सर्वर में समस्या हुई। थोड़ी देर बाद फिर प्रयास करें।',
+  'err.generic': 'कुछ गड़बड़ हो गई',
+
+  'settings.title': 'सेटिंग्स',
+  'settings.account': 'खाता', 'settings.signedInAs': 'इस रूप में साइन इन', 'settings.unknown': 'अज्ञात', 'settings.signOut': 'साइन आउट',
+  'settings.appearance': 'रूप-रंग',
+  'settings.languageHint': 'ऐप की भाषा चुनें। आपकी पसंद इस डिवाइस और आपके खाते में सहेजी जाती है।',
+  'settings.theme': 'थीम', 'settings.themeHint': 'सिस्टम आपके डिवाइस की लाइट या डार्क सेटिंग का पालन करता है।',
+  'theme.system': 'सिस्टम', 'theme.light': 'लाइट', 'theme.dark': 'डार्क',
+  'settings.server': 'सर्वर', 'settings.apiAddress': 'API पता',
+  'settings.apiHint': 'Android एमुलेटर: http://10.0.2.2:3100/api/v1 उपयोग करें। डिफ़ॉल्ट के लिए खाली छोड़ें।',
+  'settings.apiSave': 'पता सहेजें', 'settings.apiTest': 'कनेक्शन जाँचें', 'settings.apiSaved': 'API पता सहेजा गया',
+  'settings.apiInvalid': 'मान्य http(s) URL या / से शुरू होने वाला पथ दर्ज करें',
+  'settings.apiTesting': 'जाँच हो रही है…', 'settings.apiConnected': 'कनेक्ट हो गया। {n} टेम्पलेट उपलब्ध हैं।',
+  'settings.apiFailed': 'कनेक्ट नहीं हो सका। पता और API चालू होने की जाँच करें।',
+  'settings.files': 'स्थानीय फ़ाइलें',
+  'settings.filesBody': 'रिज़्यूमे PDF और HTML फ़ाइलें ज़रूरत पर बनती हैं और केवल इसी डिवाइस पर सहेजी जाती हैं। सर्वर उन्हें नहीं रखता।',
+  'settings.saveLocation': 'सहेजने का स्थान:', 'settings.locNative': 'Documents/XCronCV', 'settings.locBrowser': 'ब्राउज़र डाउनलोड',
+  'settings.about': 'परिचय', 'settings.version': 'XCron CV {version}',
+
+  'login.lead': 'अपने रिज़्यूमे बनाने और प्रबंधित करने के लिए अपने X Cron खाते से साइन इन करें। रिज़्यूमे फ़ाइलें आपके डिवाइस पर ही रहती हैं।',
+  'login.tokenTitle': 'टोकन से साइन इन करें',
+  'login.tokenLead': 'X Cron द्वारा जारी एक्सेस टोकन चिपकाएँ। टोकन केवल इस ब्राउज़र सत्र तक रखे जाते हैं।',
+  'handoff.signingIn': 'X Cron से आपको साइन इन किया जा रहा है…', 'handoff.failed': 'X Cron से साइन इन नहीं हो सका। वापस जाएँ और फिर से Build Resume दबाएँ।', 'handoff.back': 'X Cron पर वापस जाएँ',
+  'login.tokenLabel': 'एक्सेस टोकन', 'login.signIn': 'साइन इन', 'login.invalid': 'वह टोकन अमान्य या समाप्त है।',
+  'login.devTitle': 'डेवलपर साइन-इन', 'login.localOnly': 'केवल स्थानीय',
+  'login.devLead': 'API के AUTH_DEV_SECRET से एक स्थानीय HS256 टोकन बनाता है। यह पैनल प्रोडक्शन बिल्ड से हटा दिया जाता है।',
+  'login.subject': 'विषय', 'login.tenant': 'टेनेंट', 'login.devSecret': 'डेव सीक्रेट', 'login.devSignIn': 'डेवलपर के रूप में साइन इन',
+
+  'dash.title': 'होम', 'dash.welcome': 'स्वागत है', 'dash.welcomeName': 'स्वागत है, {name}',
+  'dash.lead': 'आपका रिज़्यूमे वर्कस्पेस एक नज़र में।', 'dash.newResume': 'नया रिज़्यूमे',
+  'dash.startTitle': 'अपनी करियर प्रोफ़ाइल से शुरू करें',
+  'dash.startLead': 'अपना अनुभव, कौशल और शिक्षा एक बार जोड़ें। हर रिज़्यूमे इसे दोबारा उपयोग करता है।',
+  'dash.createProfile': 'करियर प्रोफ़ाइल बनाएँ', 'dash.summary': 'सारांश',
+  'dash.resumes': 'रिज़्यूमे', 'dash.templates': 'टेम्पलेट', 'dash.profile': 'प्रोफ़ाइल', 'dash.ready': 'तैयार', 'dash.notSetup': 'सेट नहीं है',
+  'dash.savedFiles': 'सहेजी गई फ़ाइलें', 'dash.storageNative': 'इस डिवाइस पर Documents/XCronCV', 'dash.storageBrowser': 'आपका ब्राउज़र डाउनलोड फ़ोल्डर',
+  'dash.recent': 'हाल के रिज़्यूमे', 'dash.viewAll': 'सभी देखें', 'dash.none': 'अभी कोई रिज़्यूमे नहीं।',
+
+  'dash.noRole': 'कोई लक्षित भूमिका नहीं', 'dash.edited': '{date} को संपादित', 'dash.continue': 'जारी रखें', 'dash.continueAria': '{name} का संपादन जारी रखें',
+
+  // Guided onboarding tour (shared/tour)
+  'tour.progress': 'चरण {n} / {total}', 'tour.clickHint': 'आगे बढ़ने के लिए हाइलाइट किए गए बटन पर टैप या क्लिक करें।',
+  'tour.missing': 'यह हिस्सा मौजूदा स्क्रीन पर नहीं है। आगे बढ़ने के लिए "अगला" दबाएँ।',
+  'tour.skip': 'टूर छोड़ें', 'tour.back': 'पीछे', 'tour.next': 'अगला', 'tour.done': 'पूरा हुआ', 'tour.replay': 'टूर फिर से देखें',
+  'settings.help': 'सहायता', 'settings.helpBody': 'रिज़्यूमे बनाने और निर्यात करने का संक्षिप्त गाइडेड टूर फिर से देखें।',
+  'tour.profile.title': 'अपनी प्रोफ़ाइल जानकारी जोड़ें', 'tour.profile.body': 'अपनी करियर प्रोफ़ाइल से शुरुआत करें। हर रिज़्यूमे इसी से बनता है।',
+  'tour.template.title': 'टेम्पलेट चुनें', 'tour.template.body': 'एक लेआउट चुनें। सामग्री खोए बिना बाद में बदल सकते हैं।',
+  'tour.panel.title': 'सेक्शन, डिज़ाइन और संस्करण', 'tour.panel.body': 'इस पैनल से सेक्शन दिखाएँ, छिपाएँ और क्रम बदलें, फ़ॉन्ट, रंग व स्पेसिंग बदलें और सहेजे गए संस्करण प्रबंधित करें।',
+  'tour.canvas.title': 'कैनवास एडिटर', 'tour.canvas.body': 'पेज पर ही सीधे संपादित करें और देखें कि निर्यात में क्या आएगा।',
+  'tour.export.title': 'अपना रिज़्यूमे निर्यात करें', 'tour.export.body': 'संतुष्ट होने पर PDF या अन्य फ़ॉर्मेट डाउनलोड करें।',
+  ...FLOW_HI,
+  ...VE_HI,
+};

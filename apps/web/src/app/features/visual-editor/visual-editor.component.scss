@@ -1,0 +1,63 @@
+:host { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+.ve { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; position: relative; }
+
+.ve-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--c-border); background: var(--c-bg); position: sticky; top: 0; z-index: 5;
+  .grow { flex: 1 1 auto; }
+  .sep { width: 1px; align-self: stretch; background: var(--c-border); margin: 0 var(--space-1); }
+  .zoom { min-width: 3rem; text-align: center; font-size: 0.85rem; color: var(--c-muted); }
+}
+.banner { margin: var(--space-2) var(--space-3); }
+
+.ve-viewport {
+  flex: 1 1 auto; min-height: 420px; overflow: auto; background: var(--c-surface); padding: var(--space-4);
+  /* we implement pinch ourselves; one finger still scrolls natively */
+  touch-action: pan-x pan-y; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+}
+.sheet-wrap { margin: 0 auto; position: relative; }
+
+.ve-outline {
+  position: absolute; right: var(--space-3); top: 3.2rem; z-index: 25; width: min(22rem, calc(100vw - 2 * var(--space-3))); max-height: 70%; overflow: auto;
+  background: var(--c-bg); color: var(--c-text); border: 1px solid var(--c-border); border-radius: var(--radius, 12px); padding: var(--space-3);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25); display: grid; gap: var(--space-2);
+  h3 { margin: 0; font-size: 1rem; }
+  .list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
+  li.dim button.left { opacity: 0.55; text-decoration: line-through; }
+  .left { justify-content: flex-start; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+.ve-tools {
+  position: fixed; z-index: 30; max-width: min(46rem, calc(100vw - 16px));
+  background: var(--c-bg); color: var(--c-text); border: 1px solid var(--c-border); border-radius: var(--radius, 12px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28); padding: var(--space-2); display: grid; gap: var(--space-2);
+  .tools-head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); }
+  .grp { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+  .hint { margin: 0; }
+  .val { min-width: 2.4rem; text-align: center; font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+  .fmt-font { max-width: 8.5rem; min-height: var(--control-min-height, 40px); }
+  .fmt-b { font-weight: 800; }
+  .fmt-i { font-style: italic; font-family: serif; }
+  [aria-pressed='true'] { background: var(--c-primary); color: var(--c-primary-text); }
+  .dot { display: inline-block; width: 1rem; height: 1rem; border-radius: 50%; border: 1px solid var(--c-border); vertical-align: middle; }
+  .swatch { width: 1.7rem; height: 1.7rem; border-radius: 50%; border: 2px solid var(--c-border); padding: 0; cursor: pointer; }
+  .swatch[aria-pressed='true'] { border-color: var(--c-primary); outline: 2px solid var(--c-primary); outline-offset: 1px; }
+  .grip { touch-action: none; cursor: grab; }
+  .custom { display: inline-flex; align-items: center; gap: var(--space-1); }
+  &.dragging { opacity: 0.85; }
+}
+
+.drop-line { position: fixed; z-index: 40; height: 3px; margin-top: -1px; background: var(--c-primary); border-radius: 2px; pointer-events: none; box-shadow: 0 0 0 2px var(--c-bg); }
+
+/* Phones / narrow screens: the formatting toolbar becomes a bottom sheet (reachable with a thumb, never covers the selection from above) */
+@media (max-width: 767px) {
+  .ve-tools {
+    top: auto !important; left: 0 !important; right: 0; bottom: 0; max-width: none; border-radius: var(--radius, 12px) var(--radius, 12px) 0 0;
+    max-height: 46vh; overflow-y: auto; padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom)); -webkit-overflow-scrolling: touch;
+    .hint { display: none; }
+    .btn, select { min-height: var(--control-min-height, 44px); min-width: 44px; }
+  }
+  .ve-viewport { padding: var(--space-2); padding-bottom: 46vh; }
+  .ve-bar { padding: var(--space-1) var(--space-2); }
+  .ve-outline { right: var(--space-2); left: var(--space-2); width: auto; }
+}

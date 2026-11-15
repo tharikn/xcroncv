@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.env
+*.log
+coverage/
+.DS_Store
+
+playwright-report/
+test-results/
+apps/android/local.properties
+apps/android/.gradle/
+apps/android/app/build/
+apps/android/build/
+
+# one-off local patch scripts
+apps/web/e52.cjs
+apps/web/eq.cjs
+.e2e-full*.log
+apps/android/.idea/

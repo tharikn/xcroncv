@@ -1,0 +1,74 @@
+import type { Catalog } from './en';
+import { FLOW_TA } from './flow-messages';
+import { VE_TA } from './editor-messages';
+
+/** Tamil. First-pass translation: have a native speaker review. */
+export const TA: Catalog = {
+  'nav.primary': 'முதன்மை',
+  'nav.homeAria': 'XCron CV முகப்பு',
+  'nav.home': 'முகப்பு', 'nav.resumes': 'ரெஸ்யூம்கள்', 'nav.files': 'கோப்புகள்', 'nav.templates': 'வார்ப்புருக்கள்', 'nav.insights': 'நுண்ணறிவுகள்',
+  'nav.careerTools': 'தொழில் கருவிகள்', 'nav.profile': 'சுயவிவரம்', 'nav.settings': 'அமைப்புகள்',
+
+  'common.loading': 'ஏற்றுகிறது…', 'common.dismiss': 'மூடு', 'common.cancel': 'ரத்துசெய்', 'common.delete': 'நீக்கு',
+  'common.offline': 'நீங்கள் ஆஃப்லைனில் உள்ளீர்கள். மீண்டும் இணையும் வரை சேவையகம் தேவைப்படும் மாற்றங்கள் தோல்வியடையும்.',
+  'common.working': 'செயல்படுகிறது…',
+  'common.sessionExpired': 'உங்கள் அமர்வு காலாவதியானது. தொடர மீண்டும் உள்நுழையவும்.',
+  'common.language': 'மொழி',
+
+  'err.network': 'சேவையகத்தை அடைய முடியவில்லை. அமைப்புகளில் API முகவரியையும் இணைப்பையும் சரிபார்க்கவும்.',
+  'err.unauthorized': 'உங்கள் அமர்வு இனி செல்லாது. மீண்டும் உள்நுழையவும்.',
+  'err.forbidden': 'இதற்கு உங்களுக்கு அணுகல் இல்லை.',
+  'err.rateLimited': 'அதிக கோரிக்கைகள். சிறிது நேரம் காத்திருந்து மீண்டும் முயற்சிக்கவும்.',
+  'err.server': 'சேவையகத்தில் சிக்கல் ஏற்பட்டது. சிறிது நேரத்தில் மீண்டும் முயற்சிக்கவும்.',
+  'err.generic': 'ஏதோ தவறாகிவிட்டது',
+
+  'settings.title': 'அமைப்புகள்',
+  'settings.account': 'கணக்கு', 'settings.signedInAs': 'உள்நுழைந்தவர்', 'settings.unknown': 'தெரியாது', 'settings.signOut': 'வெளியேறு',
+  'settings.appearance': 'தோற்றம்',
+  'settings.languageHint': 'பயன்பாட்டு மொழியைத் தேர்வுசெய்யவும். உங்கள் தேர்வு இந்தச் சாதனத்திலும் உங்கள் கணக்கிலும் சேமிக்கப்படும்.',
+  'settings.theme': 'தீம்', 'settings.themeHint': 'சிஸ்டம் என்பது உங்கள் சாதனத்தின் ஒளி அல்லது இருள் அமைப்பைப் பின்பற்றும்.',
+  'theme.system': 'சிஸ்டம்', 'theme.light': 'ஒளி', 'theme.dark': 'இருள்',
+  'settings.server': 'சேவையகம்', 'settings.apiAddress': 'API முகவரி',
+  'settings.apiHint': 'Android எமுலேட்டர்: http://10.0.2.2:3100/api/v1 பயன்படுத்தவும். இயல்புநிலைக்கு காலியாக விடவும்.',
+  'settings.apiSave': 'முகவரியைச் சேமி', 'settings.apiTest': 'இணைப்பைச் சோதி', 'settings.apiSaved': 'API முகவரி சேமிக்கப்பட்டது',
+  'settings.apiInvalid': 'சரியான http(s) URL அல்லது / உடன் தொடங்கும் பாதையை உள்ளிடவும்',
+  'settings.apiTesting': 'சோதிக்கிறது…', 'settings.apiConnected': 'இணைக்கப்பட்டது. {n} வார்ப்புருக்கள் உள்ளன.',
+  'settings.apiFailed': 'இணைக்க முடியவில்லை. முகவரியையும் API இயங்குகிறதா என்பதையும் சரிபார்க்கவும்.',
+  'settings.files': 'உள்ளூர் கோப்புகள்',
+  'settings.filesBody': 'ரெஸ்யூம் PDF மற்றும் HTML கோப்புகள் தேவைப்படும்போது உருவாக்கப்பட்டு இந்தச் சாதனத்தில் மட்டுமே சேமிக்கப்படும். சேவையகம் அவற்றை வைத்திருக்காது.',
+  'settings.saveLocation': 'சேமிக்கும் இடம்:', 'settings.locNative': 'Documents/XCronCV', 'settings.locBrowser': 'உலாவி பதிவிறக்கங்கள்',
+  'settings.about': 'பற்றி', 'settings.version': 'XCron CV {version}',
+
+  'login.lead': 'உங்கள் ரெஸ்யூம்களை உருவாக்கவும் நிர்வகிக்கவும் உங்கள் X Cron கணக்கில் உள்நுழையவும். ரெஸ்யூம் கோப்புகள் உங்கள் சாதனத்திலேயே இருக்கும்.',
+  'login.tokenTitle': 'டோக்கனுடன் உள்நுழையவும்',
+  'login.tokenLead': 'X Cron வழங்கிய அணுகல் டோக்கனை ஒட்டவும். டோக்கன்கள் இந்த உலாவி அமர்வுக்கு மட்டுமே வைக்கப்படும்.',
+  'handoff.signingIn': 'X Cron இலிருந்து உங்களை உள்நுழைக்கிறது…', 'handoff.failed': 'X Cron இலிருந்து உள்நுழைய முடியவில்லை. திரும்பிச் சென்று மீண்டும் Build Resume தட்டவும்.', 'handoff.back': 'X Cron க்குத் திரும்பு',
+  'login.tokenLabel': 'அணுகல் டோக்கன்', 'login.signIn': 'உள்நுழை', 'login.invalid': 'அந்த டோக்கன் செல்லாதது அல்லது காலாவதியானது.',
+  'login.devTitle': 'டெவலப்பர் உள்நுழைவு', 'login.localOnly': 'உள்ளூர் மட்டும்',
+  'login.devLead': 'API இன் AUTH_DEV_SECRET மூலம் உள்ளூர் HS256 டோக்கனை உருவாக்குகிறது. இந்தப் பகுதி தயாரிப்பு உருவாக்கங்களில் நீக்கப்படும்.',
+  'login.subject': 'பொருள்', 'login.tenant': 'குத்தகைதாரர்', 'login.devSecret': 'டெவ் ரகசியம்', 'login.devSignIn': 'டெவலப்பராக உள்நுழை',
+
+  'dash.title': 'முகப்பு', 'dash.welcome': 'வரவேற்கிறோம்', 'dash.welcomeName': 'வரவேற்கிறோம், {name}',
+  'dash.lead': 'உங்கள் ரெஸ்யூம் பணியிடம் ஒரே பார்வையில்.', 'dash.newResume': 'புதிய ரெஸ்யூம்',
+  'dash.startTitle': 'உங்கள் தொழில் சுயவிவரத்துடன் தொடங்குங்கள்',
+  'dash.startLead': 'உங்கள் அனுபவம், திறன்கள், கல்வியை ஒருமுறை சேர்க்கவும். ஒவ்வொரு ரெஸ்யூமும் அதை மீண்டும் பயன்படுத்தும்.',
+  'dash.createProfile': 'தொழில் சுயவிவரத்தை உருவாக்கு', 'dash.summary': 'சுருக்கம்',
+  'dash.resumes': 'ரெஸ்யூம்கள்', 'dash.templates': 'வார்ப்புருக்கள்', 'dash.profile': 'சுயவிவரம்', 'dash.ready': 'தயார்', 'dash.notSetup': 'அமைக்கப்படவில்லை',
+  'dash.savedFiles': 'சேமித்த கோப்புகள்', 'dash.storageNative': 'இந்தச் சாதனத்தில் Documents/XCronCV', 'dash.storageBrowser': 'உங்கள் உலாவி பதிவிறக்கக் கோப்புறை',
+  'dash.recent': 'சமீபத்திய ரெஸ்யூம்கள்', 'dash.viewAll': 'அனைத்தையும் காண்க', 'dash.none': 'இன்னும் ரெஸ்யூம்கள் இல்லை.',
+
+  'dash.noRole': 'இலக்கு பணி இல்லை', 'dash.edited': '{date} அன்று திருத்தப்பட்டது', 'dash.continue': 'தொடர்க', 'dash.continueAria': '{name} ஐத் தொடர்ந்து திருத்து',
+
+  // Guided onboarding tour (shared/tour)
+  'tour.progress': 'படி {n} / {total}', 'tour.clickHint': 'தொடர ஒளிரும் பொத்தானைத் தட்டவும் அல்லது கிளிக் செய்யவும்.',
+  'tour.missing': 'இந்தப் பகுதி தற்போதைய திரையில் இல்லை. தொடர "அடுத்து" அழுத்தவும்.',
+  'tour.skip': 'சுற்றுப்பயணத்தைத் தவிர்', 'tour.back': 'பின்', 'tour.next': 'அடுத்து', 'tour.done': 'முடிந்தது', 'tour.replay': 'சுற்றுப்பயணத்தை மீண்டும் காண்க',
+  'settings.help': 'உதவி', 'settings.helpBody': 'ரெஸ்யூம் உருவாக்கி ஏற்றுமதி செய்வதற்கான சிறு வழிகாட்டி சுற்றுப்பயணத்தை மீண்டும் காணுங்கள்.',
+  'tour.profile.title': 'உங்கள் சுயவிவர விவரங்களைச் சேர்க்கவும்', 'tour.profile.body': 'உங்கள் தொழில் சுயவிவரத்துடன் தொடங்குங்கள். ஒவ்வொரு ரெஸ்யூமும் அதிலிருந்தே உருவாகிறது.',
+  'tour.template.title': 'டெம்ப்ளேட்டைத் தேர்ந்தெடுக்கவும்', 'tour.template.body': 'ஒரு அமைப்பைத் தேர்வுசெய்க. உள்ளடக்கத்தை இழக்காமல் பின்னர் மாற்றலாம்.',
+  'tour.panel.title': 'பிரிவுகள், வடிவமைப்பு, பதிப்புகள்', 'tour.panel.body': 'இந்தப் பலகத்தில் பிரிவுகளைக் காட்ட/மறைக்க/மறுவரிசைப்படுத்த, எழுத்துரு, நிறம், இடைவெளியை மாற்ற, சேமித்த பதிப்புகளை நிர்வகிக்கலாம்.',
+  'tour.canvas.title': 'கேன்வாஸ் எடிட்டர்', 'tour.canvas.body': 'பக்கத்திலேயே நேரடியாகத் திருத்தி, ஏற்றுமதியில் வருவதை அப்படியே பாருங்கள்.',
+  'tour.export.title': 'ரெஸ்யூமை ஏற்றுமதி செய்யுங்கள்', 'tour.export.body': 'திருப்தியானதும் PDF அல்லது பிற வடிவத்தைப் பதிவிறக்கவும்.',
+  ...FLOW_TA,
+  ...VE_TA,
+};

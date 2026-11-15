@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Save Job</title></head>
+<body style="font:14px system-ui;width:340px;margin:12px">
+  <h1 style="font-size:16px">Save this job</h1>
+  <p id="status">Click Capture to read the visible text of this page. Nothing is sent yet.</p>
+  <button id="capture">Capture this page</button>
+  <form id="review" hidden>
+    <label>Title <input name="title" required maxlength="200"></label><br>
+    <label>Company <input name="company" required maxlength="200"></label><br>
+    <label>Description <textarea name="description" rows="8" required></textarea></label><br>
+    <label><input type="checkbox" name="reviewed" required> I reviewed this and want to save it.</label><br>
+    <button type="submit">Send to XCron CV</button>
+  </form>
+  <script src="src/popup.js"></script>
+</body></html>

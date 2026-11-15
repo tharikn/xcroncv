@@ -1,0 +1,1307 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BulletKind {
+  RESPONSIBILITY
+  ACHIEVEMENT
+}
+
+enum ResumeStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+// Resume-owned identity. Key is (issuer, subject); email is never the key.
+model User {
+  id        String   @id @default(uuid())
+  issuer    String
+  subject   String
+  tenantId  String
+  createdAt DateTime @default(now())
+  lastSeen  DateTime @default(now())
+  profile   CareerProfile?
+
+  @@unique([issuer, subject])
+  @@index([tenantId])
+}
+
+model CareerProfile {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  tenantId     String
+  fullName     String
+  email        String?
+  phone        String?
+  location     String?
+  links        Json     @default("[]")
+  headline     String?
+  summary      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  experiences    Experience[]
+  skills         Skill[]
+  educations     Education[]
+  projects       Project[]
+  certifications Certification[]
+  languages      Language[]
+  resumes        Resume[]
+
+  @@index([tenantId])
+}
+
+model Experience {
+  id             String  @id @default(uuid())
+  profileId      String
+  employerName   String
+  jobTitle       String
+  employmentType String?
+  location       String?
+  startDate      String
+  endDate        String?
+  isCurrent      Boolean @default(false)
+  description    String?
+  displayOrder   Int     @default(0)
+
+  profile CareerProfile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  bullets ExperienceBullet[]
+
+  @@index([profileId])
+}
+
+model ExperienceBullet {
+  id               String     @id @default(uuid())
+  experienceId     String
+  kind             BulletKind @default(RESPONSIBILITY)
+  content          String
+  isUserConfirmed  Boolean    @default(true)
+  displayOrder     Int        @default(0)
+
+  experience Experience @relation(fields: [experienceId], references: [id], onDelete: Cascade)
+
+  @@index([experienceId])
+}
+
+model Skill {
+  id              String  @id @default(uuid())
+  profileId       String
+  name            String
+  category        String?
+  proficiency     String?
+  yearsUsed       Int?
+  isUserConfirmed Boolean @default(true)
+  displayOrder    Int     @default(0)
+
+  profile CareerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model Education {
+  id           String  @id @default(uuid())
+  profileId    String
+  institution  String
+  degree       String
+  field        String?
+  startDate    String?
+  endDate      String?
+  grade        String?
+  displayOrder Int     @default(0)
+
+  profile CareerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model Project {
+  id           String  @id @default(uuid())
+  profileId    String
+  name         String
+  url          String?
+  description  String?
+  technologies String[]
+  displayOrder Int     @default(0)
+
+  profile CareerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model Certification {
+  id           String  @id @default(uuid())
+  profileId    String
+  name         String
+  issuer       String?
+  issuedDate   String?
+  expiryDate   String?
+  displayOrder Int     @default(0)
+
+  profile CareerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model Language {
+  id           String  @id @default(uuid())
+  profileId    String
+  name         String
+  proficiency  String?
+  displayOrder Int     @default(0)
+
+  profile CareerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model Resume {
+  id              String       @id @default(uuid())
+  profileId       String
+  tenantId        String
+  name            String
+  targetRole      String?
+  templateId      String
+  templateVersion Int
+  status          ResumeStatus @default(DRAFT)
+  // [{ type: 'summary'|'experience'|..., visible: boolean }] in display order
+  sections        Json
+  // validated, allowlisted design overrides (accent colour, font size, page size)
+  overrides       Json         @default("{}")
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  profile  CareerProfile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  versions ResumeVersion[]
+
+  @@index([profileId])
+  @@index([tenantId])
+}
+
+model ResumeVersion {
+  id                 String   @id @default(uuid())
+  resumeId           String
+  versionNumber      Int
+  // Structured render model only. Never PDF/DOCX/HTML bytes.
+  structuredSnapshot Json
+  changeSummary      String?
+  createdAt          DateTime @default(now())
+
+  resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  @@unique([resumeId, versionNumber])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Cover Letter Intelligence (doc 42). Structured content only, never document bytes.
+// ---------------------------------------------------------------------------
+model CoverLetter {
+  id               String   @id @default(uuid())
+  tenantId         String
+  userId           String
+  title            String
+  company          String?
+  jobTitle         String?
+  kind             String   @default("standard") // concise | standard | career-change | referral
+  tone             String   @default("professional")
+  length           String   @default("medium")
+  templateVersion  Int      @default(1)
+  resumeId         String?
+  resumeVersionId  String?
+  currentVersion   Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  versions CoverLetterVersion[]
+  bindings CoverLetterApplicationBinding[]
+
+  @@index([tenantId, userId])
+}
+
+model CoverLetterVersion {
+  id            String   @id @default(uuid())
+  coverLetterId String
+  versionNumber Int
+  // [{ id, heading, text, origin: 'GENERATED'|'USER' }]
+  sections      Json
+  // [{ sectionId, text, kind, status: 'SUPPORTED'|'USER_AUTHORED'|'UNSUPPORTED', evidence?: string }]
+  claims        Json     @default("[]")
+  changeSummary String?
+  createdAt     DateTime @default(now())
+
+  coverLetter CoverLetter @relation(fields: [coverLetterId], references: [id], onDelete: Cascade)
+
+  @@unique([coverLetterId, versionNumber])
+}
+
+model CoverLetterApplicationBinding {
+  id              String   @id @default(uuid())
+  tenantId        String
+  userId          String
+  coverLetterId   String
+  versionNumber   Int
+  resumeVersionId String?
+  applicationRef  String   // opaque host reference; grants no access to host records
+  createdAt       DateTime @default(now())
+
+  coverLetter CoverLetter @relation(fields: [coverLetterId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, applicationRef, coverLetterId])
+  @@index([tenantId, userId])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Application CRM and Contact Network (doc 46)
+// ---------------------------------------------------------------------------
+model CareerContact {
+  id            String   @id @default(uuid())
+  tenantId      String
+  userId        String
+  name          String
+  nameKey       String   // normalised name+organisation, used for deduplication
+  organization  String?
+  role          String?
+  relationship  String   @default("OTHER") // RECRUITER | REFERRER | HIRING_MANAGER | PEER | MENTOR | OTHER
+  channels      Json     @default("[]")    // [{ type: 'email'|'phone'|'linkedin'|'other', value }]
+  tags          String[]
+  notesEnc      String?  // AES-256-GCM, never returned in logs or webhooks
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  links      ContactLink[]
+  activities JobActivity[]
+  tasks      FollowUpTask[]
+
+  @@unique([userId, nameKey])
+  @@index([tenantId, userId])
+}
+
+model ContactLink {
+  id         String   @id @default(uuid())
+  contactId  String
+  kind       String   // JOB | APPLICATION
+  externalRef String  // opaque host id
+  label      String?
+  createdAt  DateTime @default(now())
+
+  contact CareerContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, kind, externalRef])
+}
+
+model JobActivity {
+  id          String   @id @default(uuid())
+  tenantId    String
+  userId      String
+  contactId   String?
+  type        String   // OUTREACH | REFERRAL_REQUEST | RECRUITER_CALL | INTERVIEW_FOLLOW_UP | THANK_YOU | MEETING | NOTE
+  occurredAt  DateTime
+  summary     String
+  externalRef String?
+  createdAt   DateTime @default(now())
+
+  contact CareerContact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, occurredAt])
+}
+
+model FollowUpTask {
+  id          String    @id @default(uuid())
+  tenantId    String
+  userId      String
+  contactId   String?
+  title       String
+  dueAt       DateTime
+  status      String    @default("OPEN") // OPEN | DONE | CANCELLED
+  externalRef String?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  contact CareerContact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, status, dueAt])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Job Search Analytics (doc 48). Minimal events: no resume text, contacts, prompts or JD text.
+// ---------------------------------------------------------------------------
+model JobSearchEvent {
+  id              String   @id @default(uuid())
+  tenantId        String
+  userId          String
+  type            String   // SAVED | APPLIED | RESPONSE | INTERVIEW | OFFER | REJECTED | WITHDRAWN
+  occurredAt      DateTime
+  source          String   @default("MANUAL") // MANUAL | HOST
+  applicationRef  String
+  roleFamily      String?
+  geography       String?
+  seniority       String?
+  sourceName      String?
+  resumeVersionId String?
+  idempotencyKey  String?
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, idempotencyKey])
+  @@index([tenantId, userId, occurredAt])
+  @@index([userId, applicationRef])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Career Portfolio Website (doc 41). Snapshots hold only allowlisted, user-selected facts.
+// The public share token is stored as a SHA-256 hash; the raw token is returned once at publish time.
+// ---------------------------------------------------------------------------
+model Portfolio {
+  id               String   @id @default(uuid())
+  tenantId         String
+  userId           String
+  name             String
+  roleFamily       String?
+  status           String   @default("DRAFT") // DRAFT | PUBLISHED | REVOKED
+  currentVersion   Int      @default(1)
+  publishedVersion Int?
+  publishedAt      DateTime?
+  revokedAt        DateTime?
+  // share policy
+  tokenHash        String?  @unique
+  expiresAt        DateTime?
+  noIndex          Boolean  @default(true)
+  passwordHash        String?   // salted scrypt; never returned
+  passwordFailCount   Int       @default(0)
+  passwordLockedUntil DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  versions PortfolioVersion[]
+  events   PortfolioEvent[]
+
+  @@index([tenantId, userId, updatedAt])
+}
+
+model PortfolioVersion {
+  id            String   @id @default(uuid())
+  portfolioId   String
+  versionNumber Int
+  selection     Json     // the user's field-level visibility choices
+  snapshot      Json     // immutable allowlisted projection (never the full profile)
+  theme         String   @default("light")
+  changeSummary String?
+  createdAt     DateTime @default(now())
+
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, versionNumber])
+}
+
+model PortfolioEvent {
+  id            String   @id @default(uuid())
+  portfolioId   String
+  type          String   // CREATED | VERSIONED | PUBLISHED | REVOKED | POLICY_CHANGED | VIEWED
+  versionNumber Int?
+  createdAt     DateTime @default(now())
+
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId, type, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Application Autofill Assistant (doc 47). Sessions store consent (field KEYS only), never values or secrets.
+// ---------------------------------------------------------------------------
+model AutofillSession {
+  id               String    @id @default(uuid())
+  tenantId         String
+  userId           String
+  adapterId        String
+  targetHost       String?   // hostname only, no path or query
+  status           String    @default("ACTIVE") // ACTIVE | AUTHORIZED | REVOKED
+  consentedKeys    Json      @default("[]")
+  sensitiveConsent Boolean   @default(false)
+  expiresAt        DateTime
+  authorizedAt     DateTime?
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+
+  events AutofillAuditEvent[]
+
+  @@index([tenantId, userId, createdAt])
+}
+
+model AutofillAuditEvent {
+  id        String   @id @default(uuid())
+  sessionId String
+  type      String   // STARTED | AUTHORIZED | REVOKED
+  fieldKeys Json     @default("[]")
+  createdAt DateTime @default(now())
+
+  session AutofillSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Credential and Evidence Wallet (doc 49). Metadata and references only; no document binaries.
+// ---------------------------------------------------------------------------
+model CredentialRecord {
+  id               String    @id @default(uuid())
+  tenantId         String
+  userId           String
+  kind             String    @default("CERTIFICATION") // CERTIFICATION | LICENSE | DEGREE | BADGE | PUBLICATION | OTHER
+  name             String
+  issuer           String
+  issuedOn         String?   // YYYY-MM or YYYY-MM-DD
+  expiresOn        String?
+  credentialIdEnc  String?   // AES-256-GCM; never returned in full
+  credentialIdLast4 String?
+  verificationUrl  String?
+  status           String    @default("SELF_REPORTED") // SELF_REPORTED | DOCUMENT_REVIEWED | ISSUER_VERIFIED | REVOKED | UNABLE_TO_VERIFY (EXPIRED is derived)
+  statusSource     String    @default("USER")
+  statusAt         DateTime  @default(now())
+  recheckAfter     DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  evidence      EvidenceReference[]
+  verifications CredentialVerification[]
+  grants        CredentialDisclosureGrant[]
+
+  @@index([tenantId, userId, updatedAt])
+}
+
+model EvidenceReference {
+  id              String   @id @default(uuid())
+  credentialId    String
+  kind            String   // LINK | PROFILE_ITEM | LOCAL_NOTE
+  label           String
+  url             String?
+  profileItemType String?  // EXPERIENCE | PROJECT | SKILL | EDUCATION | CERTIFICATION
+  profileItemId   String?
+  createdAt       DateTime @default(now())
+
+  credential CredentialRecord @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+
+  @@index([credentialId])
+}
+
+model CredentialVerification {
+  id           String    @id @default(uuid())
+  credentialId String
+  status       String
+  source       String    // USER | PROVIDER:<name>
+  note         String?
+  checkedAt    DateTime  @default(now())
+  recheckAfter DateTime?
+
+  credential CredentialRecord @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+
+  @@index([credentialId, checkedAt])
+}
+
+model CredentialDisclosureGrant {
+  id             String    @id @default(uuid())
+  tenantId       String
+  userId         String
+  credentialId   String
+  purpose        String    // RESUME | PORTFOLIO | RECRUITER_SHARE
+  recipientLabel String?
+  fields         Json      // allowlisted projection fields
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  credential CredentialRecord @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, credentialId])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Resume Match Score + JD intelligence (docs 23, 29). Structured data only.
+// ---------------------------------------------------------------------------
+model JobDescription {
+  id                 String   @id @default(uuid())
+  tenantId           String
+  userId             String
+  title              String
+  company            String?
+  location           String?
+  sourceType         String   // PASTE | URL
+  sourceDomain       String?
+  canonicalUrl       String?  // origin + path only (query/fragment stripped)
+  // Raw text is stored ONLY when the user opts in (retainRawText). Default: normalized requirements only.
+  rawText            String?
+  contentHash        String
+  // [{ id, type, label, normalized?, sourceText, confidence, included, origin, minYears? }]
+  requirements       Json
+  extractionVersion  String
+  revision           Int      @default(1)
+  confirmationStatus String   @default("UNCONFIRMED") // UNCONFIRMED | CONFIRMED
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  reports ResumeMatchReport[]
+
+  @@index([tenantId, userId])
+}
+
+model ResumeMatchReport {
+  id                  String   @id @default(uuid())
+  tenantId            String
+  userId              String
+  resumeId            String   // plain reference (no FK): reports are metadata and are filtered by owner
+  resumeVersionId     String?  // null = working draft at calculation time
+  resumeVersionNumber Int?
+  resumeContentHash   String
+  jobDescriptionId    String
+  jdRevision          Int
+  scoringVersion      String
+  totalScore          Int
+  dimensionScores     Json
+  coverage            Json
+  // [{ requirementId, status, method, confidence, evidence: [{ section, itemIndex, ... excerpt }], explanation, action }]
+  evidence            Json
+  summary             Json
+  createdAt           DateTime @default(now())
+
+  jobDescription JobDescription @relation(fields: [jobDescriptionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, resumeId])
+  @@index([jobDescriptionId])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Resume Quality and Export Readiness (docs 20, 31). Separate from match and parsing scores.
+// ---------------------------------------------------------------------------
+model QualityReview {
+  id                  String   @id @default(uuid())
+  tenantId            String
+  userId              String
+  resumeId            String   // plain reference (no FK)
+  resumeVersionId     String?
+  resumeVersionNumber Int?
+  resumeContentHash   String
+  scoringVersion      String
+  score               Int
+  readiness           String   // ready | review_recommended | needs_attention
+  dimensionScores     Json
+  coverage            Json
+  findings            Json     // evidence-linked findings (ids and short excerpts, no document bytes)
+  createdAt           DateTime @default(now())
+
+  @@index([tenantId, userId, resumeId])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Application Resume Vault (doc 33). Metadata + immutable version reference only; no document bytes.
+// ---------------------------------------------------------------------------
+model ApplicationResumeEntry {
+  id                  String   @id @default(uuid())
+  tenantId            String
+  userId              String
+  employerLabel       String
+  jobTitle            String?
+  externalJobId       String?
+  appliedOn           String   // YYYY-MM-DD
+  resumeId            String   // plain reference (no FK): the history must survive resume edits
+  resumeVersionId     String   // immutable saved version
+  resumeVersionNumber Int
+  resumeContentHash   String
+  coverLetterVersionRef String?
+  stage               String   @default("APPLIED") // candidate-recorded; the portal stays the source of truth
+  notes               String?
+  followUpOn          String?
+  followUpDone        Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([tenantId, userId, appliedOn])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Career Readiness and Skill Gap Guidance (doc 34). Evidence levels, no opaque score.
+// ---------------------------------------------------------------------------
+model ReadinessPlan {
+  id             String   @id @default(uuid())
+  tenantId       String
+  userId         String
+  targetRole     String
+  targetSkills   Json     // [{ name, importance }]
+  analysis       Json     // [{ skill, importance, level, sources[], transferableFrom[] }]
+  milestones     Json     // [{ id, title, skill?, status, note?, origin }]
+  analysisVersion String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([tenantId, userId, updatedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Resume-Grounded Interview Preparation (doc 35). Private, deletable, text-first.
+// ---------------------------------------------------------------------------
+model InterviewPrepSession {
+  id              String   @id @default(uuid())
+  tenantId        String
+  userId          String
+  title           String
+  resumeId        String
+  resumeVersionId String?
+  roleTitle       String?
+  company         String?
+  questions       Json     // [{ id, category, grounding, text, evidence?, answer?, feedback?, practiced }]
+  generator       String   @default("deterministic-1")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tenantId, userId, updatedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Consent-Based Recruiter Feedback and Sharing (doc 36). Owner-side consent records; no public route.
+// ---------------------------------------------------------------------------
+model FeedbackShare {
+  id              String    @id @default(uuid())
+  tenantId        String
+  userId          String
+  resumeId        String
+  resumeVersionId String
+  versionNumber   Int
+  recipientLabel  String
+  purpose         String    @default("FEEDBACK")
+  permissions     Json      // { sections: string[], contacts: { email, phone, location }: 'visible'|'hidden' }
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  feedback FeedbackEntry[]
+
+  @@index([tenantId, userId, createdAt])
+}
+
+model FeedbackEntry {
+  id         String    @id @default(uuid())
+  shareId    String
+  tenantId   String
+  userId     String
+  clarity    Int?
+  relevance  Int?
+  evidence   Int?
+  presentation Int?
+  comment    String?
+  status     String    @default("NEW") // NEW | ACCEPTED | DECLINED
+  decisionNote String?
+  appliedVersionNumber Int?
+  decidedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  share FeedbackShare @relation(fields: [shareId], references: [id], onDelete: Cascade)
+
+  @@index([shareId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Module: AI gateway and governance (docs 06, 38). Metadata only: prompts and resume text are never stored.
+// ---------------------------------------------------------------------------
+model AiSetting {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String
+  enabled   Boolean  @default(false) // AI assistance is opt-in per user
+  consentAt DateTime?
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, userId])
+}
+
+model AiUsageEvent {
+  id            String   @id @default(uuid())
+  tenantId      String
+  userId        String
+  feature       String   // task id, e.g. REWRITE_BULLET
+  provider      String
+  model         String
+  promptVersion String
+  inputTokens   Int      @default(0)
+  outputTokens  Int      @default(0)
+  costMicros    Int      @default(0) // millionths of a currency unit
+  latencyMs     Int      @default(0)
+  status        String   // OK | INVALID_OUTPUT | TIMEOUT | UNAVAILABLE | ERROR
+  createdAt     DateTime @default(now())
+
+  @@index([tenantId, userId, createdAt])
+}
+
+model AiSuggestion {
+  id            String   @id @default(uuid())
+  tenantId      String
+  userId        String
+  feature       String
+  provider      String
+  promptVersion String
+  schemaVersion Int      @default(1)
+  inputPreview  String   // short redacted excerpt for the review UI only
+  output        Json     // validated structured output (never applied automatically)
+  provenance    Json     // checks that ran: redacted, injectionFlagged, unsupportedNumbers
+  status        String   @default("PENDING") // PENDING | ACCEPTED | REJECTED
+  decidedAt     DateTime?
+  createdAt     DateTime @default(now())
+
+  @@index([tenantId, userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Integration webhooks (doc 37). Payloads are minimal; secrets are encrypted at rest.
+// ---------------------------------------------------------------------------
+model WebhookEndpoint {
+  id            String   @id @default(uuid())
+  tenantId      String
+  userId        String
+  url           String
+  description   String?
+  events        Json     // string[] of subscribed event types
+  secretEnc     String   // AES-256-GCM; the secret is shown once at creation/rotation
+  secretHint    String   // last 4 characters only
+  active        Boolean  @default(true)
+  secretVersion Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  deliveries WebhookDelivery[]
+
+  @@index([tenantId, userId])
+}
+
+model WebhookDelivery {
+  id           String   @id @default(uuid())
+  endpointId   String
+  tenantId     String
+  userId       String
+  eventId      String
+  eventType    String
+  payload      Json     // minimal envelope, no resume content
+  status       String   // PENDING | SUCCESS | FAILED
+  attempts     Int      @default(0)
+  responseCode Int?
+  error        String?
+  nextAttemptAt DateTime?
+  createdAt    DateTime @default(now())
+  deliveredAt  DateTime?
+
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, createdAt])
+  @@index([endpointId])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Resume Parsing Test and Multi-Parser Lab (docs 21, 30). Report METADATA only:
+// never document bytes, file names/paths or full extracted text. Plain resumeId reference (no FK), filtered by owner.
+// ---------------------------------------------------------------------------
+model ParsingTestReport {
+  id             String   @id @default(uuid())
+  tenantId       String
+  userId         String
+  resumeId       String?
+  source         String   // GENERATED | UPLOAD
+  format         String   // pdf | docx
+  suiteVersion   String
+  parserProfiles Json     // ["pdf-geometric-v1", ...]
+  score          Int?     // only when a known source was compared
+  report         Json     // indicators, adapter summaries, findings (capped snippets only for GENERATED)
+  createdAt      DateTime @default(now())
+
+  @@index([tenantId, userId, createdAt])
+  @@index([tenantId, userId, resumeId])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Career path and compensation intelligence (doc 44). Analyses are computed on demand; only the user's plan is stored.
+// ---------------------------------------------------------------------------
+model CareerPlan {
+  id              String   @id @default(uuid())
+  tenantId        String
+  userId          String
+  title           String
+  targetRoleId    String   // role id in the versioned taxonomy
+  taxonomyVersion String
+  basis           Json     // snapshot of why the role was suggested (supporting profile fact labels and ids)
+  status          String   @default("ACTIVE") // ACTIVE | PAUSED | DONE
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  milestones CareerMilestone[]
+
+  @@index([tenantId, userId])
+}
+
+model CareerMilestone {
+  id         String    @id @default(uuid())
+  planId     String
+  title      String
+  targetDate String?   // YYYY-MM-DD
+  status     String    @default("NOT_STARTED") // NOT_STARTED | IN_PROGRESS | DONE
+  notes      String?
+  position   Int       @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  plan CareerPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Job clipper (doc 45). Only user-reviewed, minimal job snapshots are stored; nothing is fetched from the clipped site.
+// ---------------------------------------------------------------------------
+model ClippedJob {
+  id             String   @id @default(uuid())
+  tenantId       String
+  userId         String
+  title          String
+  company        String
+  url            String?
+  hostname       String?
+  description    String   // sanitised plain text, capped
+  source         String   // MANUAL | EXTENSION
+  status         String   @default("NEW") // NEW | REVIEWED | ARCHIVED
+  contentHash    String
+  idempotencyKey String?
+  sessionId      String?  // extension session that captured it, if any
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([tenantId, userId, idempotencyKey])
+  @@index([tenantId, userId, createdAt])
+  @@index([tenantId, userId, contentHash])
+}
+
+model ExtensionSession {
+  id        String    @id @default(uuid())
+  tenantId  String
+  userId    String
+  label     String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([tenantId, userId])
+}
+
+model CaptureAuditEvent {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String
+  action    String   // CLIPPED | UPDATED | DELETED | SESSION_CREATED | SESSION_REVOKED | ANALYZED
+  clipId    String?
+  sessionId String?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Job portal and application intelligence integration (doc 32). The host portal owns jobs and application lifecycle;
+// these rows are the user's own references and decisions, keyed by opaque host ids.
+// ---------------------------------------------------------------------------
+model PortalJobContext {
+  id           String   @id @default(uuid())
+  tenantId     String
+  userId       String
+  hostId       String   // e.g. "xcron-jobs": opaque, grants no authorization
+  externalId   String   // opaque id in the host portal
+  title        String
+  company      String
+  location     String?
+  applyUrl     String?
+  description  String
+  requirements Json     // string[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([tenantId, userId, hostId, externalId])
+  @@index([tenantId, userId])
+}
+
+model TailoringProposal {
+  id           String   @id @default(uuid())
+  tenantId     String
+  userId       String
+  jobContextId String
+  resumeId     String
+  items        Json     // evidence-mapped suggestions; they reference existing confirmed items and carry no generated text
+  decisions    Json     @default("{}") // itemId -> ACCEPT | REJECT
+  createdAt    DateTime @default(now())
+
+  @@index([tenantId, userId, jobContextId])
+}
+
+model PortalApplication {
+  id            String   @id @default(uuid())
+  tenantId      String
+  userId        String
+  jobContextId  String
+  resumeId      String
+  versionNumber Int      // the exact immutable resume version used
+  proposalId    String?
+  hostStatus    String?  // mirrored by the user from the host; the host remains the source of truth
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([tenantId, userId, jobContextId, resumeId, versionNumber])
+  @@index([tenantId, userId])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Interview copilot (doc 51). Text practice only; answers are kept only when the user opts in. No audio, no scores of people.
+// ---------------------------------------------------------------------------
+model CopilotSession {
+  id            String   @id @default(uuid())
+  tenantId      String
+  userId        String
+  jobTitle      String
+  resumeId      String
+  versionNumber Int
+  terms         Json     // normalised job requirement terms only; the raw job description is not stored
+  questions     Json     // [{ id, text, why, kind }]
+  retainAnswers Boolean  @default(false)
+  status        String   @default("ACTIVE") // ACTIVE | DONE
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  answers CopilotAnswer[]
+
+  @@index([tenantId, userId, createdAt])
+}
+
+model CopilotAnswer {
+  id         String   @id @default(uuid())
+  sessionId  String
+  questionId String
+  text       String?  // null unless the user opted in to retention
+  wordCount  Int
+  feedback   Json     // per-dimension observations; never quotes the answer
+  createdAt  DateTime @default(now())
+
+  session CopilotSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Career document suite (doc 52). Structured content only; exports are streamed and discarded.
+// ---------------------------------------------------------------------------
+model CareerDocument {
+  id             String   @id @default(uuid())
+  tenantId       String
+  userId         String
+  type           String
+  title          String
+  currentVersion Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  versions CareerDocumentVersion[]
+
+  @@index([tenantId, userId])
+}
+
+model CareerDocumentVersion {
+  id            String   @id @default(uuid())
+  documentId    String
+  versionNumber Int
+  sections      Json     // [{ id, heading, text, origin: PROFILE | USER }]
+  claims        Json     // [{ sectionId, text, label, evidence }]
+  changeSummary String?
+  createdAt     DateTime @default(now())
+
+  document CareerDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, versionNumber])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Expert review (doc 50). Consent record, scope, feedback and a content-free audit trail.
+// No document bytes. The reviewer directory and packages are code-managed catalogues (no table). Payment is not configured.
+// ---------------------------------------------------------------------------
+model ExpertReviewRequest {
+  id              String    @id @default(uuid())
+  tenantId        String
+  userId          String
+  resumeId        String    // plain reference (no FK): the request is metadata and is filtered by owner
+  resumeVersionId String
+  versionNumber   Int
+  reviewerId      String    // catalogue id
+  reviewerLabel   String    // display name at request time
+  packageId       String
+  scope           Json      // { sections: string[], contacts: { email, phone, location }, links }
+  consentAt       DateTime
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  paymentStatus   String    @default("NOT_CONFIGURED")
+  paymentRef      String?   // opaque provider reference only; null while no provider is configured
+  createdAt       DateTime  @default(now())
+
+  feedback ExpertReviewFeedback[]
+  events   ExpertReviewEvent[]
+
+  @@index([tenantId, userId, createdAt])
+}
+
+model ExpertReviewFeedback {
+  id           String    @id @default(uuid())
+  requestId    String
+  tenantId     String
+  userId       String
+  section      String?   // section key from the granted scope, or null for overall
+  clarity      Int?
+  relevance    Int?
+  evidence     Int?
+  presentation Int?
+  comment      String?
+  status       String    @default("NEW") // NEW | ACCEPTED | DECLINED
+  decisionNote String?
+  decidedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  request ExpertReviewRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, createdAt])
+}
+
+model ExpertReviewEvent {
+  id        String   @id @default(uuid())
+  requestId String
+  tenantId  String
+  userId    String
+  kind      String   // REQUESTED | GRANTED | PREVIEWED | FEEDBACK_RECORDED | ACCEPTED | DECLINED | REVOKED. Never content.
+  ref       String?  // feedback id or section key
+  createdAt DateTime @default(now())
+
+  request ExpertReviewRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Career facts and achievement bank (doc 26). Canonical, reusable, user-confirmed facts with revision history.
+// Separate from resume content: resume edits never change these rows.
+// ---------------------------------------------------------------------------
+model CareerFact {
+  id          String    @id @default(uuid())
+  tenantId    String
+  userId      String
+  kind        String    // ACHIEVEMENT | PREFERENCE | CAREER_BREAK
+  origin      String    // USER_ENTERED | IMPORTED | AI_REWRITTEN (EXTERNALLY_VERIFIED is reserved for a trusted provider)
+  status      String    @default("DRAFT") // DRAFT | CONFIRMED | ARCHIVED
+  title       String
+  data        Json
+  source      String?   // where the fact came from, in the user's words
+  revision    Int       @default(1)
+  confirmedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  revisions CareerFactRevision[]
+
+  @@index([tenantId, userId, kind, status])
+}
+
+model CareerFactRevision {
+  id        String   @id @default(uuid())
+  factId    String
+  revision  Int
+  snapshot  Json     // { title, data, status, origin, source } after the change
+  note      String?
+  createdAt DateTime @default(now())
+
+  fact CareerFact @relation(fields: [factId], references: [id], onDelete: Cascade)
+
+  @@unique([factId, revision])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Resume truth verification and evidence provenance (doc 27).
+// Plain resumeId/factId references (no FK), always filtered by owner.
+// ---------------------------------------------------------------------------
+model ProvenanceLink {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String
+  resumeId  String
+  claimKey  String   // stable hash of section + item + claim text
+  claimText String
+  factId    String   // CareerFact id the user says supports the claim
+  createdAt DateTime @default(now())
+
+  @@unique([resumeId, claimKey, factId])
+  @@index([tenantId, userId, resumeId])
+}
+
+model RewriteProposal {
+  id           String    @id @default(uuid())
+  tenantId     String
+  userId       String
+  resumeId     String?
+  origin       String    // AI_REWRITTEN | USER_EDIT
+  original     String
+  proposed     String
+  diff         Json      // [{ op: keep|add|remove, text }]
+  unsupported  Json      // [{ type, text, reason }]
+  verdict      String    // unchanged | safe | needs-approval
+  status       String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  acknowledged Json?
+  decidedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([tenantId, userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Multi-resume variants and immutable version management (doc 28).
+// ResumeVersion rows (structured render-model snapshots) are append-only: no code path updates or deletes them
+// except cascade-delete with their resume. Meta records the integrity hash and the exact inputs.
+// ---------------------------------------------------------------------------
+model ResumeVariant {
+  id             String   @id @default(uuid())
+  tenantId       String
+  userId         String
+  resumeId       String   @unique
+  kind           String   // MASTER | ROLE | JOB
+  parentResumeId String?
+  company        String?
+  jobTitle       String?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([tenantId, userId])
+}
+
+model ResumeVersionMeta {
+  id               String    @id @default(uuid())
+  tenantId         String
+  userId           String
+  versionId        String    @unique
+  resumeId         String
+  contentHash      String    // sha256 of the structured snapshot at creation
+  templateId       String
+  templateVersion  Int
+  profileUpdatedAt DateTime? // source profile "version": its last update time when the snapshot was taken
+  label            String?
+  restoredFrom     Int?      // version number this one was restored from
+  createdAt        DateTime  @default(now())
+
+  @@index([resumeId])
+}
+
+// ---------------------------------------------------------------------------
+// Module: External profile and career data import (doc 43). Staged, unconfirmed fields only; raw source bytes are never stored.
+// Jobs expire after 7 days. Audit events hold counts, never content. Plain references (no FKs), filtered by tenant + owner.
+// ---------------------------------------------------------------------------
+model CareerImportJob {
+  id             String    @id @default(uuid())
+  tenantId       String
+  userId         String
+  status         String    // review_ready | confirmed
+  sourceKind     String    // pdf | docx | json | csv
+  sizeBytes      Int
+  parserVersion  String
+  idempotencyKey String?
+  warnings       Json      @default("[]")
+  fields         Json      // staged fields with provenance (source ref, confidence, parser version, status)
+  decisions      Json      @default("{}")
+  result         Json?
+  undo           Json?     // pre-merge profile snapshot so a confirmed merge can be reversed
+  expiresAt      DateTime
+  confirmedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([userId, idempotencyKey])
+  @@index([tenantId, userId, createdAt])
+  @@index([expiresAt])
+}
+
+model ImportAuditEvent {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String
+  jobId     String
+  action    String
+  detail    Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Module: Usage analytics (doc 16). Allowlisted metadata only: never resume text, contacts, JD text, prompts, paths or bytes.
+// ---------------------------------------------------------------------------
+model UsageEvent {
+  id              String   @id @default(uuid())
+  eventId         String   // client-generated; dedup key per user
+  name            String   // allowlisted event name
+  occurredAt      DateTime
+  tenantId        String
+  userId          String
+  sessionId       String?
+  platform        String   // WEB | ANDROID
+  appVersion      String?
+  templateId      String?
+  templateVersion Int?
+  resumeId        String?
+  exportFormat    String?
+  status          String?  // OK | FAILED
+  failureCategory String?
+  durationMs      Int?
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, eventId])
+  @@index([occurredAt])
+  @@index([name, occurredAt])
+}
+
+// ---------------------------------------------------------------------------
+// Module: ATS compatibility engine (doc 07). Own score + version; never blended with match, quality or parsing scores.
+// ---------------------------------------------------------------------------
+model AtsReport {
+  id                  String   @id @default(uuid())
+  tenantId            String
+  userId              String
+  resumeId            String   // plain reference (no FK)
+  resumeVersionId     String?
+  resumeVersionNumber Int?
+  resumeContentHash   String
+  jobDescriptionId    String   // plain reference (no FK); report keeps title/revision so it stays readable
+  jdRevision          Int
+  jdTitle             String
+  jdCompany           String?
+  jobConfirmed        Boolean  @default(false)
+  atsVersion          String
+  taxonomyVersion     String
+  score               Int
+  dimensions          Json
+  items               Json     // short located evidence excerpts only, no document bytes
+  coverage            Json
+  createdAt           DateTime @default(now())
+
+  @@index([tenantId, userId, resumeId])
+}
+
+// ---------------------------------------------------------------------------
+// Module: common app features. Per-user UI preferences (theme, interface language). No PII.
+// ---------------------------------------------------------------------------
+model UserPreference {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String
+  theme     String?  // null = never chosen on any device; clients then keep their local value
+  locale    String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, userId])
+}
