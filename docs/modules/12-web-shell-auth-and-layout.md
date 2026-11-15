@@ -7,7 +7,7 @@
 - Settings: API address (validated http(s) or `/path`), connection test, sign out, local-files explanation.
 
 ## Android (Capacitor)
-`apps/web/capacitor.config.ts` (`com.xcron.cv`, webDir `dist/web/browser`, dev cleartext). Platform in `apps/web/android`.
+`apps/web/capacitor.config.ts` (`com.xcron.cv`, webDir `dist/web/browser`, dev cleartext). Platform in `apps/android` (`android.path` in the config).
 Emulator API address: `http://10.0.2.2:3100/api/v1` (Settings). Add `http://localhost` to API `CORS_ORIGINS`.
 
 ## Code map

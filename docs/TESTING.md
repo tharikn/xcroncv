@@ -47,7 +47,7 @@ ATS engine (doc 07): Jest `ats-engine`; Playwright `ats-engine` (mock in `e2e/su
 - **Quality "error banner" test:** the "No reviews yet" marker rendered before history loaded, so the injected failure hit the history request and `run()` cleared it. The page now shows a loading state until history has loaded.
 
 ## Android APK build (verified)
-`npm run android:build -w apps/web` produced `apps/web/android/app/build/outputs/apk/debug/app-debug.apk` (about 7.4 MB, Gradle 8.2.1, AGP 8.2.1, compileSdk 34, first run about 4 minutes incl. downloads).
+`npm run android:build -w apps/web` produced `apps/android/app/build/outputs/apk/debug/app-debug.apk` (about 7.4 MB, Gradle 8.2.1, AGP 8.2.1, compileSdk 34, first run about 4 minutes incl. downloads).
 - **The one gotcha: `JAVA_HOME` must be JDK 17.** Gradle 8.2.1 cannot run on JDK 21, and the machine default `JAVA_HOME` was JDK 21. Use e.g. `JAVA_HOME="C:\Program Files\Microsoft\jdk-17.0.21.21-hotspot"`.
 - Needs network on first run (Gradle distribution, Android platform 34 and build-tools via the SDK licences already accepted).
 - Not verified: installing/running the APK on an emulator or device (none available in this session); the Playwright `android` project only emulates a Pixel 7 in a browser.

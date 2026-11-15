@@ -27,7 +27,8 @@ An independent, authenticated resume platform (no guest access). Users keep one 
 | Path | Purpose |
 |---|---|
 | `apps/api` | NestJS API, Prisma schema, Jest tests |
-| `apps/web` | Angular + Ionic app (web, mobile web, Capacitor Android in `apps/web/android`) |
+| `apps/web` | Angular + Ionic app (web and mobile web; also the Capacitor web source) |
+| `apps/android` | Capacitor Android project that wraps the `apps/web` build |
 | `apps/web/e2e` | Playwright suites (mock API, 4 device profiles) |
 | `packages/sdk` | Generated SDK (planned, from `/api/docs-json`) |
 | `scripts` | `dev-token.mjs` for local tokens |
