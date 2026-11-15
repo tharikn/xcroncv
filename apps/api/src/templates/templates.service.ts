@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { TEMPLATE_CATALOG } from './template.catalog';
+import { SEED_META, TEMPLATE_CATALOG } from './template.catalog';
+import { buildRenderModel } from '../render-model/render-model.builder';
+import { SAMPLE_PROFILE } from './sample-profile';
 import { TemplateVersionPackage } from './template.types';
 
 @Injectable()
@@ -13,8 +15,12 @@ export class TemplatesService {
     return [...latest.values()]
       .filter((t) => (!filter.category || t.category === filter.category)
         && (!filter.atsProfile || t.atsProfile === filter.atsProfile))
-      .map(({ id, slug, name, category, description, tags, version, atsProfile, pageSizes }) =>
-        ({ id, slug, name, category, description, tags, version, atsProfile, pageSizes }));
+      .map((t) => ({
+        id: t.id, slug: t.slug, name: t.name, category: t.category, description: t.description, tags: t.tags,
+        version: t.version, atsProfile: t.atsProfile, pageSizes: t.pageSizes, layout: t.layout, theme: t.theme,
+        careerLevels: t.careerLevels ?? SEED_META[t.id]?.careerLevels ?? [],
+        style: t.style ?? SEED_META[t.id]?.style ?? 'classic',
+      }));
   }
 
   getVersion(id: string, version: number): TemplateVersionPackage {
@@ -27,5 +33,10 @@ export class TemplatesService {
     const all = TEMPLATE_CATALOG.filter((x) => x.id === id).sort((a, b) => b.version - a.version);
     if (!all.length) throw new NotFoundException('Template not found');
     return all[0];
+  }
+
+  /** Render model of the latest template filled with the fictional sample profile (same builder as real resumes). */
+  sample(id: string) {
+    return buildRenderModel(SAMPLE_PROFILE, this.getLatest(id), undefined, {});
   }
 }

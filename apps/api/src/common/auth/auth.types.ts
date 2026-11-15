@@ -3,4 +3,5 @@ export interface AuthUser {
   tenantId: string;
   issuer: string;
   subject: string;
+  roles?: string[]; // from the verified token "roles" claim; never from request input
 }

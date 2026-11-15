@@ -5,7 +5,7 @@ services:
       POSTGRES_USER: xcroncv
       POSTGRES_PASSWORD: xcroncv
       POSTGRES_DB: xcroncv
-    ports: ["5433:5432"]
+    ports: ["5434:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
 volumes:
   pgdata:

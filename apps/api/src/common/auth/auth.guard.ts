@@ -35,7 +35,8 @@ export class AuthGuard implements CanActivate {
         create: { issuer, subject, tenantId },
         update: { lastSeen: new Date(), tenantId },
       });
-      req.user = { userId: user.id, tenantId: user.tenantId, issuer, subject };
+      const roles = Array.isArray(claims['roles']) ? (claims['roles'] as unknown[]).filter((r): r is string => typeof r === 'string') : [];
+      req.user = { userId: user.id, tenantId: user.tenantId, issuer, subject, roles };
       return true;
     } catch {
       throw new UnauthorizedException(); // no detail leakage

@@ -1,4 +1,5 @@
 import { SectionType, TemplateVersionPackage } from '../templates/template.types';
+import { sanitizeDoc, ResumeDoc } from './resume-doc';
 import { RenderItem, RenderModel, RenderSection } from './render-model.types';
 
 /** Minimal structural input so the builder stays pure and unit-testable (Prisma payloads satisfy it). */
@@ -21,7 +22,7 @@ export interface ProfileInput {
 }
 
 export interface SectionConfig { type: SectionType; visible: boolean }
-export interface Overrides { accent?: string; baseSizePt?: number; pageSize?: 'A4' | 'LETTER' }
+export interface Overrides { accent?: string; baseSizePt?: number; pageSize?: 'A4' | 'LETTER'; doc?: ResumeDoc }
 
 export const SECTION_TITLES: Record<SectionType, string> = {
   summary: 'Summary', experience: 'Experience', skills: 'Skills', education: 'Education',
@@ -39,6 +40,8 @@ const range = (a?: string | null, b?: string | null, current = false) => {
   return [from, to].filter(Boolean).join(' – ');
 };
 
+const MARGIN = { compact: 42, normal: 54, relaxed: 60 } as const;
+
 export function defaultSections(t: TemplateVersionPackage): SectionConfig[] {
   return t.sectionOrder.map((type) => ({ type, visible: true }));
 }
@@ -50,7 +53,19 @@ export function sanitizeOverrides(o: unknown): Overrides {
   if (typeof src.accent === 'string' && /^#[0-9a-fA-F]{6}$/.test(src.accent)) out.accent = src.accent;
   if (typeof src.baseSizePt === 'number' && src.baseSizePt >= 9 && src.baseSizePt <= 12) out.baseSizePt = src.baseSizePt;
   if (src.pageSize === 'A4' || src.pageSize === 'LETTER') out.pageSize = src.pageSize;
+  const doc = sanitizeDoc(src.doc); if (doc) out.doc = doc;
   return out;
+}
+
+/**
+ * Overrides to persist on a write. Allowlisted. The visual-editor doc is PRESERVED when the incoming overrides do not mention it
+ * (so the classic editor saving accent / font size / page size never wipes visual edits); doc: null explicitly resets to the profile.
+ */
+export function mergeOverridesOnWrite(incoming: unknown, current: unknown): Overrides {
+  const next = sanitizeOverrides(incoming);
+  const mentioned = !!incoming && typeof incoming === 'object' && 'doc' in (incoming as Record<string, unknown>);
+  if (!mentioned) { const keep = sanitizeOverrides(current).doc; if (keep) next.doc = keep; }
+  return next;
 }
 
 const safeLinks = (raw: unknown) =>
@@ -113,10 +128,12 @@ export function buildRenderModel(
     }
   };
 
-  return {
+  const model: RenderModel = {
     schemaVersion: 1,
     template: { id: template.id, version: template.version },
-    page: { size: ov.pageSize ?? template.pageSizes[0], marginPt: 54 },
+    page: { size: ov.pageSize ?? template.pageSizes[0], marginPt: MARGIN[template.theme.density ?? 'normal'] },
+    layout: template.layout,
+    sideSections: template.layout === 'two-column' ? (template.sideSections ?? []) : [],
     theme: { ...template.theme, accent: ov.accent ?? template.theme.accent, baseSizePt: ov.baseSizePt ?? template.theme.baseSizePt },
     header: {
       name: profile.fullName, headline: profile.headline ?? undefined,
@@ -124,5 +141,16 @@ export function buildRenderModel(
       links: safeLinks(profile.links),
     },
     sections: cfg.filter((s) => s.visible).map((s) => build(s.type)).filter((s): s is RenderSection => !!s),
+  };
+  return ov.doc ? applyDoc(model, ov.doc) : model;
+}
+
+/** Visual-editor layer: the saved document replaces the profile-derived header text and sections (links stay from the profile). */
+export function applyDoc(model: RenderModel, doc: ResumeDoc): RenderModel {
+  return {
+    ...model,
+    header: { ...model.header, name: doc.header.name, headline: doc.header.headline || undefined, contacts: doc.header.contacts, photo: doc.header.photo },
+    sections: doc.sections.filter((s) => !s.hidden).map(({ hidden: _hidden, ...s }) => s as RenderSection),
+    styles: doc.styles,
   };
 }

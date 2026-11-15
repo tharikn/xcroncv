@@ -1,14 +1,12 @@
-import { TemplateVersionPackage } from './template.types';
+import { GENERATED_TEMPLATES } from './template.families';
+import { CareerLevel, TemplateStyle, TemplateVersionPackage } from './template.types';
 
 const ORDER_STD = ['summary', 'experience', 'skills', 'education', 'projects', 'certifications', 'languages'] as const;
 const ORDER_TECH = ['summary', 'skills', 'experience', 'projects', 'education', 'certifications', 'languages'] as const;
 const ORDER_GRAD = ['summary', 'education', 'projects', 'skills', 'experience', 'certifications', 'languages'] as const;
 
-/**
- * Seed catalogue (3 of the 60 planned in doc 19). Add new packages here (or move to
- * a generated JSON catalogue) - published versions are immutable; ship a new `version` instead of editing.
- */
-export const TEMPLATE_CATALOG: TemplateVersionPackage[] = [
+/** The 3 hand-written seed packages (v1, immutable). The other 97 are generated in template.families.ts. */
+const SEED_TEMPLATES: TemplateVersionPackage[] = [
   {
     id: 'ats-classic', slug: 'ats-classic', name: 'Classic Chronological', category: 'ATS classic',
     description: 'Conventional single-column chronological layout for maximum parser compatibility.',
@@ -34,3 +32,12 @@ export const TEMPLATE_CATALOG: TemplateVersionPackage[] = [
     theme: { fontFamily: 'Helvetica', baseSizePt: 10.5, accent: '#2f6f4f', headingTransform: 'none', headerAlign: 'left', sectionRule: false },
   },
 ];
+
+/** Display metadata for the seed packages, which predate careerLevels/style (not render-relevant, so no new version). */
+export const SEED_META: Record<string, { careerLevels: CareerLevel[]; style: TemplateStyle }> = {
+  'ats-classic': { careerLevels: ['entry', 'mid', 'senior'], style: 'classic' },
+  'tech-compact': { careerLevels: ['entry', 'mid', 'senior'], style: 'modern' },
+  'graduate-clean': { careerLevels: ['student', 'entry'], style: 'minimal' },
+};
+
+export const TEMPLATE_CATALOG: TemplateVersionPackage[] = [...SEED_TEMPLATES, ...GENERATED_TEMPLATES];

@@ -1,0 +1,74 @@
+/** English source catalog. Keys are the contract; ta.ts and hi.ts must define every key (enforced by i18n.spec.ts). Use {name} for parameters. */
+import { FLOW_EN } from './flow-messages';
+import { VE_EN } from './editor-messages';
+
+export const EN = {
+  'nav.primary': 'Primary',
+  'nav.homeAria': 'XCron CV home',
+  'nav.home': 'Home', 'nav.resumes': 'Resumes', 'nav.files': 'Files', 'nav.templates': 'Templates', 'nav.insights': 'Insights',
+  'nav.careerTools': 'Career tools', 'nav.profile': 'Profile', 'nav.settings': 'Settings',
+
+  'common.loading': 'Loading…', 'common.dismiss': 'Dismiss', 'common.cancel': 'Cancel', 'common.delete': 'Delete',
+  'common.offline': 'You are offline. Changes that need the server will fail until you reconnect.',
+  'common.working': 'Working…',
+  'common.sessionExpired': 'Your session expired. Sign in again to continue.',
+  'common.language': 'Language',
+
+  'err.network': 'Cannot reach the server. Check the API address in Settings and your connection.',
+  'err.unauthorized': 'Your session is no longer valid. Sign in again.',
+  'err.forbidden': 'You do not have access to this.',
+  'err.rateLimited': 'Too many requests. Wait a moment and try again.',
+  'err.server': 'The server had a problem. Try again shortly.',
+  'err.generic': 'Something went wrong',
+
+  'settings.title': 'Settings',
+  'settings.account': 'Account', 'settings.signedInAs': 'Signed in as', 'settings.unknown': 'Unknown', 'settings.signOut': 'Sign out',
+  'settings.appearance': 'Appearance',
+  'settings.languageHint': 'Choose the app language. Your choice is saved on this device and on your account.',
+  'settings.theme': 'Theme', 'settings.themeHint': 'System follows your device light or dark setting.',
+  'theme.system': 'System', 'theme.light': 'Light', 'theme.dark': 'Dark',
+  'settings.server': 'Server', 'settings.apiAddress': 'API address',
+  'settings.apiHint': 'Android emulator: use http://10.0.2.2:3100/api/v1. Leave empty for the default.',
+  'settings.apiSave': 'Save address', 'settings.apiTest': 'Test connection', 'settings.apiSaved': 'API address saved',
+  'settings.apiInvalid': 'Enter a valid http(s) URL or a path starting with /',
+  'settings.apiTesting': 'Testing…', 'settings.apiConnected': 'Connected. {n} templates available.',
+  'settings.apiFailed': 'Could not connect. Check the address and that the API is running.',
+  'settings.files': 'Local files',
+  'settings.filesBody': 'Resume PDFs and HTML files are generated on demand and saved only on this device. The server never keeps them.',
+  'settings.saveLocation': 'Save location:', 'settings.locNative': 'Documents/XCronCV', 'settings.locBrowser': 'Browser downloads',
+  'settings.about': 'About', 'settings.version': 'XCron CV {version}',
+
+  'login.lead': 'Sign in with your X Cron account to build and manage your resumes. Resume files stay on your device.',
+  'login.tokenTitle': 'Sign in with a token',
+  'login.tokenLead': 'Paste the access token issued by X Cron. Tokens are kept for this browser session only.',
+  'login.tokenLabel': 'Access token', 'login.signIn': 'Sign in', 'login.invalid': 'That token is invalid or expired.',
+  'login.devTitle': 'Developer sign-in', 'login.localOnly': 'local only',
+  'login.devLead': 'Signs a local HS256 token using the API AUTH_DEV_SECRET. This panel is removed from production builds.',
+  'login.subject': 'Subject', 'login.tenant': 'Tenant', 'login.devSecret': 'Dev secret', 'login.devSignIn': 'Sign in as developer',
+
+  'dash.title': 'Home', 'dash.welcome': 'Welcome', 'dash.welcomeName': 'Welcome, {name}',
+  'dash.lead': 'Your resume workspace at a glance.', 'dash.newResume': 'New resume',
+  'dash.startTitle': 'Start with your career profile',
+  'dash.startLead': 'Add your experience, skills and education once. Every resume reuses it.',
+  'dash.createProfile': 'Create career profile', 'dash.summary': 'Summary',
+  'dash.resumes': 'Resumes', 'dash.templates': 'Templates', 'dash.profile': 'Profile', 'dash.ready': 'Ready', 'dash.notSetup': 'Not set up',
+  'dash.savedFiles': 'Saved files', 'dash.storageNative': 'Documents/XCronCV on this device', 'dash.storageBrowser': 'Your browser downloads folder',
+  'dash.recent': 'Recent resumes', 'dash.viewAll': 'View all', 'dash.none': 'No resumes yet.',
+  'dash.noRole': 'No target role', 'dash.edited': 'edited {date}', 'dash.continue': 'Continue', 'dash.continueAria': 'Continue editing {name}',
+
+  // Guided onboarding tour (shared/tour)
+  'tour.progress': 'Step {n} of {total}', 'tour.clickHint': 'Tap or click the highlighted button to continue.',
+  'tour.missing': 'This part is not on the current screen. Press Next to carry on.',
+  'tour.skip': 'Skip tour', 'tour.back': 'Back', 'tour.next': 'Next', 'tour.done': 'Done', 'tour.replay': 'Replay tour',
+  'settings.help': 'Help', 'settings.helpBody': 'Take the quick guided tour of building and exporting a resume again.',
+  'tour.profile.title': 'Add your profile details', 'tour.profile.body': 'Start with your career profile. Every resume is built from it.',
+  'tour.template.title': 'Choose a template', 'tour.template.body': 'Pick a layout. You can switch templates later without losing content.',
+  'tour.panel.title': 'Sections, design and versions', 'tour.panel.body': 'Use this panel to show, hide and reorder sections, adjust fonts, colors and spacing, and manage saved versions.',
+  'tour.canvas.title': 'Canvas editor', 'tour.canvas.body': 'Edit directly on the page and see exactly what will be exported.',
+  'tour.export.title': 'Export your resume', 'tour.export.body': 'Download a PDF or other format when you are happy with it.',
+  ...FLOW_EN,
+  ...VE_EN,
+} as const;
+
+export type MessageKey = keyof typeof EN;
+export type Catalog = Record<MessageKey, string>;

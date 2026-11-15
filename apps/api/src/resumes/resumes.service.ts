@@ -1,16 +1,17 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { DomainEvents } from '../common/domain-events';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthUser } from '../common/auth/auth.types';
 import { TemplatesService } from '../templates/templates.service';
 import { profileInclude } from '../career-profile/career-profile.service';
-import { buildRenderModel, defaultSections, SectionConfig } from '../render-model/render-model.builder';
+import { buildRenderModel, defaultSections, mergeOverridesOnWrite, SectionConfig } from '../render-model/render-model.builder';
 import { RenderModel } from '../render-model/render-model.types';
 import { CreateResumeDto, CreateVersionDto, UpdateResumeDto } from './dto/resume.dto';
 
 @Injectable()
 export class ResumesService {
-  constructor(private prisma: PrismaService, private templates: TemplatesService) {}
+  constructor(private prisma: PrismaService, private templates: TemplatesService, @Optional() private events?: DomainEvents) {}
 
   /** Ownership check is part of every query: resume must belong to the caller's profile AND tenant. */
   private async owned(user: AuthUser, id: string) {
@@ -27,13 +28,15 @@ export class ResumesService {
     const tpl = dto.templateVersion
       ? this.templates.getVersion(dto.templateId, dto.templateVersion)
       : this.templates.getLatest(dto.templateId);
-    return this.prisma.resume.create({
+    const created = await this.prisma.resume.create({
       data: {
         profileId: profile.id, tenantId: user.tenantId, name: dto.name, targetRole: dto.targetRole,
         templateId: tpl.id, templateVersion: tpl.version,
         sections: defaultSections(tpl) as unknown as Prisma.InputJsonValue,
       },
     });
+    this.events?.emit(user, 'resume.created', { resumeId: created.id });
+    return created;
   }
 
   list(user: AuthUser, page = 1, pageSize = 20) {
@@ -55,14 +58,16 @@ export class ResumesService {
         : this.templates.getLatest(dto.templateId ?? cur.templateId);
       templateId = tpl.id; templateVersion = tpl.version; // changing template never touches content
     }
-    return this.prisma.resume.update({
+    const updated = await this.prisma.resume.update({
       where: { id },
       data: {
         name: dto.name, targetRole: dto.targetRole, status: dto.status, templateId, templateVersion,
         sections: dto.sections as unknown as Prisma.InputJsonValue | undefined,
-        overrides: dto.overrides as unknown as Prisma.InputJsonValue | undefined,
+        overrides: dto.overrides ? (mergeOverridesOnWrite(dto.overrides, cur.overrides) as unknown as Prisma.InputJsonValue) : undefined, // allowlist on write; keeps the visual-editor doc unless explicitly reset
       },
     });
+    this.events?.emit(user, 'resume.updated', { resumeId: id });
+    return updated;
   }
 
   async remove(user: AuthUser, id: string) {

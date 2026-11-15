@@ -1,11 +1,14 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });
+  app.useBodyParser('json', { limit: '4mb' }); // resume drafts may carry a few small cropped images (doc 16)
+  app.useBodyParser('urlencoded', { extended: true, limit: '1mb' });
   app.use(helmet());
   app.setGlobalPrefix('api/v1');
   app.enableCors({

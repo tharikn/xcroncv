@@ -4,3 +4,15 @@ dist/
 *.log
 coverage/
 .DS_Store
+
+playwright-report/
+test-results/
+apps/web/android/local.properties
+apps/web/android/.gradle/
+apps/web/android/app/build/
+apps/web/android/build/
+
+# one-off local patch scripts
+apps/web/e52.cjs
+apps/web/eq.cjs
+.e2e-full*.log

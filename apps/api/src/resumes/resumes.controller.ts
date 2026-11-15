@@ -1,5 +1,6 @@
+import { DomainEvents } from '../common/domain-events';
 import {
-  Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, Res,
+  Body, Controller, Delete, Get, HttpCode, Optional, Param, ParseUUIDPipe, Patch, Post, Query, Res,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { CurrentUser } from '../common/auth/current-user.decorator';
@@ -12,7 +13,7 @@ import { ResumesService } from './resumes.service';
 
 @Controller('resumes')
 export class ResumesController {
-  constructor(private svc: ResumesService) {}
+  constructor(private svc: ResumesService, @Optional() private events?: DomainEvents) {}
 
   @Post() create(@CurrentUser() u: AuthUser, @Body() dto: CreateResumeDto) { return this.svc.create(u, dto); }
   @Get() list(@CurrentUser() u: AuthUser, @Query('page') page?: string, @Query('pageSize') ps?: string) {
@@ -41,6 +42,7 @@ export class ResumesController {
   @Post(':id/export/html')
   async exportHtml(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {
     const { model, name } = await this.svc.renderModel(u, id);
+    this.events?.emit(u, 'resume.exported', { resumeId: id, format: 'html' });
     this.headers(res, 'text/html; charset=utf-8', safeFilename(name, 'html'));
     res.send(renderHtml(model));
   }
@@ -48,6 +50,7 @@ export class ResumesController {
   @Post(':id/export/pdf')
   async exportPdf(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {
     const { model, name } = await this.svc.renderModel(u, id);
+    this.events?.emit(u, 'resume.exported', { resumeId: id, format: 'pdf' });
     this.headers(res, 'application/pdf', safeFilename(name, 'pdf'));
     renderPdf(model, res);
   }

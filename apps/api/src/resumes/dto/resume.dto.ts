@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import {
-  ArrayMaxSize, IsArray, IsBoolean, IsEnum, IsHexColor, IsInt, IsNumber, IsOptional,
+  ArrayMaxSize, IsArray, IsBoolean, IsObject, IsEnum, IsHexColor, IsInt, IsNumber, IsOptional,
   IsString, Max, MaxLength, Min, MinLength, ValidateNested,
 } from 'class-validator';
 
@@ -15,6 +15,8 @@ export class OverridesDto {
   @IsOptional() @IsHexColor() accent?: string;
   @IsOptional() @IsNumber() @Min(9) @Max(12) baseSizePt?: number;
   @IsOptional() @IsEnum(['A4', 'LETTER']) pageSize?: 'A4' | 'LETTER';
+  /** Visual-editor document; deep-validated by sanitizeDoc (strict allowlist) on write and on render. */
+  @IsOptional() @IsObject() doc?: Record<string, unknown> | null; // null = reset to career-profile content
 }
 
 export class CreateResumeDto {
