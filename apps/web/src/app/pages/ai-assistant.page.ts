@@ -23,7 +23,7 @@ const TASKS: Array<{ id: AiTask; label: string; help: string; placeholder: strin
       <div class="page-shell">
         <div class="page-head"><div><h1>AI assistant</h1><p>Optional help with wording. You review everything; nothing is saved to your profile until you apply it yourself.</p></div></div>
         @if (error()) { <div class="banner err" role="alert" data-testid="ai-error">{{ error() }}</div> }
-        @if (loading()) { <p class="muted" role="status">Loading…</p> }
+        @if (loading()) { <div class="sk-stack" role="status" aria-busy="true"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
 
         @if (status(); as s) {
           <section class="card" aria-labelledby="ai-set-h" data-testid="ai-settings">

@@ -56,7 +56,7 @@ const RATING_LABEL = { strong: 'Strong', ok: 'Fine', improve: 'Improve' } as con
             </section>
           }
 
-          @if (loading()) { <p class="muted" role="status" data-testid="ip-loading">Loading…</p> }
+          @if (loading()) { <div class="sk-stack" role="status" aria-busy="true" data-testid="ip-loading"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
           @else if (sessions().length === 0) {
             <div class="empty" data-testid="ip-empty"><h2>No practice sessions yet</h2><p class="muted">Pick a resume and we will turn its real content into practice questions.</p></div>
           } @else {

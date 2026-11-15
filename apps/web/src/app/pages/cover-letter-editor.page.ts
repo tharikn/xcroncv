@@ -22,7 +22,7 @@ const STATUS_LABEL: Record<string, string> = { SUPPORTED: 'Backed by your profil
       <div class="page-shell">
         <a class="btn ghost sm" routerLink="/cover-letters" style="align-self:flex-start"><ion-icon name="arrow-back-outline" aria-hidden="true"></ion-icon> All cover letters</a>
         @if (error()) { <div class="banner err" role="alert" data-testid="editor-error">{{ error() }}</div> }
-        @if (loading()) { <p class="muted">Loading…</p> }
+        @if (loading()) { <div class="sk-stack" role="status" aria-busy="true"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
         @if (!loading() && letter(); as l) {
           <div class="page-head">
             <div><h1 class="wrap" data-testid="letter-heading">{{ l.title }}</h1>

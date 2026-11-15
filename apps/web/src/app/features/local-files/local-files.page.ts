@@ -48,7 +48,7 @@ import { errorMessage, NotifyService } from '../../core/notify.service';
         @if (error()) { <div class="banner err" role="alert" data-testid="files-error">{{ error() }}</div> }
 
         @if (store.mode() !== 'download') {
-          @if (loading()) { <p class="muted">Loading…</p> }
+          @if (loading()) { <div class="sk-stack" role="status" aria-busy="true"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
           @else if (store.mode() === 'folder' && store.permission() !== 'granted') {
             <div class="empty" data-testid="files-locked"><h2>Folder access needed</h2><p class="muted">Choose a folder or allow access again to see your saved resumes.</p></div>
           } @else if (files().length === 0) {

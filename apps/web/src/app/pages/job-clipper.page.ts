@@ -66,7 +66,7 @@ const strip = (s: string) => s.replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ').r
           </section>
         }
 
-        @if (loading()) { <p class="muted" role="status">Loading…</p> }
+        @if (loading()) { <div class="sk-stack" role="status" aria-busy="true"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
         @else if (items().length === 0 && step() === 'list') { <div class="empty" data-testid="clips-empty"><h2>No saved jobs</h2><p class="muted">Add a job by pasting its text, or use the browser extension.</p></div> }
         <ul class="list" data-testid="clip-list">
           @for (c of items(); track c.id) {

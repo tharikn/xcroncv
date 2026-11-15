@@ -85,7 +85,7 @@ const pretty = (s: string) => s.toLowerCase().replace(/^./, (c) => c.toUpperCase
           </div>
         </section>
 
-        @if (loading()) { <p class="muted" role="status" data-testid="vault-loading">Loading…</p> }
+        @if (loading()) { <div class="sk-stack" role="status" aria-busy="true" data-testid="vault-loading"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
         @else if (items().length === 0) {
           <div class="empty" data-testid="vault-empty"><h2>{{ filtered() ? 'No matching applications' : 'No applications recorded yet' }}</h2>
             <p class="muted">{{ filtered() ? 'Try clearing the filters.' : 'When you apply, log which resume version you sent so you can see it later.' }}</p></div>

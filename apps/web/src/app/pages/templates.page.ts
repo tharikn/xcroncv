@@ -56,7 +56,7 @@ import { TemplatePreviewDialogComponent } from '../shared/template-preview-dialo
         <p class="muted small" role="status" data-testid="template-count">{{ filtered().length }} of {{ templates().length }} templates</p>
 
         @if (error()) { <div class="banner err" role="alert">{{ error() }}</div> }
-        @if (loading()) { <p class="muted">Loading…</p> }
+        @if (loading()) { <div class="sk-stack" role="status" aria-busy="true"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
         @else if (filtered().length === 0) {
           <div class="empty" data-testid="templates-empty"><h2>No templates match</h2><button class="btn ghost" (click)="reset()">Clear filters</button></div>
         } @else {

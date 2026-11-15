@@ -35,7 +35,7 @@ import { errorMessage } from '../core/notify.service';
         </div>
 
         @if (error()) { <div class="banner err" role="alert" data-testid="rv-error">{{ error() }}</div> }
-        @if (loading()) { <p class="muted" data-testid="rv-loading">Loading…</p> }
+        @if (loading()) { <div class="sk-stack" role="status" aria-busy="true" data-testid="rv-loading"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
         @if (view(); as v) {
           @if (v.anonymized) { <div class="banner warn rv-noprint" role="status" data-testid="rv-anon-banner">Contact details are hidden in this view. Review the result before you share or print it.</div> }
           @if (v.collapsedSummary.hiddenItems + v.collapsedSummary.hiddenBullets + v.collapsedSummary.hiddenTags > 0) {

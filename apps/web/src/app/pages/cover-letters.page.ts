@@ -63,7 +63,7 @@ import { errorMessage, NotifyService } from '../core/notify.service';
         }
 
         @if (error()) { <div class="banner err" role="alert">{{ error() }}</div> }
-        @if (loading()) { <p class="muted" data-testid="letters-loading">Loading…</p> }
+        @if (loading()) { <div class="sk-stack" role="status" aria-busy="true" data-testid="letters-loading"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
         @else if (letters().length === 0) {
           <div class="empty" data-testid="letters-empty"><h2>No cover letters yet</h2><p class="muted">Draft one for a specific job. You can edit everything by hand, with or without AI.</p></div>
         } @else {

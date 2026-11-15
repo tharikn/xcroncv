@@ -28,7 +28,7 @@ type SevFilter = 'all' | Severity;
         <div class="page-head"><div><h1>Quality and export check</h1><p>Rule-based review of your resume with the exact place of every finding. It is not a job match score or an employer ATS result.</p></div></div>
 
         @if (error()) { <div class="banner err" role="alert" data-testid="quality-error">{{ error() }}</div> }
-        @if (loading()) { <p class="muted" data-testid="quality-loading">Loading…</p> }
+        @if (loading()) { <div class="sk-stack" role="status" aria-busy="true" data-testid="quality-loading"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
         @else if (resumes().length === 0) {
           <div class="empty" data-testid="quality-no-resumes"><h2>You need a resume first</h2><a class="btn" routerLink="/resumes">Go to resumes</a></div>
         } @else {

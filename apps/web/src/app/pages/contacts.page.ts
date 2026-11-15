@@ -91,7 +91,7 @@ const RELATIONSHIPS = ['RECRUITER', 'REFERRER', 'HIRING_MANAGER', 'PEER', 'MENTO
           <div class="field"><label for="csearch" class="sr-only">Search contacts</label>
             <input id="csearch" type="search" data-testid="contact-search" placeholder="Search by name or organization" [ngModel]="q()" (ngModelChange)="search($event)" /></div>
 
-          @if (loading()) { <p class="muted">Loading…</p> }
+          @if (loading()) { <div class="sk-stack" role="status" aria-busy="true"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
           @else if (contacts().length === 0) {
             <div class="empty" data-testid="contacts-empty"><h2>{{ q() ? 'No matching contacts' : 'No contacts yet' }}</h2><p class="muted">Add recruiters, referrers and hiring managers you are talking to.</p></div>
           } @else {

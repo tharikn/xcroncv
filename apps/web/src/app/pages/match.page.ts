@@ -29,7 +29,7 @@ import { errorMessage, NotifyService } from '../core/notify.service';
         <div class="page-head"><div><h1>Match a resume to a job</h1><p>See which job requirements are backed by evidence in your resume. This is an alignment check, not a hiring prediction.</p></div></div>
 
         @if (error()) { <div class="banner err" role="alert" data-testid="match-error">{{ error() }}</div> }
-        @if (loading()) { <p class="muted" data-testid="match-loading">Loading…</p> }
+        @if (loading()) { <div class="sk-stack" role="status" aria-busy="true" data-testid="match-loading"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
         @else if (resumes().length === 0) {
           <div class="empty" data-testid="match-no-resumes"><h2>You need a resume first</h2><p class="muted">Create a resume, then match it to a job description.</p><a class="btn" routerLink="/resumes">Go to resumes</a></div>
         } @else {
@@ -138,7 +138,7 @@ import { errorMessage, NotifyService } from '../core/notify.service';
 
           <section class="card" aria-labelledby="m-history">
             <h2 id="m-history">Match history for this resume</h2>
-            @if (histLoading()) { <p class="muted" data-testid="history-loading">Loading…</p> }
+            @if (histLoading()) { <div class="sk-stack" role="status" aria-busy="true" data-testid="history-loading"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
             @else if (history().length === 0) { <p class="muted" data-testid="history-empty">No match reports yet for this resume.</p> }
             @else {
               @if (comparisons().length) {

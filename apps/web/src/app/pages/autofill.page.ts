@@ -43,7 +43,7 @@ import { AuthorizeResult, AutofillSession, FieldOption, ProfileToolsApi, SiteAda
 
           <section class="card" aria-labelledby="hist-h">
             <h2 id="hist-h">Recent sessions</h2>
-            @if (loading()) { <p class="muted" role="status">Loading…</p> }
+            @if (loading()) { <div class="sk-stack" role="status" aria-busy="true"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
             @else if (history().length === 0) { <p class="muted small" data-testid="sessions-empty">No sessions yet.</p> }
             <ul class="list" data-testid="session-list">
               @for (s of history(); track s.id) {

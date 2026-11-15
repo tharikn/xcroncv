@@ -22,7 +22,7 @@ type Filter = 'all' | MatchStatus;
       <div class="page-shell">
         <a class="btn ghost sm" routerLink="/match" style="align-self:flex-start"><ion-icon name="arrow-back-outline" aria-hidden="true"></ion-icon> All matches</a>
         @if (error()) { <div class="banner err" role="alert" data-testid="report-error">{{ error() }}</div> }
-        @if (loading()) { <p class="muted" data-testid="report-loading">Loading…</p> }
+        @if (loading()) { <div class="sk-stack" role="status" aria-busy="true" data-testid="report-loading"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
         @if (!loading() && report(); as r) {
           <section class="card hero" aria-labelledby="rep-h">
             <div class="score" [class]="'score ' + band()" role="img" [attr.aria-label]="'Match score ' + r.totalScore + ' out of 100'">

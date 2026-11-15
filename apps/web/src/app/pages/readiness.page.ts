@@ -56,7 +56,7 @@ const LEVELS: EvidenceLevel[] = ['DEMONSTRATED', 'PROJECT', 'CERTIFICATION', 'SE
             </section>
           }
 
-          @if (loading()) { <p class="muted" role="status" data-testid="rd-loading">Loading…</p> }
+          @if (loading()) { <div class="sk-stack" role="status" aria-busy="true" data-testid="rd-loading"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
           @else if (plans().length === 0) {
             <div class="empty" data-testid="rd-empty"><h2>No plans yet</h2><p class="muted">Pick a role you want, list its key skills, and see which ones your profile already evidences.</p></div>
           } @else {

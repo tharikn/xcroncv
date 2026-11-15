@@ -43,3 +43,4 @@ Tamil/Hindi strings are first-pass machine-assisted translations and should be r
 | Date | Change | Files | Tests |
 |---|---|---|---|
 | 2026-11-14 | Initial audit and port of theme, i18n, loading bar, offline banner, friendly errors, session expiry notice, Android back, boot splash, about, preferences API | see sections above | `core/i18n/i18n.spec.ts`, `core/common-features.spec.ts`, `api/test/preferences.spec.ts`, `e2e/common-features.spec.ts` |
+| 2026-11-15 | Loading redesign: page-level "Loading…" text replaced by layout skeletons (`.sk-stack`/`.sk`, sr-only text kept); boot splash fades out and never waits on HTTP; Android launch splash uses theme-matched solid color (light `#F7F5FC`, night `#070412`) instead of the image; top progress bar unchanged (no overlay/spinner). | `apps/web/src/styles.scss`, `app.component.ts`, ~34 `*.page.ts`, `android/.../values/{styles,colors}.xml`, `values-night/colors.xml` | `jest` (113 pass), `ng build` |

@@ -62,7 +62,7 @@ const DIMS: Array<['clarity' | 'relevance' | 'evidence' | 'presentation', string
             </section>
           }
 
-          @if (loading()) { <p class="muted" role="status" data-testid="fs-loading">Loading…</p> }
+          @if (loading()) { <div class="sk-stack" role="status" aria-busy="true" data-testid="fs-loading"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
           @else if (shares().length === 0) {
             <div class="empty" data-testid="fs-empty"><h2>Nothing shared</h2><p class="muted">You have not shared any resume version. That is the default.</p></div>
           } @else {

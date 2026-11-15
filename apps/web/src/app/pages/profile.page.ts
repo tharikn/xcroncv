@@ -28,7 +28,7 @@ type ListKey = 'links' | 'experiences' | 'skills' | 'educations' | 'projects' | 
         </div>
 
         @if (loadError()) { <div class="banner err" role="alert">{{ loadError() }}</div> }
-        @if (!loaded() && !loadError()) { <p class="muted">Loading…</p> }
+        @if (!loaded() && !loadError()) { <div class="sk-stack" role="status" aria-busy="true"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
 
         @if (loaded()) {
           <section class="card" aria-labelledby="basics-h">

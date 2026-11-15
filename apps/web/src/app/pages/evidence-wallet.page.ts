@@ -64,7 +64,7 @@ interface ProfileItem { type: string; id: string; label: string }
             </section>
           }
 
-          @if (loading()) { <p class="muted" role="status">Loading…</p> }
+          @if (loading()) { <div class="sk-stack" role="status" aria-busy="true"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
           @else if (items().length === 0) {
             <div class="empty" data-testid="wallet-empty"><h2>No credentials yet</h2><p class="muted">Add a certification, licence or degree. New entries start as self-reported.</p></div>
           } @else {

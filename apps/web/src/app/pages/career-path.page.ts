@@ -58,7 +58,7 @@ const STATUS_LABEL: Record<string, string> = { NOT_STARTED: 'Not started', IN_PR
 
         <section aria-labelledby="cp-pl-h">
           <h2 id="cp-pl-h">My plans</h2>
-          @if (loading()) { <p class="muted" role="status">Loading…</p> }
+          @if (loading()) { <div class="sk-stack" role="status" aria-busy="true"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
           @else if (plans().length === 0) { <div class="empty" data-testid="plans-empty"><p class="muted">No plans yet. Analyse your profile and save an option to start one.</p></div> }
           <ul class="list" data-testid="plan-list">
             @for (p of plans(); track p.id) {

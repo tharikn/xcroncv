@@ -20,7 +20,7 @@ import { errorMessage } from '../core/notify.service';
         <div class="page-head"><div><h1>Resume insights</h1><p>Check how a resume reads, how it fits a job, and how a recruiter may scan it. Each result is separate and explained.</p></div></div>
 
         @if (error()) { <div class="banner err" role="alert" data-testid="insights-error">{{ error() }}</div> }
-        @if (loading()) { <p class="muted" data-testid="insights-loading">Loading…</p> }
+        @if (loading()) { <div class="sk-stack" role="status" aria-busy="true" data-testid="insights-loading"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
         @else if (resumes().length === 0) {
           <div class="empty" data-testid="insights-empty"><h2>No resumes yet</h2><p class="muted">Create a resume first, then come back to review it.</p><a class="btn" routerLink="/resumes">Go to resumes</a></div>
         } @else {

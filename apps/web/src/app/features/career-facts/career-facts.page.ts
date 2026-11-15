@@ -105,7 +105,7 @@ const ORIGIN: Record<string, string> = { USER_ENTERED: 'Entered by you', IMPORTE
           @for (s of statuses; track s.v) { <button class="chip" [attr.aria-pressed]="status() === s.v" (click)="setStatus(s.v)" [attr.data-testid]="'filter-' + s.v">{{ s.l }}</button> }
         </div>
 
-        @if (loading()) { <p class="muted">Loading…</p> }
+        @if (loading()) { <div class="sk-stack" role="status" aria-busy="true"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
         @else if (!achievements().length) { <div class="empty" data-testid="facts-empty"><h2>Nothing here yet</h2><p class="muted">Write a quick draft above or add an achievement.</p></div> }
         @else {
           <ul class="list" data-testid="fact-list">

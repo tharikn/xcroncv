@@ -30,7 +30,7 @@ import { CareerProfile, ResumeSummary } from '../core/models';
         @if (error()) { <div class="banner err" role="alert">{{ error() }}</div> }
 
         @if (loading()) {
-          <p class="muted" data-testid="dash-loading">{{ 'common.loading' | t }}</p>
+          <div class="sk-stack" role="status" aria-busy="true" data-testid="dash-loading"><span class="sr-only">{{ 'common.loading' | t }}</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div>
         } @else {
           @if (!profile()) {
             <section class="empty" data-testid="dash-no-profile">

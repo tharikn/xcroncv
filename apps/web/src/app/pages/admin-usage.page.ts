@@ -21,7 +21,7 @@ import { UsageApi, UsageReport } from '../core/usage.api';
             </select></div>
         </section>
         @if (error()) { <div class="banner err" role="alert" data-testid="usage-error">{{ error() }}</div> }
-        @if (loading()) { <p class="muted" data-testid="usage-loading">Loading…</p> }
+        @if (loading()) { <div class="sk-stack" role="status" aria-busy="true" data-testid="usage-loading"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
         @else { @if (report(); as r) {
           <div class="grid" role="list" data-testid="usage-kpis">
             @for (k of kpis(); track k[0]) { <div class="card" role="listitem"><h2>{{ k[1] }}</h2><p class="big">{{ k[0] }}</p></div> }

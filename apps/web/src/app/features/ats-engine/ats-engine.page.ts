@@ -27,7 +27,7 @@ import { band, bandText, Dimension, HistoryRow, JobRow, ModelInfo, Report, sortI
 
         <section class="card" aria-labelledby="ats-src-h" data-testid="ats-source">
           <h2 id="ats-src-h">What do you want to check?</h2>
-          @if (loading()) { <p role="status">Loading…</p> }
+          @if (loading()) { <div class="sk-stack" role="status" aria-busy="true"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
           @else if (!resumes().length) { <p class="muted" data-testid="ats-no-resumes">You have no resumes yet. <a routerLink="/resumes">Create one</a> first.</p> }
           @else if (!jobs().length) {
             <p class="muted" data-testid="ats-no-jobs">You have no job postings yet. Add one on the <a routerLink="/match" data-testid="ats-add-job">Job match</a> page, review its requirements, then come back.</p>

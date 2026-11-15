@@ -39,7 +39,7 @@ const LABEL: Record<string, string> = { EMPHASISE_SKILL: 'Emphasise a skill', LE
           </section>
         }
 
-        @if (loading()) { <p class="muted" role="status">Loading…</p> }
+        @if (loading()) { <div class="sk-stack" role="status" aria-busy="true"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
         @else if (jobs().length === 0) { <div class="empty" data-testid="pj-empty"><h2>No portal jobs yet</h2><p class="muted">Add a job to get evidence-based tailoring suggestions.</p></div> }
         <ul class="list" data-testid="pjob-list">
           @for (j of jobs(); track j.id) {

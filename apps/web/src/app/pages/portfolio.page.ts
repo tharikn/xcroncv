@@ -43,7 +43,7 @@ type ProfileLike = Record<string, any>;
             <div><h1>Career portfolio</h1><p>Share a polished page with only the facts you choose. Private until you publish; revoke any time.</p></div>
             <button class="btn" data-testid="portfolio-new" (click)="startNew()" [disabled]="noProfile()"><ion-icon name="add-outline" aria-hidden="true"></ion-icon> New portfolio</button>
           </div>
-          @if (loading()) { <p class="muted" role="status">Loading…</p> }
+          @if (loading()) { <div class="sk-stack" role="status" aria-busy="true"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
           @else if (items().length === 0) {
             <div class="empty" data-testid="portfolios-empty"><h2>No portfolios yet</h2><p class="muted">Create one for a target role family. Nothing is shared until you publish it.</p></div>
           } @else {

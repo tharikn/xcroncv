@@ -56,7 +56,7 @@ export function urlProblem(raw: string): string | null {
           </section>
         }
 
-        @if (loading()) { <p class="muted" role="status">Loading…</p> }
+        @if (loading()) { <div class="sk-stack" role="status" aria-busy="true"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
         @else if (items().length === 0) { <div class="empty" data-testid="wh-empty"><h2>No endpoints yet</h2><p class="muted">Add an HTTPS endpoint to receive signed event notices.</p></div> }
         @else {
           <ul class="list" data-testid="wh-list">

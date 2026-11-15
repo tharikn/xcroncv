@@ -34,7 +34,7 @@ const INPUT_LABEL: Record<string, string> = {
             <div class="row"><button class="btn" data-testid="cd-create" (click)="create()" [disabled]="busy()">Create draft</button></div>
           </section>
 
-          @if (loading()) { <p class="muted" role="status">Loading…</p> }
+          @if (loading()) { <div class="sk-stack" role="status" aria-busy="true"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
           @else if (items().length === 0) { <div class="empty" data-testid="cd-empty"><h2>No documents yet</h2><p class="muted">Create a draft above. Fields we cannot fill from your profile show as [add ...] for you to complete.</p></div> }
           <ul class="list" data-testid="cd-list">
             @for (d of items(); track d.id) {

@@ -45,7 +45,7 @@ import { errorMessage, NotifyService } from '../core/notify.service';
         }
 
         @if (error()) { <div class="banner err" role="alert">{{ error() }}</div> }
-        @if (loading()) { <p class="muted">Loading…</p> }
+        @if (loading()) { <div class="sk-stack" role="status" aria-busy="true"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
         @else if (resumes().length === 0) {
           <div class="empty" data-testid="resumes-empty"><h2>No resumes yet</h2><p class="muted">Create your first resume to preview and export it.</p></div>
         } @else {

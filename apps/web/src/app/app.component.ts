@@ -42,7 +42,9 @@ export class AppComponent implements OnInit {
     this.theme.init();
     this.conn.start();
     this.back.start();
-    document.getElementById('boot-splash')?.remove();
+    // Boot splash covers only Angular start-up; it never waits on HTTP (pages show skeletons instead).
+    const splash = document.getElementById('boot-splash');
+    if (splash) { splash.classList.add('done'); setTimeout(() => splash.remove(), 250); }
     void this.prefs.hydrate();
   }
 

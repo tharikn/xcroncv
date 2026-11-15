@@ -40,7 +40,7 @@ import { errorMessage, NotifyService } from '../core/notify.service';
           </section>
 
           <section aria-labelledby="ic-hist-h"><h2 id="ic-hist-h">Past sessions</h2>
-            @if (loading()) { <p class="muted" role="status">Loading…</p> }
+            @if (loading()) { <div class="sk-stack" role="status" aria-busy="true"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
             @else if (items().length === 0) { <p class="muted" data-testid="ic-empty">No sessions yet.</p> }
             <ul class="list" data-testid="ic-list">
               @for (s of items(); track s.id) {
