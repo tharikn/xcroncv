@@ -40,12 +40,13 @@ import { ExpertReviewModule } from './expert-review/expert-review.module';
 import { AtsEngineModule } from './ats-engine/ats-engine.module';
 import { UsageAnalyticsModule } from './usage-analytics/usage-analytics.module';
 import { PreferencesModule } from './preferences/preferences.module';
+import { AuthExchangeModule } from './auth-exchange/auth-exchange.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
-    DomainEventsModule, PrismaModule, CareerProfileModule, TemplatesModule, ResumesModule,
+    AuthExchangeModule, DomainEventsModule, PrismaModule, CareerProfileModule, TemplatesModule, ResumesModule,
     ImportExportModule, // module 06: import + DOCX/XLSX export
     ...(featureEnabled('ats-engine') ? [AtsEngineModule] : []), // module 07: ATS compatibility engine (doc 07)
     ...(featureEnabled('parsing-test') ? [ParsingTestModule] : []), // module 07: parsing test + parser lab (docs 21, 30)

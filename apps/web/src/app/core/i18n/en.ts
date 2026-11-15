@@ -41,6 +41,7 @@ export const EN = {
   'login.lead': 'Sign in with your X Cron account to build and manage your resumes. Resume files stay on your device.',
   'login.tokenTitle': 'Sign in with a token',
   'login.tokenLead': 'Paste the access token issued by X Cron. Tokens are kept for this browser session only.',
+  'handoff.signingIn': 'Signing you in from X Cron…', 'handoff.failed': 'We could not sign you in from X Cron. Go back and tap Build Resume again.', 'handoff.back': 'Back to X Cron',
   'login.tokenLabel': 'Access token', 'login.signIn': 'Sign in', 'login.invalid': 'That token is invalid or expired.',
   'login.devTitle': 'Developer sign-in', 'login.localOnly': 'local only',
   'login.devLead': 'Signs a local HS256 token using the API AUTH_DEV_SECRET. This panel is removed from production builds.',

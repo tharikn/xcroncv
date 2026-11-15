@@ -3,6 +3,7 @@ import { authGuard } from './core/auth.guard';
 
 export const routes: Routes = [
   { path: 'login', loadComponent: () => import('./pages/login.page').then((m) => m.LoginPage), title: 'Sign in - XCron CV' },
+  { path: 'auth/callback', loadComponent: () => import('./pages/auth-callback.page').then((m) => m.AuthCallbackPage), title: 'Signing in - XCron CV' },
   // Doc 41: anonymous, token-addressed portfolio view. Deliberately no authGuard and outside the shell.
   { path: 'p/:token', loadComponent: () => import('./pages/public-portfolio.page').then((m) => m.PublicPortfolioPage), title: 'Portfolio' },
   {

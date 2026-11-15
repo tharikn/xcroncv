@@ -42,6 +42,7 @@ export const HI: Catalog = {
   'login.lead': 'अपने रिज़्यूमे बनाने और प्रबंधित करने के लिए अपने X Cron खाते से साइन इन करें। रिज़्यूमे फ़ाइलें आपके डिवाइस पर ही रहती हैं।',
   'login.tokenTitle': 'टोकन से साइन इन करें',
   'login.tokenLead': 'X Cron द्वारा जारी एक्सेस टोकन चिपकाएँ। टोकन केवल इस ब्राउज़र सत्र तक रखे जाते हैं।',
+  'handoff.signingIn': 'X Cron से आपको साइन इन किया जा रहा है…', 'handoff.failed': 'X Cron से साइन इन नहीं हो सका। वापस जाएँ और फिर से Build Resume दबाएँ।', 'handoff.back': 'X Cron पर वापस जाएँ',
   'login.tokenLabel': 'एक्सेस टोकन', 'login.signIn': 'साइन इन', 'login.invalid': 'वह टोकन अमान्य या समाप्त है।',
   'login.devTitle': 'डेवलपर साइन-इन', 'login.localOnly': 'केवल स्थानीय',
   'login.devLead': 'API के AUTH_DEV_SECRET से एक स्थानीय HS256 टोकन बनाता है। यह पैनल प्रोडक्शन बिल्ड से हटा दिया जाता है।',
