@@ -8,7 +8,8 @@
     "start:dev": "nest start --watch",
     "test": "jest",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:deploy": "node scripts/prisma-env.mjs migrate deploy",
+    "prisma:migrate": "node scripts/prisma-env.mjs migrate dev"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.0",

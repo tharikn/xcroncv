@@ -1,11 +1,7 @@
-services:
-  db:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: xcroncv
-      POSTGRES_PASSWORD: xcroncv
-      POSTGRES_DB: xcroncv
-    ports: ["5434:5432"]
-    volumes: [pgdata:/var/lib/postgresql/data]
-volumes:
-  pgdata:
+# xcroncv shares X Cron's Postgres (database `xcron`, host port 5433) in its own
+# `xcroncv` schema. Start it from the x-cron repo: `docker compose up -d postgres`.
+# One-time setup of the xcroncv role + schema: scripts/shared-db-setup.sql
+#   docker exec -i xcron-postgres psql -U xcron -d xcron < scripts/shared-db-setup.sql
+# Never run `prisma migrate reset` / `db push --force-reset` against this DB without
+# the `?schema=xcroncv` URL: it must only ever touch the xcroncv schema.
+services: {}

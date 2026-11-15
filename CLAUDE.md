@@ -10,3 +10,4 @@
 - Scores (ATS, match, quality, parsing) stay separate and versioned.
 - Change log: every change must add a row (date, change, files, tests) to the **Change log** of the owning `docs/modules/*.md`, and cross-module changes to `docs/CHANGELOG.md`. Update HLD/LLD/TESTING when architecture or test commands change. See `docs/CHANGELOG.md`.
 - i18n: no hardcoded UI strings in templates or toasts. Use `| t` keys in `core/i18n/en.ts` and add the same keys to `ta.ts` and `hi.ts` (a Jest test enforces parity). Theme via tokens in `styles.scss`, never hard-coded colors.
+- Env files: `apps/api/.env` (local), `apps/api/env-dev` (**live production only**: Render hosts, prod DB, prod CORS/JWKS/handoff; no localhost; gitignored) and `.env.example` (committed, no secrets). Any env key change must update all three together. DB is shared with X Cron: set `DATABASE_URL` without `?schema=` and `DB_SCHEMA=xcroncv`; never use `public` or the `xcron` schema.
