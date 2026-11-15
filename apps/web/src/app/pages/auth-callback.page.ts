@@ -1,6 +1,7 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { IonContent } from '@ionic/angular/standalone';
+import { environment } from '../../environments/environment';
 import { AuthService } from '../core/auth.service';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 import { SettingsService } from '../core/settings.service';
@@ -28,7 +29,7 @@ import { SettingsService } from '../core/settings.service';
 })
 export class AuthCallbackPage implements OnInit {
   failed = signal(false);
-  hostUrl = 'https://x-cron.in';
+  hostUrl = environment.hostUrl;
 
   constructor(
     private route: ActivatedRoute, private router: Router,
