@@ -228,9 +228,14 @@ ion-title { font-weight: 700; font-size: 1.05rem; padding-inline: 0; }
 /* ---------- Preview sheets ---------- */
 .preview-viewport { overflow: auto; background: #e8e9ec; flex: 1 1 auto; padding: var(--space-4); display: flex; justify-content: center; align-items: flex-start; }
 .sheet-wrap { transform-origin: top center; }
-.sheet { position: relative; background: #fff; color: #111; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); overflow: hidden; }
-.sheet .page-guide { position: absolute; left: 0; right: 0; border-top: 1px dashed #c0392b; pointer-events: none; }
-.sheet .page-guide span { position: absolute; right: 6px; top: 2px; font: 10px/1 system-ui; color: #c0392b; background: #fff; padding: 1px 4px; }
+/* sheet--measure is hidden; sheet--page is a visible page card */
+.sheet { position: relative; background: #fff; color: #111; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); }
+.sheet.sheet--measure { overflow: visible; box-shadow: none; }
+.sheet.sheet--page { overflow: hidden; }
+/* sheet-stack: a sized container that holds all page cards via absolute positioning */
+.sheet-stack { position: relative; }
+/* Page number badge in top-right corner of each page card (pages 2+) */
+.sheet--page-label { position: absolute; top: 6px; right: 8px; font: 600 10px/1 system-ui; color: #c0392b; background: rgba(255,255,255,0.85); padding: 2px 6px; border-radius: 4px; pointer-events: none; }
 .sheet h1.doc-name { font-size: 22pt; margin: 0; }
 .sheet .doc-section { margin-top: 12pt; }
 .sheet .doc-section h2 { font-size: 11pt; margin: 0 0 4pt; padding-bottom: 2pt; }
