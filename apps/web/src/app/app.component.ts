@@ -9,6 +9,9 @@ import { PreferencesService } from './core/preferences.service';
 import { ThemeService } from './core/theme.service';
 import { TourComponent } from './shared/tour/tour.component';
 import { TourService } from './shared/tour/tour.service';
+import { pageMatches } from './shared/tour/tour.logic';
+import { NavigationEnd, Router } from '@angular/router';
+import { filter } from 'rxjs';
 import { addIcons } from 'ionicons';
 import { registerCareerToolIcons } from './core/career-tools.icons';
 import {
@@ -37,6 +40,7 @@ export class AppComponent implements OnInit {
   private auth = inject(AuthService);
   private back = inject(AndroidBackService);
   private tour = inject(TourService);
+  private router = inject(Router);
 
   ngOnInit() {
     this.theme.init();
@@ -56,6 +60,11 @@ export class AppComponent implements OnInit {
       if (!this.auth.isAuthenticated()) return;
       const t = setTimeout(() => this.tour.maybeStart(), 1200);
       onCleanup(() => clearTimeout(t));
+    });
+    // Edit-resume guide: first visit to the editor (any later time: the editor's Guide button).
+    this.router.events.pipe(filter((e) => e instanceof NavigationEnd)).subscribe((e) => {
+      if (!pageMatches('editor', (e as NavigationEnd).urlAfterRedirects)) return;
+      setTimeout(() => { if (this.auth.isAuthenticated() && pageMatches('editor', this.router.url)) this.tour.maybeStartEditor(); }, 1500);
     });
     registerCareerToolIcons();
     addIcons({

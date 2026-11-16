@@ -1,4 +1,6 @@
-import { TOUR_KEY_PREFIX, TOUR_STEPS } from './tour.config';
+import { TOUR_KEY_PREFIX, stepsFor } from './tour.config';
+
+const TOUR_STEPS = stepsFor('main');
 import { TourFlow, TourStore } from './tour.logic';
 
 function mk(m = new Map<string, string>(), sub = 'u1', authed = true) {

@@ -1,5 +1,5 @@
-import { TOUR_STEPS } from './tour.config';
-import { isInViewport, nextFocusIndex, placeTip, resolveTarget, spotBox, storageKey } from './tour.logic';
+import { TOUR_STEPS, stepsFor } from './tour.config';
+import { isInViewport, latestResumeId, nextFocusIndex, pageMatches, pageRoute, placeTip, resolveTarget, spotBox, storageKey } from './tour.logic';
 import { EN } from '../../core/i18n/en';
 
 const vp = { width: 400, height: 800 };
@@ -14,7 +14,9 @@ describe('tour config', () => {
     }
   });
   it('follows the flow profile -> template -> edit -> export', () => {
-    expect(TOUR_STEPS.map((s) => s.id)).toEqual(['profile', 'template', 'panel', 'canvas', 'export']);
+    expect(stepsFor('main').map((s) => s.id)).toEqual(['profile', 'template', 'canvas', 'bar', 'outline', 'panel', 'version', 'continue', 'export']);
+    expect(stepsFor('editor').map((s) => s.id)).toEqual(['canvas', 'bar', 'outline', 'panel', 'version', 'continue']);
+    expect(stepsFor('editor').every((s) => s.page === 'editor')).toBe(true);
   });
 });
 
@@ -85,5 +87,28 @@ describe('isInViewport / nextFocusIndex', () => {
     expect(nextFocusIndex(-1, 3, false)).toBe(0);
     expect(nextFocusIndex(-1, 3, true)).toBe(2);
     expect(nextFocusIndex(0, 0, false)).toBe(-1);
+  });
+});
+
+describe('tour pages', () => {
+  it('matches the current url to a page', () => {
+    expect(pageMatches('profile', '/profile')).toBe(true);
+    expect(pageMatches('profile', '/dashboard')).toBe(false);
+    expect(pageMatches('templates', '/templates?resumeId=1')).toBe(true);
+    expect(pageMatches('editor', '/resumes/abc')).toBe(true);
+    expect(pageMatches('editor', '/resumes/abc?step=export')).toBe(false);
+    expect(pageMatches('export', '/resumes/abc?step=export')).toBe(true);
+    expect(pageMatches('editor', '/resumes/abc/versions')).toBe(false);
+    expect(pageMatches('editor', '/resumes')).toBe(false);
+  });
+  it('builds routes and needs a resume for editor pages', () => {
+    expect(pageRoute('profile', null)).toEqual({ commands: ['/profile'] });
+    expect(pageRoute('editor', null)).toBeNull();
+    expect(pageRoute('editor', 'r1')).toEqual({ commands: ['/resumes', 'r1'] });
+    expect(pageRoute('export', 'r1')).toEqual({ commands: ['/resumes', 'r1'], query: { step: 'export' } });
+  });
+  it('picks the most recently updated resume', () => {
+    expect(latestResumeId([])).toBeNull();
+    expect(latestResumeId([{ id: 'a', updatedAt: '2026-01-01' }, { id: 'b', updatedAt: '2026-02-01' }])).toBe('b');
   });
 });

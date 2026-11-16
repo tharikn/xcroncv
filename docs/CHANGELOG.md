@@ -12,8 +12,12 @@ Every change to code, schema, config or behavior must, in the same change:
 Row format: `| YYYY-MM-DD | what changed and why (one or two sentences) | files | tests |`. Newest first. Never edit past rows; add a new one.
 
 ## Recent cross-module changes
+- 2026-11-15: standalone XCron CV Android APK published through GitHub Releases (`xcron-cv.apk`), opened inside the X Cron Jobs app via an in-app WebView and offered on the X Cron portal download panel - owner [common-app-features](modules/common-app-features.md); see [INTEGRATION](INTEGRATION.md).
+- 2026-11-15: resume creation flow - reusable stepper with `data-tour` hooks, live dummy-data template cards + Preview (new `GET /templates/:id/sample`), create-on-choose, editor side panel/bottom sheet, default-PDF export step without first-export dialog, shared `<app-resume-sheet>` - owners [16-17-19-dashboard-preview-templates](modules/16-17-19-dashboard-preview-templates.md), [04-career-profile-and-resumes](modules/04-career-profile-and-resumes.md).
+- 2026-11-15: loading redesign - skeleton placeholders instead of "Loading…" text, non-blocking fading boot splash, theme-matched Android splash - owner [common-app-features](modules/common-app-features.md).
+- 2026-11-15: visual resume editor (Step 3): `Resume.overrides.doc` document layer applied in the shared render model, HTML/PDF render element styles and photo/logo images, drag/touch reorder, add/duplicate/remove, crop/scale, undo/redo, autosave via the draft endpoint, route `/resumes/:id/design` and `<app-visual-editor>`, en/ta/hi keys - owner [16-17-19-dashboard-preview-templates](modules/16-17-19-dashboard-preview-templates.md), also [28-resume-versions](modules/28-resume-versions.md).
 - 2026-11-15: first-time guided onboarding tour (shared/tour), Replay tour in Settings, data-tour hooks (nav-*, editor-canvas), e2e signIn marks tour seen - owner [12-web-shell-auth-and-layout](modules/12-web-shell-auth-and-layout.md).
-- 2026-11-15: first-time guided onboarding tour (shared/tour), Replay tour in Settings, data-tour hooks (nav-*, editor-canvas), e2e signIn marks tour seen - owner [12-web-shell-auth-and-layout](modules/12-web-shell-auth-and-layout.md).
+- 2026-11-15: tour navigates between pages and gains an edit-resume guide with a Guide button; 4 data-tour hooks added to the visual editor - owner [12-web-shell-auth-and-layout](modules/12-web-shell-auth-and-layout.md).
 - 2026-11-14: template catalogue grown 60 -> 100 with new heading/name-size/right-align design tokens - owner [16-17-19-dashboard-preview-templates](modules/16-17-19-dashboard-preview-templates.md).
 - 2026-11-14: common app features (theme, language en/ta/hi, loading bar, offline banner, friendly errors, session expiry, Android back, boot splash, About, account preferences) - owner [12-web-shell-auth-and-layout](modules/12-web-shell-auth-and-layout.md), audit in [common-app-features](modules/common-app-features.md). Also: change-log convention added to all module docs.
 
@@ -27,7 +31,7 @@ Row format: `| YYYY-MM-DD | what changed and why (one or two sentences) | files 
 | [07-ats-engine](modules/07-ats-engine.md) | - |
 | [07-parsing-test](modules/07-parsing-test.md) | - |
 | [12-web-shell-auth-and-layout](modules/12-web-shell-auth-and-layout.md) | 2026-11-14 |
-| [16-17-19-dashboard-preview-templates](modules/16-17-19-dashboard-preview-templates.md) | 2026-11-14 |
+| [16-17-19-dashboard-preview-templates](modules/16-17-19-dashboard-preview-templates.md) | 2026-11-15 |
 | [16-admin-usage-analytics](modules/16-admin-usage-analytics.md) | - |
 | [20-31-quality-review](modules/20-31-quality-review.md) | - |
 | [22-recruiter-view](modules/22-recruiter-view.md) | - |

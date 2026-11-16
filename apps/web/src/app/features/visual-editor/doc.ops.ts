@@ -1,4 +1,4 @@
-import { RenderModel } from '../../core/models';
+import { RenderModel, SectionConfig } from '../../core/models';
 import {
   DOC_FONTS, DOC_LIMITS, DocImage, DocItem, DocSection, DocSectionType, ElementStyle, ResumeDoc, SIZE_RANGE, SPACE_RANGE,
 } from '../../core/resume-doc';
@@ -319,3 +319,31 @@ export function defaultsFor(key: string, th: ThemeLike, bandHeader = false): Ele
 }
 /** Is this element key one that carries text formatting (excludes the photo and logos)? */
 export const isTextKey = (key?: string): key is string => !!key && !key.endsWith('.photo') && !key.endsWith('.image');
+
+/* ---------- section config (the host's Sections panel) <-> document ---------- */
+/** Standard-section order/visibility derived from the document, so the host's Sections panel mirrors the canvas. */
+export function cfgFromDoc(doc: ResumeDoc, prev: readonly SectionConfig[]): SectionConfig[] {
+  const order: SectionConfig['type'][] = [];
+  const visible = new Map<string, boolean>();
+  for (const s of doc.sections) {
+    if (s.type === 'custom') continue;
+    if (!order.includes(s.type)) order.push(s.type);
+    visible.set(s.type, (visible.get(s.type) ?? false) || !s.hidden);
+  }
+  const rest = prev.filter((c) => !order.includes(c.type)).map((c) => ({ type: c.type, visible: false }));
+  return [...order.map((type) => ({ type, visible: visible.get(type) ?? false })), ...rest];
+}
+/** Apply the host's order/visibility to the document's standard sections (custom sections keep their slots). */
+export function reconcileDoc(doc: ResumeDoc, cfg: readonly SectionConfig[]): ResumeDoc {
+  const rank = new Map(cfg.map((c, i) => [c.type as string, i]));
+  const vis = new Map(cfg.map((c) => [c.type as string, c.visible]));
+  const slots = doc.sections.map((s, i) => (s.type === 'custom' ? -1 : i)).filter((i) => i >= 0);
+  const sorted = slots.map((i) => doc.sections[i]).sort((a, b) => (rank.get(a.type) ?? 99) - (rank.get(b.type) ?? 99));
+  const out = [...doc.sections];
+  slots.forEach((slot, n) => {
+    const sec = sorted[n]; const v = vis.get(sec.type);
+    out[slot] = v === undefined || v === !sec.hidden ? sec : { ...sec, hidden: v ? undefined : true };
+  });
+  const same = out.every((s, i) => s === doc.sections[i]);
+  return same ? doc : { ...doc, sections: out };
+}

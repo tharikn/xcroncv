@@ -1,7 +1,9 @@
 import { Component, DestroyRef, ElementRef, HostListener, NgZone, OnInit, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
+import { ApiService } from '../../core/api.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { Box, TipPos, isInViewport, nextFocusIndex, placeTip, resolveTarget, spotBox } from './tour.logic';
+import { Box, TipPos, isInViewport, latestResumeId, nextFocusIndex, pageMatches, pageNeedsResume, pageRoute, placeTip, resolveTarget, spotBox } from './tour.logic';
 import { TourStep } from './tour.config';
 import { TourService } from './tour.service';
 
@@ -17,7 +19,8 @@ const MISSING_GRACE_MS = 1200;
   standalone: true,
   imports: [TranslatePipe],
   styles: [`
-    .tour { position: fixed; inset: 0; z-index: 10000; }
+    .tour { position: fixed; inset: 0; z-index: 10000; pointer-events: none; }
+    .dim, .blocker, .tip { pointer-events: auto; }
     .dim { position: fixed; background: color-mix(in srgb, var(--c-text) 72%, transparent); touch-action: none; }
     .blocker { position: fixed; touch-action: none; }
     .ring { position: fixed; pointer-events: none; border-radius: var(--radius); border: 3px solid var(--c-primary);
@@ -52,7 +55,7 @@ const MISSING_GRACE_MS = 1200;
         }
         <div #tip class="tip" role="dialog" aria-modal="true" aria-labelledby="tour-t" aria-describedby="tour-b" data-testid="tour-tip"
              [style.top.px]="pos().top" [style.left.px]="pos().left">
-          <span class="count" aria-live="polite">{{ 'tour.progress' | t: { n: tour.index() + 1, total: tour.steps.length } }}</span>
+          <span class="count" aria-live="polite">{{ 'tour.progress' | t: { n: tour.index() + 1, total: tour.steps().length } }}</span>
           <h2 id="tour-t">{{ s.titleKey | t }}</h2>
           <p id="tour-b">{{ s.bodyKey | t }}</p>
           @if (s.mode === 'click' && spot()) { <p><strong>{{ 'tour.clickHint' | t }}</strong></p> }
@@ -70,6 +73,9 @@ const MISSING_GRACE_MS = 1200;
 export class TourComponent implements OnInit {
   tour = inject(TourService);
   private router = inject(Router);
+  private api = inject(ApiService);
+  private prevIndex = 0;
+  private navToken = 0;
   private zone = inject(NgZone);
   private destroyRef = inject(DestroyRef);
   private tipEl = viewChild<ElementRef<HTMLElement>>('tip');
@@ -105,6 +111,8 @@ export class TourComponent implements OnInit {
           if (!this.timer) this.timer = setInterval(() => this.zone.run(() => this.measure()), POLL_MS);
         });
         queueMicrotask(() => this.measure());
+        void this.ensurePage(s, this.tour.index() >= this.prevIndex);
+        this.prevIndex = this.tour.index();
       } else {
         if (this.timer) { clearInterval(this.timer); this.timer = null; }
         this.spot.set(null); this.lastFocusStep = -1;
@@ -112,6 +120,20 @@ export class TourComponent implements OnInit {
         this.opener = null;
       }
     }
+  }
+
+  /** Send the user to the page this step lives on. Steps that need a resume are skipped (in the travel direction) when the user has none. */
+  private async ensurePage(s: TourStep, forward: boolean) {
+    const token = ++this.navToken;
+    if (pageMatches(s.page, this.router.url)) return;
+    let id: string | null = null;
+    if (pageNeedsResume(s.page)) {
+      try { id = latestResumeId(await firstValueFrom(this.api.listResumes())); } catch { id = null; }
+      if (token !== this.navToken || this.tour.step() !== s) return;
+      if (!id) { if (forward) this.tour.next(); else this.tour.back(); return; }
+    }
+    const r = pageRoute(s.page, id);
+    if (r) await this.router.navigate(r.commands, { queryParams: r.query });
   }
 
   ngOnInit() {
@@ -138,7 +160,9 @@ export class TourComponent implements OnInit {
   measure() {
     const s = this.tour.step();
     if (!s) return;
-    if (!this.target || !this.target.isConnected) this.target = this.find();
+    // Always re-resolve: a fallback (e.g. the nav item) must give way to the real button once its page has rendered.
+    const found = this.find();
+    if (found !== this.target) { this.target = found; this.scrolledFor = null; }
     const vp = this.vp();
     if (!this.target) {
       this.spot.set(null);
@@ -164,7 +188,7 @@ export class TourComponent implements OnInit {
     }
   }
 
-  @HostListener('window:resize') @HostListener('window:orientationchange') onResize() { if (this.tour.active()) this.measure(); }
+  @HostListener('window:resize') @HostListener('window:orientationchange') onResize() { this.scrolledFor = null; if (this.tour.active()) this.measure(); }
   @HostListener('window:scroll') onScroll() { if (this.tour.active()) this.measure(); }
 
   /** A click on the highlighted action (click mode) passes through to the page, then the tour advances. */

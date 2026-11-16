@@ -9,7 +9,7 @@
 | prisma | `PrismaService` (global) |
 | career-profile | `PUT/GET/DELETE /career-profile`; full replace in one transaction, ordered children |
 | templates | Read-only catalogue + immutable versions (`GET /templates`, `/:id`, `/:id/versions/:v`); 3 seed packages + 57 generated from `template.families.ts` (family defaults + per-row overrides) |
-| render-model | Pure `buildRenderModel(profile, template, sections, overrides)`; allowlisted overrides |
+| render-model | Pure `buildRenderModel(profile, template, sections, overrides)`; allowlisted overrides. `resume-doc.ts` is the visual-editor document layer (`overrides.doc`: header, sections/items with ids, per-element styles, small image data URIs), validated by `sanitizeDoc` and applied by `applyDoc`; `mergeOverridesOnWrite` preserves it across classic-editor saves. Web: `features/visual-editor` (pure `doc.ops`, `history`, `geometry`, `image-process`; components `ve-sheet`, `ve-image-crop`, `app-visual-editor`) |
 | resumes | CRUD, section config, template switch (content untouched), versions, `GET :id/render-model` |
 | export | `renderHtml` (escaped, script-free), `renderPdf` (pdfkit, selectable text), `safeFilename` |
 | health | `/health/live`, `/health/ready` (public) |

@@ -25,7 +25,7 @@ Sign in with the **Developer sign-in** panel (secret matches `AUTH_DEV_SECRET`),
 
 Playwright builds the dev bundle and serves `dist/web/browser`. On Windows it uses the installed Microsoft Edge (`PW_CHANNEL=chrome` to change) because downloaded Chromium can be blocked by Application Control. The `android` project emulates a Pixel 7 (touch, mobile UA, small viewport) in a browser; it does not run the APK.
 
-Suites: auth, profile, resumes/templates, editor/preview, dashboard/settings, responsive + axe accessibility, local files (module 05), cover letters, contacts, job analytics and career-tools overflow/axe (modules 42/46/48; fake API in `e2e/support/mock-career-tools.ts`); insights (match, quality, recruiter view: `e2e/insights.spec.ts`).
+Suites: visual editor (`e2e/visual-editor.spec.ts` on all four profiles; Jest `apps/web/.../visual-editor.logic.spec.ts` and `apps/api/test/visual-editor.spec.ts`; the mock `renderModelFor` applies `overrides.doc` like the API), auth, profile, resumes/templates, editor/preview, dashboard/settings, responsive + axe accessibility, local files (module 05), cover letters, contacts, job analytics and career-tools overflow/axe (modules 42/46/48; fake API in `e2e/support/mock-career-tools.ts`); insights (match, quality, recruiter view: `e2e/insights.spec.ts`).
 
 ## Android app
 ```bash
