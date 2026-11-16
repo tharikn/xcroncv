@@ -22,6 +22,7 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
       { path: 'dashboard', loadComponent: () => import('./pages/dashboard.page').then((m) => m.DashboardPage), title: 'Dashboard - XCron CV' },
+      { path: 'ai-resume-generator', loadComponent: () => import('./features/ai-resume-generator/ai-resume-generator.page').then((m) => m.AiResumeGeneratorPage), title: 'AI Resume Generator - XCron CV' },
       { path: 'profile', loadComponent: () => import('./pages/profile.page').then((m) => m.ProfilePage), title: 'Career profile - XCron CV' },
       { path: 'resumes', loadComponent: () => import('./pages/resumes.page').then((m) => m.ResumesPage), title: 'My resumes - XCron CV' },
       // Step 3 visual editor (doc 16): click-to-edit page with drag/touch reorder, images and formatting.

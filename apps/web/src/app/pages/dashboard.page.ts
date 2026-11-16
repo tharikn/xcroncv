@@ -52,6 +52,7 @@ import { CareerProfile, ResumeSummary } from '../core/models';
             <div class="row between">
               <span class="small muted"><strong>More Tools</strong></span>
               <div class="row">
+                <a class="btn sm" routerLink="/ai-resume-generator"><ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon> AI Resume</a>
                 <a class="btn ghost sm" routerLink="/insights"><ion-icon name="eye-outline" aria-hidden="true"></ion-icon> Insights</a>
                 <a class="btn ghost sm" routerLink="/career-tools"><ion-icon name="briefcase-outline" aria-hidden="true"></ion-icon> Career Tools</a>
                 <a class="btn ghost sm" routerLink="/settings"><ion-icon name="settings-outline" aria-hidden="true"></ion-icon> Settings</a>

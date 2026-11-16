@@ -41,6 +41,7 @@ import { AtsEngineModule } from './ats-engine/ats-engine.module';
 import { UsageAnalyticsModule } from './usage-analytics/usage-analytics.module';
 import { PreferencesModule } from './preferences/preferences.module';
 import { AuthExchangeModule } from './auth-exchange/auth-exchange.module';
+import { JdResumeGeneratorModule } from './jd-resume-generator/jd-resume-generator.module';
 
 @Module({
   imports: [
@@ -91,6 +92,7 @@ import { AuthExchangeModule } from './auth-exchange/auth-exchange.module';
     ...(featureEnabled('usage-analytics') ? [UsageAnalyticsModule] : []),
     // Common app features: per-user theme + language preference
     PreferencesModule,
+    JdResumeGeneratorModule,
   ],
   controllers: [HealthController],
   providers: [
