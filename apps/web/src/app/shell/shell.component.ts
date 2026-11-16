@@ -1,5 +1,6 @@
-import { Component, computed, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Component, inject } from '@angular/core';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { filter } from 'rxjs';
 import { IonIcon, IonRouterOutlet } from '@ionic/angular/standalone';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 
@@ -9,14 +10,15 @@ interface NavItem { path: string; label: string; key: string; icon: string; desk
  * Responsive shell:
  * - Desktop/Side-rail: shows full list of tools.
  * - Mobile/Bottom bar: clean 4 primary destinations (Home, Resumes, Templates, Profile).
- *   Secondary tools (Insights, Career Tools, Files, Settings) are accessible via Desktop or Home/More.
+ *   Hides bottom bar during full-screen editing flows (/resumes/:id, /design, /cover-letters/:id)
+ *   just like modern mobile editors (Canva, Docs, Notion).
  */
 @Component({
   selector: 'app-shell',
   standalone: true,
   imports: [IonRouterOutlet, IonIcon, RouterLink, RouterLinkActive, TranslatePipe],
   template: `
-    <div class="shell">
+    <div class="shell" [class.editor-immersive]="isEditorRoute()">
       <nav class="nav" [attr.aria-label]="'nav.primary' | t">
         <a class="brand" routerLink="/dashboard" [attr.aria-label]="'nav.homeAria' | t"><span class="brand-mark">X</span><span class="brand-name">XCron CV</span></a>
         <ul>
@@ -34,6 +36,22 @@ interface NavItem { path: string; label: string; key: string; icon: string; desk
   `,
 })
 export class ShellComponent {
+  private router = inject(Router);
+  currentUrl = '';
+
+  constructor() {
+    this.currentUrl = this.router.url;
+    this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd)).subscribe((e) => {
+      this.currentUrl = e.urlAfterRedirects;
+    });
+  }
+
+  isEditorRoute(): boolean {
+    return /^\/(resumes\/[^/]+|cover-letters\/[^/]+)/.test(this.currentUrl) &&
+      !/^\/resumes\/?(\?.*)?$/.test(this.currentUrl) &&
+      !/^\/cover-letters\/?(\?.*)?$/.test(this.currentUrl);
+  }
+
   items: NavItem[] = [
     { path: '/dashboard', label: 'Home', key: 'nav.home', icon: 'home-outline' },
     { path: '/resumes', label: 'Resumes', key: 'nav.resumes', icon: 'document-text-outline' },

@@ -170,15 +170,15 @@ export class ImportPage {
     for (const f of SCALARS) {
       const v = s[f]; if (!v) continue;
       const existing = (cur?.[f] ?? '').toString().trim();
-      sc[f] = { v, on: !existing || existing === v }; // never pre-select a value that would overwrite the user's own data
+      sc[f] = { v, on: true }; // auto-select all fetched fields by default
     }
     this.scalars.set(sc);
     this.links.set(s.links.map((v) => ({ v, on: true })));
-    this.exps.set(s.experiences.map((e) => ({ on: e.confidence !== 'low', conf: e.confidence, v: { ...e }, end: e.endDate ?? '', bulletText: e.bullets.map((b) => b.content).join('\n') })));
+    this.exps.set(s.experiences.map((e) => ({ on: true, conf: e.confidence, v: { ...e }, end: e.endDate ?? '', bulletText: e.bullets.map((b) => b.content).join('\n') })));
     this.skills.set(s.skills.map((v) => ({ v, on: true })));
-    this.edus.set(s.educations.map((e) => ({ on: e.confidence !== 'low', conf: e.confidence, v: { ...e } })));
+    this.edus.set(s.educations.map((e) => ({ on: true, conf: e.confidence, v: { ...e } })));
     this.simple.set([
-      { key: 'project', title: 'Projects', rows: s.projects.map((v) => ({ v, on: false, label: v.name })) },
+      { key: 'project', title: 'Projects', rows: s.projects.map((v) => ({ v, on: true, label: v.name })) },
       { key: 'cert', title: 'Certifications', rows: s.certifications.map((v) => ({ v, on: true, label: v.name })) },
       { key: 'lang', title: 'Languages', rows: s.languages.map((v) => ({ v, on: true, label: v.proficiency ? `${v.name} (${v.proficiency})` : v.name })) },
     ]);

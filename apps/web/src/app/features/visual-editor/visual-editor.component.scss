@@ -49,15 +49,50 @@
 
 .drop-line { position: fixed; z-index: 40; height: 3px; margin-top: -1px; background: var(--c-primary); border-radius: 2px; pointer-events: none; box-shadow: 0 0 0 2px var(--c-bg); }
 
-/* Phones / narrow screens: the formatting toolbar becomes a bottom sheet (reachable with a thumb, never covers the selection from above) */
+/* Phones / narrow screens: modern compact single-row ribbon (Canva / Google Docs mobile style) */
 @media (max-width: 767px) {
   .ve-tools {
-    top: auto !important; left: 0 !important; right: 0; bottom: 0; max-width: none; border-radius: var(--radius, 12px) var(--radius, 12px) 0 0;
-    max-height: 46vh; overflow-y: auto; padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom)); -webkit-overflow-scrolling: touch;
+    top: auto !important; left: 0 !important; right: 0; bottom: 0; max-width: none;
+    border-radius: var(--radius, 12px) var(--radius, 12px) 0 0;
+    max-height: 52vh; overflow-y: auto;
+    padding: var(--space-2);
+    padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom));
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.35);
+    background: var(--c-surface);
+    gap: var(--space-1);
+    -webkit-overflow-scrolling: touch;
+
+    .tools-head {
+      padding-bottom: 2px;
+      border-bottom: 1px solid var(--c-border);
+      span { font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+      .btn { min-height: 32px; min-width: 32px; }
+    }
     .hint { display: none; }
-    .btn, select { min-height: var(--control-min-height, 44px); min-width: 44px; }
+    .grp {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      padding: 4px 0;
+      gap: 6px;
+      &::-webkit-scrollbar { display: none; }
+    }
+    .grp.colors {
+      flex-wrap: wrap;
+      max-height: 140px;
+      overflow-y: auto;
+      padding: var(--space-2) 0;
+      border-top: 1px solid var(--c-border);
+    }
+    .btn, select {
+      min-height: 36px;
+      min-width: 36px;
+      flex-shrink: 0;
+    }
+    .fmt-font { max-width: 7.5rem; font-size: 0.85rem; }
   }
-  .ve-viewport { padding: var(--space-2); padding-bottom: 46vh; }
+  .ve-viewport { padding: var(--space-2); padding-bottom: 5rem; }
   .ve-bar { padding: var(--space-1) var(--space-2); }
   .ve-outline { position: static; width: auto; max-height: 40vh; margin: var(--space-2); }
 }

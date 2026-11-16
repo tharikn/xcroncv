@@ -92,6 +92,12 @@ a { color: inherit; }
   .nav li { flex: 1 1 0; min-width: 0; }
   .nav li.desktop-only { display: none !important; }
   .nav a { flex-direction: column; justify-content: center; gap: 2px; padding: var(--space-2) 2px; font-size: 0.72rem; min-height: 3.5rem; text-align: center; }
+
+  /* Immersive editor mode: hide mobile bottom nav so editor has full screen height */
+  .shell.editor-immersive {
+    grid-template-rows: 1fr;
+    .nav { display: none !important; }
+  }
 }
 
 /* ---------- Page layout ---------- */
@@ -151,7 +157,20 @@ ion-title { font-weight: 700; font-size: 1.05rem; padding-inline: 0; }
 .banner.warn { border-color: var(--c-warn); color: var(--c-warn); background: transparent; }
 .banner.err { border-color: var(--c-danger); color: var(--c-danger); background: transparent; }
 .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
-.sticky-actions { position: sticky; bottom: 0; background: var(--c-bg); border-top: 1px solid var(--c-border); padding: var(--space-3) var(--page-gutter); padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom)); display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; z-index: 5; }
+.sticky-actions {
+  position: sticky; bottom: 0; background: var(--c-bg); border-top: 1px solid var(--c-border);
+  padding: var(--space-3) var(--page-gutter); padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+  display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; z-index: 5;
+}
+@media (max-width: 767px) {
+  .sticky-actions {
+    padding: var(--space-2) var(--space-3);
+    padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom));
+    gap: var(--space-1);
+    .btn { min-height: 2.25rem; font-size: 0.85rem; padding: 0 var(--space-2); }
+    .btn ion-icon { font-size: 1.1rem; }
+  }
+}
 .group-title { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .item-card { border: 1px solid var(--c-border); border-radius: var(--radius); padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-3); background: var(--c-surface); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

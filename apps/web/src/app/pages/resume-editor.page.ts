@@ -126,7 +126,7 @@ import { ResumeStepperComponent, StepId } from '../shared/resume-stepper.compone
         }
       </div>
     </ion-content>
-    @if (r() && step() === 3 && !panelOpen()) {
+    @if (r() && step() === 3 && !panelOpen() && !ed?.sel()) {
       <div class="sticky-actions" data-testid="editor-actions">
         <button class="btn" data-testid="editor-save" (click)="save()" [disabled]="saving() || !isDirty() || !name.trim()"><ion-icon name="save-outline" aria-hidden="true"></ion-icon> Save</button>
         <button class="btn ghost panel-toggle" data-testid="open-panel" (click)="panelOpen.set(true)"><ion-icon name="color-palette-outline" aria-hidden="true"></ion-icon> {{ 'ed.customize' | t }}</button>
