@@ -13,8 +13,8 @@ describe('tour config', () => {
       expect(EN).toHaveProperty([s.bodyKey]);
     }
   });
-  it('follows the flow profile -> template -> edit -> export', () => {
-    expect(stepsFor('main').map((s) => s.id)).toEqual(['profile', 'template', 'canvas', 'bar', 'outline', 'panel', 'version', 'continue', 'export']);
+  it('follows the flow import -> profile -> template -> edit -> export', () => {
+    expect(stepsFor('main').map((s) => s.id)).toEqual(['import', 'profile', 'template', 'canvas', 'bar', 'outline', 'panel', 'version', 'continue', 'export']);
     expect(stepsFor('editor').map((s) => s.id)).toEqual(['canvas', 'bar', 'outline', 'panel', 'version', 'continue']);
     expect(stepsFor('editor').every((s) => s.page === 'editor')).toBe(true);
   });
@@ -28,7 +28,7 @@ describe('storageKey', () => {
 });
 
 describe('resolveTarget', () => {
-  const step = TOUR_STEPS[0];
+  const step = TOUR_STEPS.find((s) => s.id === 'profile')!;
   it('picks the first target that exists and is visible', () => {
     const dom: Record<string, string> = { '[data-tour="nav-profile"]': 'nav' };
     expect(resolveTarget(step, (q) => dom[q] ?? null, () => true)).toBe('nav');
