@@ -29,24 +29,26 @@ test.describe('onboarding tour', () => {
     await expect(page.getByTestId('tour-tip')).toBeVisible();
   });
 
-  test('guides the user to each page: profile, templates, editor (text editing first), export', async ({ page }) => {
+  test('guides the user to each page: profile (import & details), templates, editor (text editing first), export', async ({ page }) => {
     state.resumes = [sampleResume({ updatedAt: '2026-01-01T00:00:00.000Z' }), sampleResume({ id: LATEST, name: 'Latest', updatedAt: '2026-06-01T00:00:00.000Z' })];
     await page.goto('/dashboard');
     const tip = page.getByTestId('tour-tip');
-    await expect(tip).toContainText('1 of 9', { timeout: 8000 });
+    await expect(tip).toContainText('1 of 10', { timeout: 8000 });
     await expect(page).toHaveURL(/\/profile/);
     await page.getByTestId('tour-next').click();
+    await expect(tip).toContainText('2 of 10');
+    await page.getByTestId('tour-next').click();
     await expect(page).toHaveURL(/\/templates/);
-    await expect(tip).toContainText('2 of 9');
+    await expect(tip).toContainText('3 of 10');
     await page.getByTestId('tour-next').click();
     await expect(page).toHaveURL(new RegExp(`/resumes/${LATEST}$`));
-    await expect(tip).toContainText('3 of 9');
+    await expect(tip).toContainText('4 of 10');
     await expect(tip).toContainText('Click any text to edit');
     await expect(page.getByTestId('tour-ring')).toBeVisible();
-    for (let n = 4; n <= 8; n++) { await page.getByTestId('tour-next').click(); await expect(tip).toContainText(`${n} of 9`); }
+    for (let n = 5; n <= 9; n++) { await page.getByTestId('tour-next').click(); await expect(tip).toContainText(`${n} of 10`); }
     await page.getByTestId('tour-next').click();
     await expect(page).toHaveURL(/step=export/);
-    await expect(tip).toContainText('9 of 9');
+    await expect(tip).toContainText('10 of 10');
     await page.getByTestId('tour-next').click();
     await expect(page.getByTestId('tour')).toHaveCount(0);
   });
@@ -78,13 +80,15 @@ test.describe('onboarding tour', () => {
     await expect(page.getByTestId('tour')).toHaveCount(0, { timeout: 8000 });
   });
 
-  test('clicking the highlighted control passes through and advances to step 2', async ({ page }) => {
+  test('clicking the highlighted control passes through and advances to step 3', async ({ page }) => {
     await page.goto('/dashboard');
     await expect(page).toHaveURL(/\/profile/, { timeout: 8000 });
+    // Advance past step 1 (import) to step 2 (profile save/continue action)
+    await page.getByTestId('tour-next').click();
     await expect(page.getByTestId('tour-ring')).toBeVisible();
     await page.locator(TARGET).click();
     await expect(page).toHaveURL(/\/templates/);
-    await expect(page.getByTestId('tour-tip')).toContainText('2 of', { timeout: 5000 });
+    await expect(page.getByTestId('tour-tip')).toContainText('3 of', { timeout: 5000 });
   });
 
   test('the rest of the screen is blocked while the tour is active', async ({ page }) => {

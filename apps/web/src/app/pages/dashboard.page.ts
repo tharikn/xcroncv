@@ -41,11 +41,22 @@ import { CareerProfile, ResumeSummary } from '../core/models';
           }
 
           <section class="grid stats" [attr.aria-label]="'dash.summary' | t">
-            <div class="card"><span class="muted small">{{ 'dash.resumes' | t }}</span><span class="stat" data-testid="stat-resumes">{{ resumes().length }}</span></div>
-            <div class="card"><span class="muted small">{{ 'dash.templates' | t }}</span><span class="stat" data-testid="stat-templates">{{ templateCount() }}</span></div>
-            <div class="card"><span class="muted small">{{ 'dash.profile' | t }}</span><span class="stat" style="font-size:1.25rem">{{ (profile() ? 'dash.ready' : 'dash.notSetup') | t }}</span></div>
-            <div class="card"><span class="muted small">{{ 'dash.savedFiles' | t }}</span>
-              <span class="small wrap" data-testid="stat-storage">{{ (files.isNative ? 'dash.storageNative' : 'dash.storageBrowser') | t }}</span></div>
+            <a class="card stat-link" routerLink="/resumes" style="text-decoration:none"><span class="muted small">{{ 'dash.resumes' | t }}</span><span class="stat" data-testid="stat-resumes">{{ resumes().length }}</span></a>
+            <a class="card stat-link" routerLink="/templates" style="text-decoration:none"><span class="muted small">{{ 'dash.templates' | t }}</span><span class="stat" data-testid="stat-templates">{{ templateCount() }}</span></a>
+            <a class="card stat-link" routerLink="/profile" style="text-decoration:none"><span class="muted small">{{ 'dash.profile' | t }}</span><span class="stat" style="font-size:1.25rem">{{ (profile() ? 'dash.ready' : 'dash.notSetup') | t }}</span></a>
+            <a class="card stat-link" routerLink="/files" style="text-decoration:none"><span class="muted small">{{ 'dash.savedFiles' | t }}</span>
+              <span class="small wrap" data-testid="stat-storage">{{ (files.isNative ? 'dash.storageNative' : 'dash.storageBrowser') | t }}</span></a>
+          </section>
+
+          <section class="card" aria-label="Quick tools">
+            <div class="row between">
+              <span class="small muted"><strong>More Tools</strong></span>
+              <div class="row">
+                <a class="btn ghost sm" routerLink="/insights"><ion-icon name="eye-outline" aria-hidden="true"></ion-icon> Insights</a>
+                <a class="btn ghost sm" routerLink="/career-tools"><ion-icon name="briefcase-outline" aria-hidden="true"></ion-icon> Career Tools</a>
+                <a class="btn ghost sm" routerLink="/settings"><ion-icon name="settings-outline" aria-hidden="true"></ion-icon> Settings</a>
+              </div>
+            </div>
           </section>
 
           <section class="stack" aria-labelledby="recent-h">

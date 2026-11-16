@@ -27,6 +27,30 @@ type ListKey = 'links' | 'experiences' | 'skills' | 'educations' | 'projects' | 
             {{ saving() ? 'Saving…' : isDirty() ? 'Unsaved changes' : loaded() ? 'All changes saved' : '' }}</span>
         </div>
 
+        @if (loaded()) {
+          <section class="card import-highlight-card" aria-labelledby="import-card-h" data-testid="import-highlight-card">
+            <div class="import-card-content">
+              <div class="import-icon-wrap" aria-hidden="true">
+                <ion-icon name="cloud-upload-outline"></ion-icon>
+              </div>
+              <div class="import-text">
+                <div class="row" style="gap: var(--space-2); align-items: center;">
+                  <h2 id="import-card-h" style="font-size: 1.05rem; margin: 0;">{{ 'profile.importCard.title' | t }}</h2>
+                  <span class="badge ok">{{ 'profile.importCard.badge' | t }}</span>
+                </div>
+                <p class="muted" style="margin: 0; font-size: 0.9rem;">
+                  {{ 'profile.importCard.lead' | t }}
+                </p>
+              </div>
+              <div class="import-action">
+                <a class="btn sm" routerLink="/import" data-tour="import-resume-action" data-testid="import-resume-action">
+                  <ion-icon name="cloud-upload-outline" aria-hidden="true"></ion-icon> {{ 'profile.importCard.button' | t }}
+                </a>
+              </div>
+            </div>
+          </section>
+        }
+
         @if (loadError()) { <div class="banner err" role="alert">{{ loadError() }}</div> }
         @if (!loaded() && !loadError()) { <div class="sk-stack" role="status" aria-busy="true"><span class="sr-only">Loading…</span><span class="sk sk--title"></span><span class="sk sk--text"></span><span class="sk sk--text"></span></div> }
 
