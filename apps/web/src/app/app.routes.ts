@@ -6,6 +6,7 @@ export const routes: Routes = [
   { path: 'auth/callback', loadComponent: () => import('./pages/auth-callback.page').then((m) => m.AuthCallbackPage), title: 'Signing in - XCron CV' },
   // Doc 41: anonymous, token-addressed portfolio view. Deliberately no authGuard and outside the shell.
   { path: 'p/:token', loadComponent: () => import('./pages/public-portfolio.page').then((m) => m.PublicPortfolioPage), title: 'Portfolio' },
+  { path: 'r/:token', loadComponent: () => import('./pages/public-resume.page').then((m) => m.PublicResumePage), title: 'Shared resume - XCron CV' },
   {
     // Preview is a dedicated route (doc 17): not inside the dashboard shell.
     path: 'resumes/:id/preview', canActivate: [authGuard],
@@ -75,6 +76,8 @@ export const routes: Routes = [
       // Doc 50: expert review (consent-based, scoped)
       { path: 'expert-review', loadComponent: () => import('./pages/expert-review.page').then((m) => m.ExpertReviewPage), title: 'Expert review - XCron CV' },
       { path: 'settings', loadComponent: () => import('./pages/settings.page').then((m) => m.SettingsPage), title: 'Settings - XCron CV' },
+
+      
     ],
   },
   { path: '**', redirectTo: '' },

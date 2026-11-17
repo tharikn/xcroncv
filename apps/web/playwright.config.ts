@@ -10,12 +10,12 @@ import { defineConfig, devices } from '@playwright/test';
  * `ng build` rewrote the bundle another run was serving (blank page), and one run's start-up wiped another's trace files
  * (ENOENT on browserContext.close). Each run therefore builds into dist/pw-<port>, serves on its own port and writes to
  * test-results/pw-<port>. The values are set once in the main process and inherited by workers.
- * Set PW_SHARED=1 to use the shared dist/web/browser on port 4200 (e.g. with `npm run web:dev` running).
+ * Set PW_SHARED=1 to use the shared dist/web-dev/browser on port 4200 (e.g. with `npm run web:dev` running).
  */
 const shared = process.env['PW_SHARED'] === '1';
 if (!shared) process.env['PW_PORT'] ??= String(4300 + (process.pid % 600));
 const port = shared ? 4200 : Number(process.env['PW_PORT']);
-const distDir = shared ? 'dist/web' : `dist/pw-${port}`;
+const distDir = shared ? 'dist/web-dev' : `dist/pw-${port}`;
 
 export default defineConfig({
   outputDir: shared ? 'test-results' : `test-results/pw-${port}`,
@@ -36,7 +36,7 @@ export default defineConfig({
   ],
   webServer: {
     // Build once (development config: dev auth enabled), then serve statically. Avoids `ng serve` (native Rollup).
-    command: shared ? 'npm run build:dev && node scripts/serve.mjs' : `npm run build:dev -- --output-path ${distDir} && node scripts/serve.mjs`,
+    command: `npm run build:dev -- --output-path ${distDir} && node scripts/serve.mjs`,
     url: `http://localhost:${port}`,
     env: { PORT: String(port), WEB_ROOT: `${distDir}/browser` },
     reuseExistingServer: shared,

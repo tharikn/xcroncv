@@ -91,4 +91,37 @@ test.describe('Career profile', () => {
     await expect(page.getByText('Injected failure')).toBeVisible();
     await expect(page.getByTestId('save-state')).toHaveText('Unsaved changes');
   });
+
+  test('reset restores the starter profile only after the typed confirmation', async ({ page }) => {
+    const state = await setup(page);
+    await page.goto('/profile');
+    await expect(page.getByTestId('fullName')).toHaveValue('Ada Lovelace');
+
+    await page.getByTestId('profile-reset').click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(page.getByTestId('reset-confirm')).toBeDisabled();
+
+    await page.getByTestId('reset-confirm-input').fill('nope');
+    await expect(page.getByTestId('reset-confirm')).toBeDisabled();
+    await page.getByTestId('reset-confirm-input').fill('RESET');
+    await expect(page.getByTestId('reset-confirm')).toBeEnabled();
+    await page.getByTestId('reset-confirm').click();
+
+    await expect(dialog).toBeHidden();
+    await expect(page.getByTestId('fullName')).toHaveValue('Your Name');
+    await expect(page.getByTestId('exp-employer')).toHaveValue('Example Company');
+    await expect(page.getByTestId('save-state')).toHaveText('All changes saved');
+    expect(state.requests.some((r) => r.method === 'POST' && r.path === '/career-profile/reset')).toBe(true);
+  });
+
+  test('cancelling reset leaves the profile untouched and calls no reset endpoint', async ({ page }) => {
+    const state = await setup(page);
+    await page.goto('/profile');
+    await page.getByTestId('profile-reset').click();
+    await page.getByTestId('reset-cancel').click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(page.getByTestId('fullName')).toHaveValue('Ada Lovelace');
+    expect(state.requests.some((r) => r.method === 'POST' && r.path === '/career-profile/reset')).toBe(false);
+  });
 });

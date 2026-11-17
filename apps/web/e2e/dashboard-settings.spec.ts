@@ -68,4 +68,18 @@ test.describe('Settings', () => {
     await expect(page.getByTestId('files-target')).toContainText('Browser downloads');
     await expect(page.getByText('The server never keeps them')).toBeVisible();
   });
+
+  test('resets the career profile from settings after typed confirmation', async ({ page }) => {
+    const state = await setup(page);
+    await page.goto('/settings');
+    await page.getByTestId('settings-reset-profile').click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByTestId('reset-confirm')).toBeDisabled();
+    await page.getByTestId('reset-confirm-input').fill('RESET');
+    await page.getByTestId('reset-confirm').click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(page.getByText('Profile reset to the starter example.')).toBeVisible();
+    const post = state.requests.find((r) => r.method === 'POST' && r.path === '/career-profile/reset');
+    expect(post).toBeDefined();
+  });
 });

@@ -1,4 +1,4 @@
-import { Component, OnInit, effect, inject } from '@angular/core';
+import { Component, OnInit, effect, inject, signal } from '@angular/core';
 import { IonApp, IonRouterOutlet } from '@ionic/angular/standalone';
 import { AndroidBackService } from './core/android-back.service';
 import { ApiLoadingService } from './core/api-loading';
@@ -8,33 +8,45 @@ import { TranslatePipe } from './core/i18n/translate.pipe';
 import { PreferencesService } from './core/preferences.service';
 import { ThemeService } from './core/theme.service';
 import { TourComponent } from './shared/tour/tour.component';
+import { SpinnerComponent } from './shared/loading/spinner.component';
+import { LoadingOverlayService } from './shared/loading/loading-overlay.service';
 import { TourService } from './shared/tour/tour.service';
 import { pageMatches } from './shared/tour/tour.logic';
-import { NavigationEnd, Router } from '@angular/router';
+import { NavigationCancel, NavigationEnd, NavigationError, NavigationStart, Router } from '@angular/router';
 import { filter } from 'rxjs';
 import { addIcons } from 'ionicons';
 import { registerCareerToolIcons } from './core/career-tools.icons';
 import {
   addOutline, arrowBackOutline, chevronDownOutline, chevronUpOutline, cloudDownloadOutline, copyOutline, documentTextOutline,
   eyeOutline, folderOpenOutline, gridOutline, homeOutline, logOutOutline, personOutline, saveOutline, searchOutline,
-  settingsOutline, shareOutline, trashOutline, removeOutline, expandOutline, checkmarkCircleOutline, alertCircleOutline, folderOutline, openOutline, createOutline, cloudUploadOutline, documentAttachOutline,
+  settingsOutline, shareOutline, trashOutline, removeOutline, expandOutline, checkmarkCircleOutline, alertCircleOutline, folderOutline, openOutline, createOutline, cloudUploadOutline, documentAttachOutline, reloadOutline,
 } from 'ionicons/icons';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [IonApp, IonRouterOutlet, TranslatePipe, TourComponent],
+  imports: [IonApp, IonRouterOutlet, TranslatePipe, TourComponent, SpinnerComponent],
   template: `
     @if (loading.visible()) {
       <div class="api-progress" role="status" aria-live="polite" data-testid="api-progress"><span class="sr-only">{{ 'common.working' | t }}</span><span class="bar" aria-hidden="true"></span></div>
     }
     @if (!conn.online()) { <div class="offline-banner" role="status" data-testid="offline-banner">{{ 'common.offline' | t }}</div> }
+    @if (overlay.visible()) {
+      <app-spinner overlay global tone="brand" size="lg" [labelKey]="overlay.labelKey()" />
+    }
+    @if (navigating()) {
+      <app-spinner overlay global tone="brand" size="lg" labelKey="common.loading" />
+    }
     <ion-app><ion-router-outlet /></ion-app>
     <app-tour />`,
 })
 export class AppComponent implements OnInit {
   loading = inject(ApiLoadingService);
   conn = inject(ConnectivityService);
+  overlay = inject(LoadingOverlayService);
+  readonly navigating = signal(false);
+  /** The boot splash covers the initial navigation; only later route changes need the overlay spinner. */
+  private firstNavigationDone = false;
   private theme = inject(ThemeService);
   private prefs = inject(PreferencesService);
   private auth = inject(AuthService);
@@ -63,14 +75,24 @@ export class AppComponent implements OnInit {
     });
     // Edit-resume guide: first visit to the editor (any later time: the editor's Guide button).
     this.router.events.pipe(filter((e) => e instanceof NavigationEnd)).subscribe((e) => {
+      this.firstNavigationDone = true;
+      this.navigating.set(false);
       if (!pageMatches('editor', (e as NavigationEnd).urlAfterRedirects)) return;
       setTimeout(() => { if (this.auth.isAuthenticated() && pageMatches('editor', this.router.url)) this.tour.maybeStartEditor(); }, 1500);
+    });
+    this.router.events.pipe(filter((e) => e instanceof NavigationStart)).subscribe(() => {
+      if (this.firstNavigationDone) this.navigating.set(true);
+    });
+    this.router.events.pipe(filter((e) => e instanceof NavigationCancel || e instanceof NavigationError)).subscribe(() => {
+      // Also count a failed/cancelled first navigation as done so later navigations still show the spinner.
+      this.firstNavigationDone = true;
+      this.navigating.set(false);
     });
     registerCareerToolIcons();
     addIcons({
       addOutline, arrowBackOutline, chevronDownOutline, chevronUpOutline, cloudDownloadOutline, copyOutline, documentTextOutline,
       eyeOutline, folderOpenOutline, gridOutline, homeOutline, logOutOutline, personOutline, saveOutline, searchOutline,
-      settingsOutline, shareOutline, trashOutline, removeOutline, expandOutline, checkmarkCircleOutline, alertCircleOutline, folderOutline, openOutline, createOutline, cloudUploadOutline, documentAttachOutline,
+      settingsOutline, shareOutline, trashOutline, removeOutline, expandOutline, checkmarkCircleOutline, alertCircleOutline, folderOutline, openOutline, createOutline, cloudUploadOutline, documentAttachOutline, reloadOutline,
     });
   }
 }

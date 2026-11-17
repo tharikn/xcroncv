@@ -43,6 +43,21 @@ describe('docFromModel / applyDoc', () => {
   });
 });
 
+describe('page breaks', () => {
+  it('toggles pageBreakBefore without mutating and propagates it into the render model', () => {
+    const d = doc(); const id = d.sections[1].id;
+    expect(O.findSection(d, id)?.pageBreakBefore).toBeFalsy();
+    const on = O.togglePageBreak(d, id);
+    expect(JSON.stringify(d)).not.toContain('pageBreakBefore');
+    expect(O.findSection(on, id)?.pageBreakBefore).toBe(true);
+    expect(O.findSection(on, d.sections[0].id)?.pageBreakBefore).toBeFalsy();
+    const m = O.applyDoc(model(), on);
+    expect(m.sections.find((s) => s.id === id)?.pageBreakBefore).toBe(true);
+    const off = O.togglePageBreak(on, id);
+    expect(O.findSection(off, id)?.pageBreakBefore).toBeFalsy();
+  });
+});
+
 describe('text editing', () => {
   it('edits header, contacts, section and item text without mutating the input', () => {
     const d = doc(); const snap = JSON.stringify(d);

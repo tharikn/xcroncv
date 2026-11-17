@@ -32,6 +32,7 @@
   - `GET /health`
   - `POST /auth/exchange` (host JWT handoff, throttled)
   - `GET /public/portfolios/:token` (read-only public portfolio share)
+  - `GET /public/resumes/:token` (read-only public resume share, user-approved via the Share action)
 - Never create new `@Public()` routes without documented approval.
 - `userId` and `tenantId` are extracted strictly from the validated JWT (`@CurrentUser()`). Never read them from request bodies, headers, or query params.
 - Every database query must filter by **both** `tenantId` AND the resource owner (`userId`/`profileId`).

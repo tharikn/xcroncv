@@ -114,25 +114,30 @@ const FONT: Record<string, string> = {
         </ng-template>
         @if (m.layout === 'two-column') {
           <div class="cols" data-testid="doc-columns" style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:18pt">
-            <div data-testid="doc-main">
+            <div data-col="main" data-testid="doc-main">
               @for (s of m.sections; track s.type) {
                 @if (!m.sideSections.includes(s.type)) {
+                  @if (s.pageBreakBefore) { <div class="page-break-spacer" data-pb></div> }
                   <ng-container *ngTemplateOutlet="sec; context: { $implicit: s, theme: m.theme, timeline: false }"></ng-container>
                 }
               }
             </div>
-            <aside data-testid="doc-side">
+            <aside data-col="side" data-testid="doc-side">
               @for (s of m.sections; track s.type) {
                 @if (m.sideSections.includes(s.type)) {
+                  @if (s.pageBreakBefore) { <div class="page-break-spacer" data-pb></div> }
                   <ng-container *ngTemplateOutlet="sec; context: { $implicit: s, theme: m.theme, timeline: false }"></ng-container>
                 }
               }
             </aside>
           </div>
         } @else {
+          <div data-col="main">
           @for (s of m.sections; track s.type) {
+            @if (s.pageBreakBefore) { <div class="page-break-spacer" data-pb></div> }
             <ng-container *ngTemplateOutlet="sec; context: { $implicit: s, theme: m.theme, timeline: m.layout === 'timeline' }"></ng-container>
           }
+          </div>
         }
       </ng-template>
     }
@@ -189,10 +194,34 @@ export class ResumeSheetComponent implements AfterViewChecked, OnDestroy {
         this.ro.observe(el);
       });
     }
+    this.applyPageBreakSpacers();
     const el = this.sheet?.nativeElement;
     if (!el) return;
     const h = el.scrollHeight;
     if (h !== this.contentH()) queueMicrotask(() => { this.contentH.set(h); this.contentHeight.emit(h); });
   }
+
+  /** Size page-break spacers in every rendered copy (measure sheet + page cards) so sections start on a new page. */
+  private applyPageBreakSpacers() {
+    const pageH = this.pageH();
+    const host = this.host.nativeElement as HTMLElement;
+    for (const sheet of Array.from(host.querySelectorAll<HTMLElement>('.sheet'))) {
+      for (const col of Array.from(sheet.querySelectorAll<HTMLElement>('[data-col]'))) {
+        const colTop = col.offsetTop;
+        for (const sp of Array.from(col.querySelectorAll<HTMLElement>('.page-break-spacer'))) {
+          const top = sp.offsetTop - colTop;
+          const mod = ((top % pageH) + pageH) % pageH; // normalise negative offsets in clipped page cards
+          let remaining = pageH - mod;
+          if (remaining >= pageH - 1) remaining = 0;
+          const px = Math.max(0, Math.round(remaining));
+          if (sp.style.height !== `${px}px`) {
+            sp.style.height = `${px}px`;
+            void sp.offsetHeight;
+          }
+        }
+      }
+    }
+  }
+
   ngOnDestroy() { this.ro?.disconnect(); }
 }

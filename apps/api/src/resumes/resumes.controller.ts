@@ -1,10 +1,12 @@
-import { DomainEvents } from '../common/domain-events';
 import {
   Body, Controller, Delete, Get, HttpCode, Optional, Param, ParseUUIDPipe, Patch, Post, Query, Res,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { CurrentUser } from '../common/auth/current-user.decorator';
 import { AuthUser } from '../common/auth/auth.types';
+import { Public } from '../common/auth/public.decorator';
+import { Throttle } from '@nestjs/throttler';
+import { DomainEvents } from '../common/domain-events';
 import { renderHtml } from '../export/html.renderer';
 import { renderPdf } from '../export/pdf.renderer';
 import { safeFilename } from '../export/filename';
@@ -33,9 +35,20 @@ export class ResumesController {
   @Get(':id/versions') versions(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.svc.listVersions(u, id);
   }
+
   @Get(':id/render-model')
   async renderModel(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return (await this.svc.renderModel(u, id)).model;
+  }
+
+  @Post(':id/share') @HttpCode(200)
+  async share(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.svc.createShare(u, id);
+  }
+
+  @Delete(':id/share') @HttpCode(204)
+  async revokeShare(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    await this.svc.revokeShare(u, id);
   }
 
   // Export: bytes are streamed to the client and never persisted. The client saves to a local folder.
@@ -60,5 +73,19 @@ export class ResumesController {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('X-Content-Type-Options', 'nosniff');
+  }
+}
+
+@Controller('public/resumes')
+export class PublicResumeController {
+  constructor(private svc: ResumesService) {}
+  @Public()
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Get(':token')
+  async view(@Param('token') token: string, @Res({ passthrough: true }) res: Response) {
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+    return this.svc.publicShare(token);
   }
 }

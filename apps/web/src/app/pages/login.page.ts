@@ -6,6 +6,7 @@ import { environment } from '../../environments/environment';
 import { AuthService } from '../core/auth.service';
 import { LocaleCode, LocaleService } from '../core/i18n/locale.service';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
+import { NativeHandoffService } from '../core/native-handoff.service';
 import { errorMessage } from '../core/notify.service';
 import { PreferencesService } from '../core/preferences.service';
 
@@ -25,6 +26,7 @@ import { PreferencesService } from '../core/preferences.service';
               @for (l of locale.languages; track l.code) { <option [value]="l.code" [attr.lang]="l.code">{{ l.nativeName }}</option> }
             </select></div>
           @if (auth.sessionExpired()) { <p class="banner warn" role="status" data-testid="session-expired">{{ 'common.sessionExpired' | t }}</p> }
+          @if (nativeHandoff.failed()) { <p class="banner err" role="alert" data-testid="handoff-failed">{{ 'handoff.failed' | t }}</p> }
         </div>
 
         <section class="card" aria-labelledby="tok-h">
@@ -63,7 +65,7 @@ export class LoginPage {
   error = signal('');
   busy = signal(false);
 
-  constructor(public auth: AuthService, private router: Router, private route: ActivatedRoute, public locale: LocaleService, private prefs: PreferencesService) {
+  constructor(public auth: AuthService, private router: Router, private route: ActivatedRoute, public locale: LocaleService, private prefs: PreferencesService, public nativeHandoff: NativeHandoffService) {
     if (this.auth.isAuthenticated()) void this.router.navigateByUrl('/dashboard');
   }
 

@@ -22,6 +22,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Native handoff from the X Cron Jobs app: xcroncv://auth/callback?code=...&nonce=...
+                 The code is single-use and bound to this redirect URI + nonce. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="xcroncv"
+                    android:host="auth"
+                    android:pathPrefix="/callback" />
+            </intent-filter>
+
         </activity>
 
         <provider

@@ -5,10 +5,16 @@ const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main
 const PAGE = { A4: { w: 11906, h: 16838 }, LETTER: { w: 12240, h: 15840 } } as const;
 const FONT: Record<string, string> = { 'Times-Roman': 'Times New Roman', Helvetica: 'Arial', Courier: 'Courier New' };
 
-const run = (text: string, o: { b?: boolean; i?: boolean; color?: string } = {}) =>
-  `<w:r><w:rPr>${o.b ? '<w:b/>' : ''}${o.i ? '<w:i/>' : ''}${o.color ? `<w:color w:val="${o.color}"/>` : ''}</w:rPr><w:t xml:space="preserve">${xml(text)}</w:t></w:r>`;
-const para = (inner: string, o: { style?: string; align?: string; num?: boolean; tabRight?: number; fill?: string } = {}) =>
-  `<w:p><w:pPr>${o.style ? `<w:pStyle w:val="${o.style}"/>` : ''}${o.num ? '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>' : ''}${o.tabRight ? `<w:tabs><w:tab w:val="right" w:pos="${o.tabRight}"/></w:tabs>` : ''}${o.fill ? `<w:shd w:val="clear" w:color="auto" w:fill="${o.fill}"/>` : ''}${o.align ? `<w:jc w:val="${o.align}"/>` : ''}</w:pPr>${inner}</w:p>`;
+const run = (text: string, o: { b?: boolean; i?: boolean; color?: string } = {}) => {
+  const rpr = `<w:rPr>${o.b ? '<w:b/>' : ''}${o.i ? '<w:i/>' : ''}${o.color ? `<w:color w:val="${o.color}"/>` : ''}</w:rPr>`;
+  // Split on newlines so line breaks become real Word <w:br/> elements instead of literal text.
+  const parts = text.replace(/\r\n?/g, '\n').split('\n');
+  return parts.map((part, i) =>
+    `${i ? '<w:br/>' : ''}<w:r>${rpr}<w:t xml:space="preserve">${xml(part)}</w:t></w:r>`
+  ).join('');
+};
+const para = (inner: string, o: { style?: string; align?: string; num?: boolean; tabRight?: number; fill?: string; pageBreak?: boolean } = {}) =>
+  `<w:p><w:pPr>${o.pageBreak ? '<w:pageBreakBefore/>' : ''}${o.style ? `<w:pStyle w:val="${o.style}"/>` : ''}${o.num ? '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>' : ''}${o.tabRight ? `<w:tabs><w:tab w:val="right" w:pos="${o.tabRight}"/></w:tabs>` : ''}${o.fill ? `<w:shd w:val="clear" w:color="auto" w:fill="${o.fill}"/>` : ''}${o.align ? `<w:jc w:val="${o.align}"/>` : ''}</w:pPr>${inner}</w:p>`;
 
 const SPACING = { compact: { after: 30, line: 240 }, normal: { after: 60, line: 259 }, relaxed: { after: 100, line: 290 } } as const;
 const hex = (c: string) => (/^#[0-9a-fA-F]{6}$/.test(c) ? c.slice(1).toUpperCase() : '000000');
@@ -32,7 +38,7 @@ export function renderDocx(m: RenderModel): Buffer {
 
   for (const s of m.sections) {
     const title = m.theme.headingTransform === 'upper' ? s.title.toUpperCase() : s.title;
-    body.push(para(run(title), { style: 'Heading1' }));
+    body.push(para(run(title), { style: 'Heading1', pageBreak: s.pageBreakBefore }));
     if (s.text) body.push(para(run(s.text)));
     for (const it of s.items ?? []) {
       if (it.title && it.tags?.length && !it.subtitle && !it.text && !it.meta && !it.bullets?.length) { body.push(para(run(`${it.title}: `, { b: true }) + run(it.tags.join(', ')))); continue; }

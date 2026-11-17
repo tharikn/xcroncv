@@ -144,7 +144,7 @@ export function parseResumeText(lines: string[]): ImportSuggestion {
 
   for (const l of sections.get('skills') ?? []) {
     for (const seg of clean(l).split('|')) {
-      const m = /^([^:,]{2,40}):s*(.+)$/.exec(seg.trim());
+      const m = /^([^:,]{2,40}):\s*(.+)$/.exec(seg.trim());
       const cat = m?.[1]; const body = m ? m[2] : seg;
       for (const k of body.split(/[,;•·]/).map((x) => x.trim()).filter((x) => x && x.length <= 80)) {
         if (out.skills.length < 100 && !out.skills.some((e) => e.name.toLowerCase() === k.toLowerCase())) out.skills.push({ name: k, ...(cat ? { category: cat.trim().slice(0, 60) } : {}) });

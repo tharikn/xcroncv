@@ -2,7 +2,6 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { SettingsService } from '../../core/settings.service';
 import { Requirement } from '../../core/insights.api';
-import { TemplateSummary } from '../../core/models';
 
 export type Seniority = 'intern' | 'junior' | 'mid' | 'senior' | 'lead' | 'principal';
 
@@ -29,16 +28,15 @@ export interface JdResumeGeneratorResult {
   summarySource: 'ai' | 'rule-based';
   matchedSkills: string[];
   jdAnalysis: JdAnalysisPayload;
-  allTemplates: TemplateSummary[];
+  /** Sanitized JD text, echoed back so the same input can seed the cover-letter draft. */
+  jdText: string;
 }
 
 export interface GenerateFromJdDto {
   jdText: string;
-  jobTitle?: string;
-  company?: string;
-  templateId?: string;
 }
 
+/** Typed client for the stateless JD analysis endpoint (paste or upload). */
 @Injectable({ providedIn: 'root' })
 export class AiResumeGeneratorApi {
   constructor(private http: HttpClient, private settings: SettingsService) {}
@@ -49,15 +47,9 @@ export class AiResumeGeneratorApi {
     return this.http.post<JdResumeGeneratorResult>(this.url('/jd-resume-generator/analyze'), dto);
   }
 
-  analyzeUpload(file: File, jobTitle?: string, templateId?: string) {
+  analyzeUpload(file: File) {
     const fd = new FormData();
     fd.append('file', file, file.name);
-    if (jobTitle) fd.append('jobTitle', jobTitle);
-    if (templateId) fd.append('templateId', templateId);
     return this.http.post<JdResumeGeneratorResult>(this.url('/jd-resume-generator/analyze/upload'), fd);
-  }
-
-  getTemplates() {
-    return this.http.get<TemplateSummary[]>(this.url('/jd-resume-generator/templates'));
   }
 }

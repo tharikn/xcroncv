@@ -25,7 +25,7 @@ export interface CareerProfile {
 }
 
 export interface SectionConfig { type: SectionType; visible: boolean }
-export interface Overrides { accent?: string; baseSizePt?: number; pageSize?: 'A4' | 'LETTER'; /** visual-editor document (doc 16) */ doc?: ResumeDoc | null }
+export interface Overrides { accent?: string; primaryColor?: string; sectionSpacing?: 'compact' | 'normal' | 'relaxed'; baseSizePt?: number; pageSize?: 'A4' | 'LETTER'; /** visual-editor document (doc 16) */ doc?: ResumeDoc | null }
 export type ResumeStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
 
 export interface Resume {
@@ -47,7 +47,7 @@ export interface TemplateSummary {
 }
 
 export interface RenderItem { id?: string; image?: DocImage; title?: string; subtitle?: string; meta?: string; text?: string; bullets?: string[]; tags?: string[]; url?: string }
-export interface RenderSection { id?: string; type: SectionType | 'custom'; title: string; text?: string; items?: RenderItem[] }
+export interface RenderSection { id?: string; type: SectionType | 'custom'; title: string; text?: string; items?: RenderItem[]; pageBreakBefore?: boolean }
 export interface RenderModel {
   schemaVersion: 1; template: { id: string; version: number };
   page: { size: 'A4' | 'LETTER'; marginPt: number }; theme: TemplateTheme;

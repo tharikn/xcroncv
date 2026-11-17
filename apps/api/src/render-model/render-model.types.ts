@@ -19,6 +19,7 @@ export interface RenderSection {
   title: string;
   text?: string;          // summary only
   items?: RenderItem[];
+  pageBreakBefore?: boolean;  // visual-editor documents only: force this section onto a new page
 }
 
 export interface RenderModel {

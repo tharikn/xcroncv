@@ -12,10 +12,14 @@
 
 .ve-viewport {
   flex: 1 1 auto; min-height: 420px; overflow: auto; scrollbar-gutter: stable; background: var(--c-surface); padding: var(--space-4);
+  scrollbar-width: auto;
   /* we implement pinch ourselves; one finger still scrolls natively */
   touch-action: pan-x pan-y; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
 }
 .sheet-wrap { margin: 0 auto; position: relative; }
+.ve-viewport::-webkit-scrollbar { width: 10px; height: 10px; }
+.ve-viewport::-webkit-scrollbar-thumb { background: var(--c-border); border-radius: 5px; }
+.ve-viewport::-webkit-scrollbar-track { background: var(--c-surface); }
 
 .ve-outline {
   position: absolute; right: var(--space-3); top: 3.2rem; z-index: 25; width: min(22rem, calc(100vw - 2 * var(--space-3))); max-height: 70%; overflow: auto;
@@ -25,6 +29,16 @@
   .list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
   li.dim button.left { opacity: 0.55; text-decoration: line-through; }
   .left { justify-content: flex-start; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+.ve-history {
+  position: absolute; right: var(--space-3); top: 3.2rem; z-index: 25; width: min(24rem, calc(100vw - 2 * var(--space-3))); max-height: 70%; overflow: auto;
+  background: var(--c-bg); color: var(--c-text); border: 1px solid var(--c-border); border-radius: var(--radius, 12px); padding: var(--space-3);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25); display: grid; gap: var(--space-2);
+  h3 { margin: 0; font-size: 1rem; }
+  .history-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+  .history-item { border: 1px solid var(--c-border); border-radius: 8px; padding: var(--space-2); display: grid; gap: 0.2rem; }
+  .history-item p { margin: 0; }
 }
 
 .ve-tools {
@@ -94,5 +108,5 @@
   }
   .ve-viewport { padding: var(--space-2); padding-bottom: 5rem; }
   .ve-bar { padding: var(--space-1) var(--space-2); }
-  .ve-outline { position: static; width: auto; max-height: 40vh; margin: var(--space-2); }
+  .ve-outline, .ve-history { position: static; width: auto; max-height: 40vh; margin: var(--space-2); }
 }

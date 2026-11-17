@@ -1,4 +1,5 @@
 import { ConflictException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
 import { DomainEvents } from '../common/domain-events';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -106,5 +107,39 @@ export class ResumesService {
       where: { resumeId: id }, orderBy: { versionNumber: 'desc' },
       select: { id: true, versionNumber: true, changeSummary: true, createdAt: true },
     });
+  }
+
+  /** Creates (or reuses) the capability token behind the read-only public share link. Idempotent per resume. */
+  async createShare(user: AuthUser, id: string): Promise<{ shareToken: string; sharePath: string }> {
+    const resume = await this.owned(user, id);
+    const shareToken = resume.shareToken ?? randomBytes(24).toString('base64url');
+    if (!resume.shareToken) {
+      await this.prisma.resume.update({ where: { id }, data: { shareToken } });
+    }
+    return { shareToken, sharePath: `/r/${shareToken}` };
+  }
+
+  /** Disables the public link. Idempotent: revoking twice is not an error. */
+  async revokeShare(user: AuthUser, id: string): Promise<void> {
+    const resume = await this.owned(user, id);
+    if (resume.shareToken !== null) {
+      await this.prisma.resume.update({ where: { id }, data: { shareToken: null } });
+    }
+  }
+
+  /**
+   * Anonymous read-only render of a shared resume. The token IS the capability: no tenant/user input is read,
+   * and the returned shape is the render model only (never profileId/tenantId/userId/overrides).
+   */
+  async publicShare(token: string): Promise<{ name: string; model: RenderModel }> {
+    if (!token || token.length > 200) throw new NotFoundException('Resume not found'); // uniform, non-disclosing
+    const resume = await this.prisma.resume.findUnique({ where: { shareToken: token } });
+    if (!resume) throw new NotFoundException('Resume not found');
+    const profile = await this.prisma.careerProfile.findUniqueOrThrow({
+      where: { id: resume.profileId }, include: profileInclude,
+    });
+    const tpl = this.templates.getVersion(resume.templateId, resume.templateVersion);
+    const model = buildRenderModel(profile, tpl, resume.sections as unknown as SectionConfig[], resume.overrides);
+    return { model, name: resume.name };
   }
 }

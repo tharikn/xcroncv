@@ -1,6 +1,6 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { AuthUser } from '../common/auth/auth.types';
-import { analyzeJd, JdAnalysis, Requirement } from '../resume-match/jd-analyzer';
+import { analyzeJd, detectJdTitle, JdAnalysis, Requirement } from '../resume-match/jd-analyzer';
 import { CareerProfileService, FullProfile } from '../career-profile/career-profile.service';
 import { TEMPLATE_CATALOG } from '../templates/template.catalog';
 import { TemplateVersionPackage, SectionType } from '../templates/template.types';
@@ -35,6 +35,11 @@ export interface JdResumeGeneratorResult {
   summarySource: 'ai' | 'rule-based';
   matchedSkills: string[];
   jdAnalysis: JdAnalysis;
+  /**
+   * Sanitized job-description text echoed back so the client can reuse the same
+   * input for the matching cover-letter draft (transient; never persisted here).
+   */
+  jdText: string;
   allTemplates: Array<Pick<TemplateVersionPackage, 'id' | 'name' | 'category' | 'description' | 'tags' | 'atsProfile' | 'layout' | 'sectionOrder' | 'theme' | 'careerLevels' | 'style'>>;
 }
 
@@ -58,8 +63,8 @@ export class JdResumeGeneratorService {
   ) {}
 
   async generate(user: AuthUser, dto: GenerateFromJdDto): Promise<JdResumeGeneratorResult> {
-    // 1. Analyze the JD (rule-based, no LLM)
-    const jdAnalysis = analyzeJd(dto.jdText, dto.jobTitle);
+    // 1. Analyze the JD (rule-based, no LLM). The 2-step UI has no title field, so infer it from the posting.
+    const jdAnalysis = analyzeJd(dto.jdText, dto.jobTitle?.trim() || detectJdTitle(dto.jdText));
 
     // 2. Load user's career profile (may not exist — handle gracefully)
     let profile: FullProfile | null = null;
@@ -90,6 +95,7 @@ export class JdResumeGeneratorService {
       summarySource,
       matchedSkills,
       jdAnalysis,
+      jdText: dto.jdText,
       allTemplates: ATS_TEMPLATES.map(({ id, name, category, description, tags, atsProfile, layout, sectionOrder, theme, careerLevels, style }) => ({
         id, name, category, description, tags, atsProfile, layout, sectionOrder, theme, careerLevels, style,
       })),
@@ -220,7 +226,9 @@ export class JdResumeGeneratorService {
   ): string {
     const name = profile?.fullName ?? 'Candidate';
     const title = dto.jobTitle ?? jdAnalysis.detectedTitle ?? profile?.headline ?? 'professional';
-    const seniority = jdAnalysis.seniority ? `${jdAnalysis.seniority}-level ` : '';
+    // Avoid "senior-level Senior Engineer" when the title already states its level.
+    const titleHasLevel = /\b(?:intern|junior|mid|senior|staff|lead|principal|sr\.?|jr\.?)\b/i.test(title);
+    const seniority = jdAnalysis.seniority && !titleHasLevel ? `${jdAnalysis.seniority}-level ` : '';
 
     const topSkills = matchedSkills.slice(0, 5);
     const jdSkills = jdAnalysis.requirements

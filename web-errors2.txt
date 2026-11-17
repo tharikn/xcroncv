@@ -1,0 +1,2 @@
+e2e/support/mock-m26-28.ts(121,83): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+src/app/features/ai-resume-generator/tailored-doc.spec.ts(19,3): error TS2741: Property 'links' is missing in type '{ name: string; headline: string; contacts: string[]; }' but required in type '{ name: string; headline?: string | undefined; contacts: string[]; links: Link[]; photo?: DocImage | undefined; }'.

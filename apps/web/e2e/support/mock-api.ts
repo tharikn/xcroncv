@@ -36,6 +36,8 @@ export interface MockState {
   prefs?: { theme: string | null; locale: string | null };
   exportCalls: string[];
   requests: Array<{ method: string; path: string; body?: any; auth?: string }>;
+  /** Opt in per test: the floating assistant stays hidden elsewhere so existing specs see the same dock. */
+  helpChat?: { enabled?: boolean; aiOptInRequired?: boolean; reply?: string };
 }
 
 export function sampleProfile(over: Record<string, unknown> = {}) {
@@ -47,6 +49,21 @@ export function sampleProfile(over: Record<string, unknown> = {}) {
     skills: [{ id: 's1', name: 'Mathematics', category: 'Core' }, { id: 's2', name: 'Algorithms', category: 'Core' }],
     educations: [{ id: 'ed1', institution: 'Home tutored', degree: 'Mathematics' }], projects: [], certifications: [], languages: [],
     ...over,
+  };
+}
+
+/** Mirrors the API's canonical starter profile restored by POST /career-profile/reset. */
+export function starterProfile() {
+  return {
+    id: 'p1', fullName: 'Your Name', email: 'you@example.com', phone: '+1 555 010 0100', location: 'City, Country',
+    headline: 'Your professional headline',
+    summary: 'Write a short, results-focused summary of your experience and the value you bring to a team.',
+    links: [{ label: 'Portfolio', url: 'https://example.com' }],
+    experiences: [{ id: 'e1', employerName: 'Example Company', jobTitle: 'Your Job Title', startDate: '2022-01', endDate: null,
+      isCurrent: true, location: 'City, Country', bullets: [{ id: 'b1', kind: 'ACHIEVEMENT', content: 'Describe a measurable result.', displayOrder: 0 }] }],
+    skills: [{ id: 's1', name: 'Your main skill', category: 'Core' }],
+    educations: [{ id: 'ed1', institution: 'Your University', degree: 'Your Degree' }],
+    projects: [], certifications: [], languages: [],
   };
 }
 
@@ -116,6 +133,11 @@ export async function mockApi(page: Page, state: MockState = freshState()): Prom
     }
     const tm = /^\/templates\/([^/]+)$/.exec(path);
     if (tm && method === 'GET') { const t = TEMPLATES.find((x) => x.id === tm[1]); return t ? json(200, t) : json(404, { message: 'Template not found' }); }
+
+    if (path === '/career-profile/reset' && method === 'POST') {
+      state.profile = starterProfile();
+      return json(200, state.profile);
+    }
 
     if (path === '/career-profile') {
       if (method === 'GET') return state.profile ? json(200, state.profile) : json(404, { message: 'Career profile not found' });
@@ -190,6 +212,27 @@ export async function mockApi(page: Page, state: MockState = freshState()): Prom
       if (r) return json(r.status, r.data);
     }
     // module 07: parsing test
+    if (path === '/ai/help/status' && method === 'GET') {
+      return json(200, {
+        enabled: !!state.helpChat,
+        mode: 'guided', provider: 'guided', model: null, external: false, aiConfigured: false,
+        aiOptInRequired: !!state.helpChat?.aiOptInRequired,
+        remainingTokens: 3600, dailyTokenBudget: 4000, usedTokens: 400,
+        cooldownSecondsRemaining: 0, coolDownUntil: null,
+        maxMessageChars: 500, maxHistoryTurns: 4,
+        welcome: 'Ask me anything about resumes.',
+      });
+    }
+    if (path === '/ai/help/chat' && method === 'POST') {
+      return json(200, {
+        reply: state.helpChat?.reply
+          ?? 'ATS parsers read your resume as plain text, top to bottom. Keep one column, standard section titles and the exact keywords from the posting.',
+        provider: 'guided', tokensUsed: 60, aiAssisted: false,
+        remainingTokens: 3360, dailyTokenBudget: 4000,
+        cooldownSecondsRemaining: 0, coolDownUntil: null,
+      });
+    }
+
     const pt = /^\/resumes\/([^/]+)\/parsing-tests$/.exec(path);
     if (pt && method === 'POST') {
       state.requests.push({ method, path, body, auth: req.headers()['authorization'] });

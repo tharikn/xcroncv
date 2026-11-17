@@ -16,6 +16,7 @@
     "web:build": "npm run build -w apps/web",
     "web:test": "npm run test -w apps/web",
     "e2e": "npm run e2e -w apps/web",
+    "android:icons": "node scripts/android-icons.mjs",
     "test": "npm run api:test && npm run web:test"
   }
 }

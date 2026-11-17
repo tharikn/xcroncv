@@ -99,30 +99,40 @@ export function buildRenderModel(
           const k = s.category?.trim() || '';
           groups.set(k, [...(groups.get(k) ?? []), s.name]);
         }
-        const items = [...groups.entries()].map(([k, names]) => ({ title: k || undefined, tags: names }));
+        const items = [...groups.entries()].map(([k, names], gi) => ({
+          id: `i_skills_${gi}`,
+          title: k || undefined,
+          tags: names,
+        }));
         return { type, title: SECTION_TITLES[type], items };
       }
       case 'education': {
-        const items = profile.educations.map((e) => ({
+        const items = profile.educations.map((e, ei) => ({
+          id: `i_education_${ei}`,
           title: [e.degree, e.field].filter(Boolean).join(', '), subtitle: e.institution,
           meta: range(e.startDate, e.endDate), text: e.grade ? `Grade: ${e.grade}` : undefined,
         }));
         return items.length ? { type, title: SECTION_TITLES[type], items } : null;
       }
       case 'projects': {
-        const items = profile.projects.map((p) => ({
+        const items = profile.projects.map((p, pi) => ({
+          id: `i_projects_${pi}`,
           title: p.name, text: p.description ?? undefined, tags: p.technologies, url: p.url ?? undefined,
         }));
         return items.length ? { type, title: SECTION_TITLES[type], items } : null;
       }
       case 'certifications': {
-        const items = profile.certifications.map((c) => ({
+        const items = profile.certifications.map((c, ci) => ({
+          id: `i_certifications_${ci}`,
           title: c.name, subtitle: c.issuer ?? undefined, meta: formatYm(c.issuedDate),
         }));
         return items.length ? { type, title: SECTION_TITLES[type], items } : null;
       }
       case 'languages': {
-        const items = profile.languages.map((l) => ({ title: l.name, meta: l.proficiency ?? undefined }));
+        const items = profile.languages.map((l, li) => ({
+          id: `i_languages_${li}`,
+          title: l.name, meta: l.proficiency ?? undefined,
+        }));
         return items.length ? { type, title: SECTION_TITLES[type], items } : null;
       }
     }

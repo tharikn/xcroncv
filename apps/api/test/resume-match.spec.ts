@@ -1,5 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
-import { analyzeJd, normalizeUserRequirements, Requirement, sanitizeJdText } from '../src/resume-match/jd-analyzer';
+import { analyzeJd, detectJdTitle, normalizeUserRequirements, Requirement, sanitizeJdText } from '../src/resume-match/jd-analyzer';
 import { computeMatch, DIMENSIONS, SCORING_VERSION } from '../src/resume-match/matcher';
 import { findSkills, normalizeLabel } from '../src/resume-match/taxonomy';
 import {
@@ -70,6 +70,21 @@ describe('JD analysis (deterministic extraction)', () => {
     expect(out[0].normalized).toBe('kubernetes');
     expect(out[0].origin).toBe('USER');
     expect(out[1].minYears).toBe(50);
+  });
+});
+
+describe('JD title detection (2-step generator has no title field)', () => {
+  it('reads a title from a first-line heading', () => {
+    expect(detectJdTitle('Senior Frontend Engineer\n\nWe build accessible products.')).toBe('Senior Frontend Engineer');
+  });
+  it('prefers an explicit title label and ignores company/about lines', () => {
+    expect(detectJdTitle('Company: Acme\nJob Title: Staff Platform Engineer\nAbout us\nWe are growing.')).toBe('Staff Platform Engineer');
+  });
+  it('extracts a title from a hiring sentence', () => {
+    expect(detectJdTitle('About Acme\nWe are hiring a Senior Product Designer to join our team.')).toBe('Senior Product Designer');
+  });
+  it('does not invent a title from body prose', () => {
+    expect(detectJdTitle('We value learning.\nRequirements\n- Curious mind')).toBeUndefined();
   });
 });
 

@@ -1,4 +1,5 @@
 import { Component, OnInit, signal } from '@angular/core';
+import { ResetProfileDialogComponent } from '../shared/reset-profile-dialog.component';
 import { FormsModule } from '@angular/forms';
 import { IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular/standalone';
 import { ApiService } from '../core/api.service';
@@ -7,7 +8,7 @@ import { AuthService } from '../core/auth.service';
 import { LocaleCode, LocaleService } from '../core/i18n/locale.service';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 import { LocalFileService } from '../core/local-file.service';
-import { NotifyService } from '../core/notify.service';
+import { errorMessage, NotifyService } from '../core/notify.service';
 import { PreferencesService } from '../core/preferences.service';
 import { SettingsService } from '../core/settings.service';
 import { TourService } from '../shared/tour/tour.service';
@@ -16,7 +17,7 @@ import { THEMES, ThemePreference, ThemeService } from '../core/theme.service';
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [IonContent, IonHeader, IonToolbar, IonTitle, IonIcon, FormsModule, TranslatePipe],
+  imports: [IonContent, IonHeader, IonToolbar, IonTitle, IonIcon, FormsModule, ResetProfileDialogComponent, TranslatePipe],
   template: `
     <ion-header><ion-toolbar><ion-title>{{ 'settings.title' | t }}</ion-title></ion-toolbar></ion-header>
     <ion-content>
@@ -29,6 +30,13 @@ import { THEMES, ThemePreference, ThemeService } from '../core/theme.service';
           <p class="wrap" data-testid="account-subject">{{ auth.subject() || ('settings.unknown' | t) }}</p>
           <div><button class="btn danger" data-testid="signout" (click)="auth.signOut()">
             <ion-icon name="log-out-outline" aria-hidden="true"></ion-icon> {{ 'settings.signOut' | t }}</button></div>
+        </section>
+
+        <section class="card" aria-labelledby="profile-data-h">
+          <h2 id="profile-data-h">{{ 'settings.profileData' | t }}</h2>
+          <p class="muted">{{ 'profile.reset.settingHint' | t }}</p>
+          <div><button class="btn danger" data-testid="settings-reset-profile" (click)="openReset()" [disabled]="resetting()">
+            <ion-icon name="refresh-outline" aria-hidden="true"></ion-icon> {{ 'profile.reset.button' | t }}</button></div>
         </section>
 
         <section class="card" aria-labelledby="look-h">
@@ -85,6 +93,8 @@ import { THEMES, ThemePreference, ThemeService } from '../core/theme.service';
         </section>
       </div>
     </ion-content>
+    <app-reset-profile-dialog [open]="resetOpen()" [busy]="resetting()" domId="reset-profile-settings"
+                              (cancelRequest)="closeReset()" (confirmRequest)="resetProfile()" />
   `,
 })
 export class SettingsPage implements OnInit {
@@ -92,6 +102,8 @@ export class SettingsPage implements OnInit {
   urlError = signal('');
   status = signal('');
   version = signal(APP_VERSION);
+  resetOpen = signal(false);
+  resetting = signal(false);
   themes = THEMES;
 
   constructor(public auth: AuthService, public files: LocalFileService, private settings: SettingsService,
@@ -119,6 +131,26 @@ export class SettingsPage implements OnInit {
     this.api.listTemplates().subscribe({
       next: (t) => this.status.set(this.locale.t('settings.apiConnected', { n: t.length })),
       error: () => this.status.set(this.locale.t('settings.apiFailed')),
+    });
+  }
+
+  openReset() { this.resetOpen.set(true); }
+  closeReset() { this.resetOpen.set(false); }
+
+  resetProfile() {
+    if (this.resetting()) return;
+    this.resetting.set(true);
+    this.api.resetProfile().subscribe({
+      next: () => {
+        this.resetting.set(false);
+        this.resetOpen.set(false);
+        void this.notify.toast(this.locale.t('profile.reset.success'));
+      },
+      error: (e) => {
+        this.resetting.set(false);
+        this.resetOpen.set(false);
+        void this.notify.toast(errorMessage(e), 'error');
+      },
     });
   }
 }

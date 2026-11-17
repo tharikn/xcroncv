@@ -30,10 +30,10 @@ export const TOUR_STEPS: readonly TourStep[] = [
   { id: 'template', page: 'templates', flows: ['main'], targets: ['step-template-action', 'nav-templates'], titleKey: 'tour.template.title', bodyKey: 'tour.template.body', mode: 'click' },
   // Editing text mirrors the visual editor: click selects, a second click or Enter edits in place, a floating toolbar formats.
   { id: 'canvas', page: 'editor', flows: BOTH, targets: ['ve-canvas', 'editor-canvas'], titleKey: 'tour.canvas.title', bodyKey: 'tour.canvas.body', mode: 'info' },
-  { id: 'bar', page: 'editor', flows: BOTH, targets: ['ve-bar'], titleKey: 'tour.bar.title', bodyKey: 'tour.bar.body', mode: 'info' },
-  { id: 'outline', page: 'editor', flows: BOTH, targets: ['ve-outline-btn'], titleKey: 'tour.outline.title', bodyKey: 'tour.outline.body', mode: 'info' },
+  { id: 'bar', page: 'editor', flows: BOTH, targets: ['editor-bar', 've-bar'], titleKey: 'tour.bar.title', bodyKey: 'tour.bar.body', mode: 'info' },
+  { id: 'outline', page: 'editor', flows: BOTH, targets: ['editor-sections-btn', 've-outline-btn'], titleKey: 'tour.outline.title', bodyKey: 'tour.outline.body', mode: 'info' },
   { id: 'panel', page: 'editor', flows: BOTH, targets: ['editor-side-panel'], titleKey: 'tour.panel.title', bodyKey: 'tour.panel.body', mode: 'info' },
-  { id: 'version', page: 'editor', flows: BOTH, targets: ['ve-save-version'], titleKey: 'tour.version.title', bodyKey: 'tour.version.body', mode: 'info' },
+  { id: 'version', page: 'editor', flows: BOTH, targets: ['editor-save-version', 've-save-version'], titleKey: 'tour.version.title', bodyKey: 'tour.version.body', mode: 'info' },
   { id: 'continue', page: 'editor', flows: BOTH, targets: ['step-edit-action'], titleKey: 'tour.continue.title', bodyKey: 'tour.continue.body', mode: 'info' },
   { id: 'export', page: 'export', flows: ['main'], targets: ['step-export-action'], titleKey: 'tour.export.title', bodyKey: 'tour.export.body', mode: 'click' },
 ];

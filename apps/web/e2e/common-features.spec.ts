@@ -14,10 +14,13 @@ const axe = async (page: Page) => {
 const theme = (page: Page) => page.evaluate(() => document.documentElement.dataset['theme']);
 
 test.describe('Theme preference', () => {
-  test('defaults to the OS setting and follows it while on "system"', async ({ page }) => {
+  test('defaults to light and follows the OS only while on "system"', async ({ page }) => {
     await setup(page);
     await page.emulateMedia({ colorScheme: 'dark' });
     await page.goto('/settings');
+    await expect.poll(() => theme(page)).toBe('light');
+    await expect(page.getByTestId('theme-light')).toHaveAttribute('aria-checked', 'true');
+    await page.getByTestId('theme-system').click();
     await expect.poll(() => theme(page)).toBe('dark');
     await expect(page.getByTestId('theme-system')).toHaveAttribute('aria-checked', 'true');
     await page.emulateMedia({ colorScheme: 'light' });

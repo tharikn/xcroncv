@@ -69,12 +69,49 @@ h3 { font-size: 1rem; }
 p { margin: 0; }
 a { color: inherit; }
 :focus-visible { outline: 3px solid var(--c-focus); outline-offset: 2px; border-radius: 4px; }
-@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+  /* Keep loading indicators moving slowly so activity is still communicated. */
+  #boot-splash .boot-splash__spin { animation: boot-spin 2.4s linear infinite !important; }
+}
+@keyframes boot-spin { to { transform: rotate(360deg); } }
 
 /* ---------- App shell: rail (desktop) / bottom bar (mobile) ---------- */
-.shell { display: grid; grid-template-columns: var(--nav-w) minmax(0, 1fr); height: 100%; width: 100%; position: absolute; inset: 0; }
-.shell .main { position: relative; min-width: 0; height: 100%; }
-.nav { border-right: 1px solid var(--c-border); background: var(--c-bg); display: flex; flex-direction: column; padding: var(--space-4) var(--space-3); gap: var(--space-4); padding-top: calc(var(--space-4) + env(safe-area-inset-top)); }
+.shell { display: grid; grid-template-columns: var(--nav-w) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); height: 100%; width: 100%; position: absolute; inset: 0; }
+.shell .main { position: relative; min-width: 0; height: 100%; grid-column: 2; grid-row: 1; overflow: auto; }
+
+/* One top bar: the page owns the Ionic header (title); the shell profile sits at its right end. */
+.shell > .topbar {
+  position: absolute;
+  top: env(safe-area-inset-top, 0px);
+  left: var(--nav-w);
+  right: 0;
+  z-index: 20; /* above ion-header (z-index: 10) */
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  height: 3.25rem;
+  padding: 0 var(--page-gutter);
+  background: transparent;
+  border: 0;
+  pointer-events: none;
+}
+.shell .topbar-spacer { display: none; }
+.shell .topbar-profile { pointer-events: auto; display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--control-min-height); padding: 0.35rem var(--space-3); border-radius: var(--radius); text-decoration: none; color: var(--c-muted); font-weight: 500; }
+.shell .topbar-profile:hover { background: var(--c-surface); color: var(--c-text); }
+.shell .topbar-profile.active { color: var(--c-primary); font-weight: 700; background: color-mix(in srgb, var(--c-primary) 12%, transparent); }
+.shell .topbar-profile ion-icon { font-size: 1.25rem; flex: none; }
+.shell .topbar-avatar { display: inline-grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; background: var(--brand-gradient); color: #1a1208; font-weight: 700; font-size: 0.78rem; letter-spacing: 0.02em; flex: none; text-transform: uppercase; }
+.shell .topbar-username { max-width: 12rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--c-text); font-weight: 600; }
+/* Keep the page title clear of the profile control in the shared bar. */
+.shell .main ion-toolbar { --padding-end: calc(var(--page-gutter) + 10.5rem); }
+.shell .main ion-title { text-align: start; }
+@media (max-width: 480px) {
+  .shell .topbar-username { display: none; }
+  .shell .main ion-toolbar { --padding-end: calc(var(--page-gutter) + 3rem); }
+}
+.nav { grid-column: 1; grid-row: 1 / -1; border-right: 1px solid var(--c-border); background: var(--c-bg); display: flex; flex-direction: column; padding: var(--space-4) var(--space-3); gap: var(--space-4); padding-top: calc(var(--space-4) + env(safe-area-inset-top)); }
 .nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .nav a { display: flex; align-items: center; gap: var(--space-3); min-height: var(--control-min-height); padding: 0 var(--space-3); border-radius: var(--radius); text-decoration: none; color: var(--c-muted); font-weight: 500; }
 .nav a:hover { background: var(--c-surface); color: var(--c-text); }
@@ -85,20 +122,22 @@ a { color: inherit; }
 
 @media (max-width: 991.98px) {
   .shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
-  .shell .main { grid-row: 1; }
-  .nav { grid-row: 2; border-right: 0; border-top: 1px solid var(--c-border); flex-direction: row; padding: 0 var(--space-2); padding-bottom: env(safe-area-inset-bottom); padding-top: 0; gap: 0; z-index: 10; }
+  .shell > .topbar { left: 0; }
+  .shell .main { grid-column: 1; grid-row: 1; }
+  .nav { grid-column: 1; grid-row: 2; border-right: 0; border-top: 1px solid var(--c-border); flex-direction: row; padding: 0 var(--space-2); padding-bottom: env(safe-area-inset-bottom); padding-top: 0; gap: 0; z-index: 10; }
   .nav .brand { display: none !important; }
   .nav ul { flex-direction: row; width: 100%; justify-content: space-around; }
   .nav li { flex: 1 1 0; min-width: 0; }
   .nav li.desktop-only { display: none !important; }
   .nav a { flex-direction: column; justify-content: center; gap: 2px; padding: var(--space-2) 2px; font-size: 0.72rem; min-height: 3.5rem; text-align: center; }
 
-  /* Immersive editor mode: hide mobile bottom nav so editor has full screen height */
-  .shell.editor-immersive {
-    grid-template-rows: 1fr;
-    .nav { display: none !important; }
-  }
 }
+
+/* Immersive editor mode: no app rail, top bar or bottom bar, so the canvas can use the full screen width and height. */
+.shell.editor-immersive { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.shell.editor-immersive .nav { display: none !important; }
+.shell.editor-immersive > .topbar { display: none !important; }
+.shell.editor-immersive .main { grid-row: 1; grid-column: 1; }
 
 /* ---------- Page layout ---------- */
 .page-shell { width: min(100% - 2 * var(--page-gutter), var(--layout-workspace-max)); margin-inline: auto; padding-block: var(--space-5) var(--space-6); display: flex; flex-direction: column; gap: var(--space-5); }
@@ -248,7 +287,7 @@ ion-title { font-weight: 700; font-size: 1.05rem; padding-inline: 0; }
 .preview-viewport { overflow: auto; background: #e8e9ec; flex: 1 1 auto; padding: var(--space-4); display: flex; justify-content: center; align-items: flex-start; }
 .sheet-wrap { transform-origin: top center; }
 /* sheet--measure is hidden; sheet--page is a visible page card */
-.sheet { position: relative; background: #fff; color: #111; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); }
+.sheet { position: relative; background: #fff; color: #111; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); white-space: pre-wrap; }
 .sheet.sheet--measure { overflow: visible; box-shadow: none; }
 .sheet.sheet--page { overflow: hidden; }
 /* sheet-stack: a sized container that holds all page cards via absolute positioning */
@@ -260,8 +299,9 @@ ion-title { font-weight: 700; font-size: 1.05rem; padding-inline: 0; }
 .sheet .doc-section h2 { font-size: 11pt; margin: 0 0 4pt; padding-bottom: 2pt; }
 .sheet .doc-item { margin-bottom: 6pt; }
 .sheet ul { margin: 2pt 0 0 14pt; padding: 0; }
+.page-break-spacer { width: 100%; pointer-events: none; }
 
-/* ---------- Skeleton loaders (content placeholders; use instead of spinners or dark overlays) ---------- */
+/* ---------- Skeleton loaders (content-shaped placeholders shown while data loads) ---------- */
 .sk-stack { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) 0; }
 .sk { display: block; position: relative; overflow: hidden; height: 0.85rem; width: 100%; border-radius: 6px; background: var(--c-surface); }
 .sk::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--c-border) 70%, transparent), transparent); animation: sk-shimmer 1.3s ease-in-out infinite; }
@@ -270,11 +310,69 @@ ion-title { font-weight: 700; font-size: 1.05rem; padding-inline: 0; }
 .sk--block { height: 5rem; border-radius: var(--radius); }
 @keyframes sk-shimmer { to { transform: translateX(100%); } }
 
+/* Additional skeleton shapes — compose with .sk, or use <app-skeleton> for a typed API. */
+.sk--heading { height: 1.35rem; width: 45%; }
+.sk--rule { height: 1px; width: 100%; min-height: 1px; border-radius: 0; }
+.sk--avatar { width: 2.75rem; height: 2.75rem; border-radius: 50%; flex: none; }
+.sk--circle { width: 3.5rem; height: 3.5rem; border-radius: 50%; flex: none; }
+.sk--button { width: 7rem; height: 2.25rem; border-radius: 999px; }
+.sk--static::after { display: none; }
+.sk-card { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--c-border); border-radius: var(--radius); background: var(--c-bg); }
+.sk-card__head { display: flex; align-items: center; gap: var(--space-3); }
+.sk-card__lines { display: flex; flex-direction: column; gap: var(--space-2); flex: 1 1 auto; min-width: 0; }
+.sk-card__lines .sk:last-child { width: 65%; }
+
+/* ---------- Spinners (inline, in-button and overlay circular progress) ---------- */
+.x-spin {
+  --x-spin-size: 1.5rem;
+  --x-spin-thickness: 3px;
+  display: inline-block;
+  width: var(--x-spin-size);
+  height: var(--x-spin-size);
+  flex: none;
+  border-radius: 50%;
+  border: var(--x-spin-thickness) solid color-mix(in srgb, var(--c-primary) 18%, transparent);
+  border-top-color: var(--c-primary);
+  animation: x-spin-rotate .75s linear infinite;
+  vertical-align: middle;
+}
+.x-spin--sm { --x-spin-size: 1rem; --x-spin-thickness: 2px; }
+.x-spin--lg { --x-spin-size: 2.25rem; --x-spin-thickness: 4px; }
+.x-spin--xl { --x-spin-size: 3.25rem; --x-spin-thickness: 5px; }
+.x-spin--light { border-color: color-mix(in srgb, #fff 30%, transparent); border-top-color: #fff; }
+.x-spin--brand {
+  border: 0;
+  background: conic-gradient(from 0deg, transparent 0deg, var(--c-primary) 120deg, var(--c-accent) 260deg, transparent 330deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--x-spin-thickness)), #000 calc(100% - var(--x-spin-thickness)));
+  mask: radial-gradient(farthest-side, transparent calc(100% - var(--x-spin-thickness)), #000 calc(100% - var(--x-spin-thickness)));
+}
+@keyframes x-spin-rotate { to { transform: rotate(360deg); } }
+
+.x-spinner { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--c-muted); font-size: .9rem; font-weight: 600; }
+.x-spinner--stack { flex-direction: column; gap: var(--space-3); text-align: center; }
+
+/* ---------- Linear progress (determinate via --x-progress: 0..100, or indeterminate) ---------- */
+.x-progress { display: flex; flex-direction: column; gap: var(--space-2); width: 100%; min-width: 0; }
+.x-progress__meta { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); font-size: .85rem; font-weight: 600; }
+.x-progress__value { color: var(--c-primary); font-variant-numeric: tabular-nums; }
+.x-progress__track { position: relative; height: .5rem; border-radius: 999px; overflow: hidden; background: var(--c-surface); border: 1px solid var(--c-border); }
+.x-progress__fill { display: block; height: 100%; width: calc(var(--x-progress, 0) * 1%); border-radius: inherit; background: var(--brand-gradient); box-shadow: 0 0 12px color-mix(in srgb, var(--c-primary) 40%, transparent); transition: width .3s cubic-bezier(.4, 0, .2, 1); }
+.x-progress--primary .x-progress__fill { background: var(--c-primary); box-shadow: none; }
+.x-progress--sm .x-progress__track { height: .3rem; }
+.x-progress--indeterminate .x-progress__fill { width: 40%; animation: x-progress-slide 1.2s ease-in-out infinite; }
+@keyframes x-progress-slide { from { transform: translateX(-110%); } to { transform: translateX(260%); } }
+
+/* ---------- Loading overlay (blocks a region or the whole app while work completes) ---------- */
+.x-loading-overlay { position: absolute; inset: 0; z-index: 50; display: grid; place-items: center; border-radius: inherit; background: color-mix(in srgb, var(--c-canvas) 72%, transparent); backdrop-filter: blur(3px); animation: x-fade-in .18s ease-out; }
+.x-loading-overlay--global { position: fixed; z-index: 15000; }
+.x-loading-overlay__card { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); padding: var(--space-5); border: 1px solid var(--c-border); border-radius: var(--radius); background: var(--c-bg); box-shadow: 0 12px 40px rgba(10, 6, 24, .22); color: var(--c-muted); font-weight: 600; text-align: center; }
+@keyframes x-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
 /* ---------- Common app features: loading bar, offline banner, boot splash ---------- */
 .api-progress { position: fixed; inset: 0 0 auto 0; height: 3px; z-index: 10000; overflow: hidden; pointer-events: none; background: transparent; }
 .api-progress .bar { display: block; height: 100%; width: 40%; background: var(--c-focus); animation: api-slide 1.1s ease-in-out infinite; }
 @keyframes api-slide { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
 .offline-banner { position: fixed; inset: 0 0 auto 0; z-index: 9999; padding: var(--space-2) var(--page-gutter); padding-top: calc(var(--space-2) + env(safe-area-inset-top)); text-align: center; font-size: 0.9rem; background: var(--c-warn); color: var(--c-bg); font-weight: 600; pointer-events: none; }
-#boot-splash { transition: opacity .2s ease; position: fixed; inset: 0; z-index: 20000; display: grid; place-items: center; background: #f7f5fc; color: #1a1430; font: 700 1.25rem system-ui, sans-serif; letter-spacing: .02em; }
-@media (prefers-color-scheme: dark) { #boot-splash { background: #070412; color: #ffffff; } }
+#boot-splash { transition: opacity .2s ease; position: fixed; inset: 0; z-index: 20000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.1rem; background: rgba(247, 245, 252, .92); color: #1a1430; font: 700 1.25rem system-ui, sans-serif; letter-spacing: .02em; }
+:root[data-theme='dark'] #boot-splash { background: rgba(7, 4, 18, .92); color: #ffffff; }
 #boot-splash.done { opacity: 0; pointer-events: none; }

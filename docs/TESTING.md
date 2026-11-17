@@ -23,7 +23,7 @@ Sign in with the **Developer sign-in** panel (secret matches `AUTH_DEV_SECRET`),
 | `npm run e2e -w apps/web -- --project=desktop` | one profile (`desktop`, `tablet`, `phone-web`, `android`) |
 | `npm run e2e -w apps/web -- e2e/profile.spec.ts` | one spec |
 
-Playwright builds the dev bundle and serves `dist/web/browser`. On Windows it uses the installed Microsoft Edge (`PW_CHANNEL=chrome` to change) because downloaded Chromium can be blocked by Application Control. The `android` project emulates a Pixel 7 (touch, mobile UA, small viewport) in a browser; it does not run the APK.
+Playwright builds the dev bundle and serves `dist/web-dev/browser` in shared mode (`PW_SHARED=1`) or `dist/pw-<port>/browser` per run. On Windows it uses the installed Microsoft Edge (`PW_CHANNEL=chrome` to change) because downloaded Chromium can be blocked by Application Control. The `android` project emulates a Pixel 7 (touch, mobile UA, small viewport) in a browser; it does not run the APK.
 
 Suites: visual editor (`e2e/visual-editor.spec.ts` on all four profiles; Jest `apps/web/.../visual-editor.logic.spec.ts` and `apps/api/test/visual-editor.spec.ts`; the mock `renderModelFor` applies `overrides.doc` like the API), auth, profile, resumes/templates, editor/preview, dashboard/settings, responsive + axe accessibility, local files (module 05), cover letters, contacts, job analytics and career-tools overflow/axe (modules 42/46/48; fake API in `e2e/support/mock-career-tools.ts`); insights (match, quality, recruiter view: `e2e/insights.spec.ts`).
 
@@ -42,7 +42,7 @@ Profile/readiness/expert modules (docs 41, 47, 49, 33-36, 50): Jest `portfolio`,
 ATS engine (doc 07): Jest `ats-engine`; Playwright `ats-engine` (mock in `e2e/support/mock-ats.ts`; postings are added through the Job match page mock).
 
 ## Flaky-test notes (fixed)
-- **Parallel runs share the checkout.** `playwright.config.ts` now builds each run into `dist/pw-<port>`, serves it on its own port and writes to `test-results/pw-<port>`, so concurrent runs (or agents) no longer rewrite each other's bundle (blank page) or delete each other's trace files (`ENOENT ... .network`). `PW_SHARED=1` restores the shared `dist/web` on port 4200 (use with `npm run web:dev`).
+- **Parallel runs share the checkout.** `playwright.config.ts` now builds each run into `dist/pw-<port>`, serves it on its own port and writes to `test-results/pw-<port>`, so concurrent runs (or agents) no longer rewrite each other's bundle (blank page) or delete each other's trace files (`ENOENT ... .network`). `PW_SHARED=1` restores the shared `dist/web-dev` on port 4200 (use with `npm run web:dev`). The dev loop also uses `dist/web-dev`, so `npm run web:build` (production, `dist/web`) can no longer replace the dev bundle with the production API URL.
 - **Local files rename test:** `LocalFolderService.init()` overwrote a folder chosen while its IndexedDB read was pending, so the first-run prompt reappeared. Fixed; unit test `local-folder.race.spec.ts`.
 - **Quality "error banner" test:** the "No reviews yet" marker rendered before history loaded, so the injected failure hit the history request and `run()` cleared it. The page now shows a loading state until history has loaded.
 

@@ -161,7 +161,13 @@ export class ImportPage {
   }
 
   private async loadCurrent(): Promise<CareerProfile | null> {
-    try { return await firstValueFrom(this.api.getProfile()); } catch { return null; }
+    try { return await firstValueFrom(this.api.getProfile()); }
+    catch (e) {
+      // 404 = no profile saved yet, merging into an empty one is correct.
+      // Any other failure must surface (via pick's catch) instead of silently wiping existing data.
+      if ((e as { status?: number })?.status === 404) return null;
+      throw e;
+    }
   }
 
   private load(res: ParseResponse) {

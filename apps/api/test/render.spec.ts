@@ -41,6 +41,29 @@ describe('html export', () => {
     expect(html).toContain('Built &lt;b&gt;x&lt;/b&gt;');
     expect(html).not.toContain('javascript:');
   });
+  it('turns embedded newlines into <br> while still escaping HTML', () => {
+    const m = buildRenderModel(profile, TEMPLATE_CATALOG[0], undefined, {});
+    m.sections[0].text = '<b>a</b>\n& "q"';
+    const html = renderHtml(m);
+    expect(html).toContain('&lt;b&gt;a&lt;/b&gt;<br>&amp; &quot;q&quot;');
+    expect(html).not.toContain('<b>a</b>');
+  });
+  it('emits a page-break class and print CSS for a section that requests one', () => {
+    const m = buildRenderModel(profile, TEMPLATE_CATALOG[0], undefined, {});
+    m.sections[0].pageBreakBefore = true;
+    const html = renderHtml(m);
+    expect(html).toContain('<section class="page-break">');
+    expect(html).toContain('section.page-break{break-before:page;page-break-before:always}');
+  });
+  it('preserves pageBreakBefore and newlines through the overrides sanitizer', () => {
+    const ov = sanitizeOverrides({ doc: {
+      v: 1, header: { name: 'Ada', contacts: [] },
+      sections: [{ id: 's1', type: 'custom', title: 'X', text: 'a\nb', pageBreakBefore: true }],
+      styles: {},
+    } });
+    expect(ov.doc?.sections[0].pageBreakBefore).toBe(true);
+    expect(ov.doc?.sections[0].text).toBe('a\nb');
+  });
 });
 
 describe('filenames', () => {

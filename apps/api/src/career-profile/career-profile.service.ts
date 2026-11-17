@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthUser } from '../common/auth/auth.types';
 import { UpsertProfileDto } from './dto/profile.dto';
+import { STARTER_PROFILE } from './starter-profile';
 
 export const profileInclude = {
   experiences: { orderBy: { displayOrder: 'asc' }, include: { bullets: { orderBy: { displayOrder: 'asc' } } } },
@@ -68,6 +69,11 @@ export class CareerProfileService {
 
       return tx.careerProfile.findUniqueOrThrow({ where: { id: profileId }, include: profileInclude });
     });
+  }
+
+  /** Restore the starter profile. Reuses the transactional full replace so tenant/owner stay token-derived. */
+  async reset(user: AuthUser): Promise<FullProfile> {
+    return this.upsert(user, STARTER_PROFILE);
   }
 
   async remove(user: AuthUser): Promise<void> {

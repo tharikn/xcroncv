@@ -6,11 +6,11 @@ export * from './theme';
 
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
-  readonly preference = signal<ThemePreference>('system');
+  readonly preference = signal<ThemePreference>('light');
   readonly resolved = signal<ResolvedTheme>('light');
   private mq: MediaQueryList | null = null;
 
-  /** Call once at startup: applies the stored choice and follows the OS setting while on "system". */
+  /** Call once at startup: applies the stored choice (light by default) and follows the OS while on "system". */
   init() {
     const saved = safeGet('local', KEY);
     if (isTheme(saved)) this.preference.set(saved);

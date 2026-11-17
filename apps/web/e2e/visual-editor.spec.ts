@@ -38,6 +38,35 @@ test.describe('Visual editor', () => {
     if (rm) expect(rm.header.name).toBe('Ada King');
   });
 
+  test('line breaks survive inline editing, autosave and re-render', async ({ page }) => {
+    const state = await setup(page, { resume: true });
+    await page.goto(URL_);
+    const textEl = sec(page, 'summary').locator('[data-el]').last();
+    await textEl.click();
+    await textEl.click();
+    await expect(textEl).toHaveAttribute('contenteditable', /.+/);
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.insertText('first line\nsecond line');
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('ve-status')).toHaveText('All changes saved', { timeout: 8000 });
+    expect(lastDoc(state).sections.find((s: any) => s.type === 'summary').text).toBe('first line\nsecond line');
+    await expect(textEl).toHaveCSS('white-space', 'pre-wrap');
+  });
+
+  test('page-break toggle marks a section and renders a spacer in the editor', async ({ page }) => {
+    const state = await setup(page, { resume: true });
+    await page.goto(URL_);
+    await sec(page, 'experience').locator('h2').click();
+    const btn = page.getByTestId('ve-page-break');
+    await expect(btn).toBeVisible();
+    await expect(btn).toHaveAttribute('aria-pressed', 'false');
+    await btn.click();
+    await expect(btn).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.page-break-spacer')).toHaveCount(1);
+    await expect(page.getByTestId('ve-status')).toHaveText('All changes saved', { timeout: 8000 });
+    expect(lastDoc(state).sections.find((s: any) => s.type === 'experience').pageBreakBefore).toBe(true);
+  });
+
   test('Escape cancels an edit and restores the text', async ({ page }) => {
     const state = await setup(page, { resume: true });
     await page.goto(URL_);
@@ -273,5 +302,34 @@ test.describe('Visual editor', () => {
     await expect(page.getByTestId('ve-sheet')).toBeVisible();
     const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(over).toBeLessThanOrEqual(1);
+  });
+
+  test('design assistant button opens a console with template design defaults', async ({ page }) => {
+    const state = await setup(page, { resume: true });
+    state.helpChat = { enabled: true, reply: 'Use the outline panel to reorder or hide sections.' };
+    await page.goto(URL_);
+
+    const fab = page.getByTestId('ve-chatbot');
+    await expect(fab).toBeVisible();
+    await fab.click();
+
+    const panel = page.locator('#xcron-help');
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText('Guided answers');
+
+    // Design-specific default options replace the generic chips on this screen.
+    await expect(panel.getByRole('button', { name: 'How do I customize this template’s design?' })).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'What color palette works well for this template?' })).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'How should I arrange sections on the page?' })).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'How do I reorder or hide sections?' })).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'How do I save my design changes?' })).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'How do I save a template version?' })).toBeVisible();
+
+    await panel.getByRole('button', { name: 'How do I reorder or hide sections?' }).click();
+    await expect(panel).toContainText('outline panel');
+    expect(new URL(page.url()).pathname).toBe(URL_); // the chat never navigates away
+
+    await panel.getByRole('button', { name: 'Close help chat' }).click();
+    await expect(panel).toBeHidden();
   });
 });

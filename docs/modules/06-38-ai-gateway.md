@@ -18,11 +18,21 @@ Request flow: `consent -> provider available -> input validation -> quota -> red
 - **Metering:** `AiUsageEvent` stores feature, provider, model, prompt version, estimated tokens, micro-cost, latency, status. **No prompt, resume text or output is stored in usage.** `GET /ai/usage` aggregates 30 days by feature plus accepted/rejected/pending counts (the user-correction signal from doc 38).
 - Tenant AND owner filter on every query; foreign ids 404. `DELETE /ai/suggestions` purges stored suggestions.
 
+## In-app assistant (floating help chat)
+The shell's chat button opens a console in place (no route). It reuses the same consent, redaction, metering and feature-flag rules, with two modes:
+
+- **`guided`** — deterministic, intent-matched answers from `GuidedHelpProvider` (resume/ATS basics, privacy, account, export, templates). Always available, no provider, no consent, no network.
+- **`ai`** — `OpenAiCompatibleHelpProvider` (`AI_HELP_PROVIDER=groq|openai|ollama`), used **only** when the user enabled AI in `/ai`. Message text is redacted first; history is capped at `AI_HELP_MAX_HISTORY_TURNS`.
+
+Chat text is never persisted: no message, reply or history is stored server-side or in device storage. Only `AiUsageEvent` rows with `feature = HELP_CHAT` are written (tokens, latency, status), and they are what enforce the per-user daily token budget and cooldown across reloads and devices. Those rows are excluded from the suggestion quota and from `GET /ai/usage` so chatting cannot consume suggestion capacity.
+
+The widget hides itself when `/ai/help/status` fails or returns `enabled: false`; when an external provider is configured but the user has not opted in, it keeps answering in guided mode and links to `/ai` for consent. `chat.*` copy lives in the web i18n catalogs; the server's English `welcome` field is not rendered.
+
 ## Deterministic tasks
 `REWRITE_BULLET` (drops filler openings, capitalises, never adds a verb, number or claim, asks for a real metric), `SUMMARY_DRAFT` (title/years/skills the user typed only), `KEYWORD_GAPS` (JD terms absent from the supplied skills, advisory).
 
 ## API (`/api/v1`)
-`GET /ai/status`, `PUT /ai/settings`, `GET /ai/usage`, `POST/GET/DELETE /ai/suggestions`, `POST /ai/suggestions/:id/decision`.
+`GET /ai/status`, `PUT /ai/settings`, `GET /ai/usage`, `POST/GET/DELETE /ai/suggestions`, `POST /ai/suggestions/:id/decision`, `GET /ai/help/status`, `POST /ai/help/chat` (throttled 12/min/IP).
 
 ## Code map
 | File | Role |
@@ -31,15 +41,21 @@ Request flow: `consent -> provider available -> input validation -> quota -> red
 | `ai/providers.ts` | `DeterministicProvider`, `NoopProvider`, `providerFromEnv` |
 | `ai/ai-policy.ts` | redaction, injection flag, output schema, numeric provenance |
 | `ai/ai.service.ts`, `ai.controller.ts`, `dto/ai.dto.ts`, `ai.module.ts` | gateway, routes, validation (module exports `AiService`) |
+| `ai/help/help-chat.service.ts`, `ai/help/help-chat.types.ts`, `dto/help-chat.dto.ts` | floating assistant gateway: quota, cooldown, consent, redaction, metering |
+| `ai/help/providers/guided-help.provider.ts` | offline intent/keyword answers (default mode) |
+| `ai/help/providers/openai-compatible-help.provider.ts` | Groq/OpenAI/Ollama chat (opt-in, redacted text only) |
 | Prisma: `AiSetting`, `AiUsageEvent`, `AiSuggestion` | appended to `schema.prisma` |
 | `apps/web/src/app/pages/ai-assistant.page.ts`, `core/ai.api.ts` | `/ai` (hub card) |
+| `apps/web/src/app/core/help-chat.api.ts`, `shared/help-chat/help-chat.component.ts` | floating console state + panel, hosted by the shell FAB dock |
 
 ## Tests
 - Jest `apps/api/test/ai.spec.ts`: redaction, injection flag, invented-number detection, output schema/unsafe markup, deterministic tasks, provider selection, gateway consent, unavailable provider, quota, malformed/invalid/slow provider, approval and ownership, feature flag.
+- Jest `apps/api/test/help-chat.spec.ts`: guided topics, quota/cooldown 429 bodies, redaction, opt-in gate, provider failure, feature flag, tenant/owner filtering.
 - Playwright `apps/web/e2e/ai-assistant.spec.ts` (all device profiles): off by default, review + confirm + no profile write, reject, injection flag, summary rules, no provider, failed call keeps input, error banner and overflow, purge confirmation.
+- Playwright `apps/web/e2e/help-chat.spec.ts`: dock gap, console opens in place, guided answer, hidden when disabled, opt-in link.
 
 ## Known gaps
-- No external LLM adapter is shipped (by design for this phase); add one in `providers.ts` behind the same interface and mark `external` so the UI discloses data leaving the platform.
+- No external LLM adapter is shipped for the suggestion gateway (by design for this phase); the floating assistant does ship an opt-in OpenAI-compatible adapter. Any new adapter goes behind the same interface and marks `external` so the UI discloses data leaving the platform.
 - The versioned synthetic evaluation set and release gates of doc 38 are only represented by the unit tests (factuality of numbers, injection flag); no bias or multilingual set.
 - No result cache or debounce beyond the quota; cost is tracked, not budgeted per tenant.
 - Prisma migration not generated: run `npm run db:migrate` once.
@@ -49,4 +65,5 @@ Newest first. Every change to this module adds a row: date, change, files, tests
 
 | Date | Change | Files | Tests |
 |---|---|---|---|
+| 2026-11-17 | Floating in-app assistant ported from X Cron: console opens in place above the shell FAB dock instead of navigating to `/ai`; guided answers by default, opt-in OpenAI-compatible mode (redacted text only), durable daily token budget/cooldown from `HELP_CHAT` usage rows (excluded from suggestion quota). AI Resume page redesigned and the two floating buttons now sit in one dock with a fixed gap. | `ai/help/*`, `dto/help-chat.dto.ts`, `ai.controller.ts`, `ai.module.ts`, `ai.service.ts`, `core/help-chat.api.ts`, `shared/help-chat/*`, `shell/shell.component.ts`, `features/ai-resume-generator/*`, `core/i18n/*`, `.env.example` | Jest `api/test/help-chat.spec.ts`; Playwright `e2e/help-chat.spec.ts` + `e2e/ai-resume-generator.spec.ts`; web build + i18n parity |
 | 2026-11-14 | Change log section introduced (convention, see docs/CHANGELOG.md). No functional change. | - | - |

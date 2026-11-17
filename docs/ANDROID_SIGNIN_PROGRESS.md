@@ -1,6 +1,16 @@
-# Standalone CV APK: "Sign in with X Cron" (not built yet)
+# Standalone CV APK: "Sign in with X Cron" and app-to-app handoff
 
-Status: **designed, not implemented.** A first host-side draft was written and then reverted on purpose; this file keeps the design and the draft code so it can be built later.
+Status: **app-to-app handoff from X Cron Jobs is implemented; the browser-mediated standalone flow is designed, not implemented.** A first host-side draft of the standalone flow was written and then reverted on purpose; this file keeps the design and the draft code so it can be built later.
+
+## Implemented: X Cron Jobs -> installed CV APK
+When both APKs are installed, Jobs does not open a WebView: it mints a code for
+`xcroncv://auth/callback`, then `AppLauncher.openUrl` switches to the CV APK.
+- Host API (`x-cron`): `NATIVE_CV_REDIRECT` is always in the redirect allow-list, regardless of `HANDOFF_REDIRECT_URIS`.
+- Host mobile (`x-cron/mobile`): `ResumeLaunchService` checks `AppLauncher.canOpenUrl` behind a `<queries>` entry for the `xcroncv` scheme, and falls back to the hosted in-app WebView on any failure. The button shows an `ion-spinner` while it works.
+- CV APK: `AndroidManifest.xml` registers the `xcroncv` / `auth` / `/callback` intent filter. `NativeHandoffService` runs from `APP_INITIALIZER` (cold start via `getLaunchUrl`) and listens for `appUrlOpen` while running, redeems the code through `POST /auth/exchange` with `redirectUri=xcroncv://auth/callback`, and only then lands on `/dashboard`. `parseHandoffLink` rejects malformed links before any network call.
+- Progress UI: brand splash, an inline boot spinner in `index.html`, and a transparent brand spinner over `/auth/callback`.
+
+## Designed, not implemented: standalone APK opened on its own
 
 ## Why
 The standalone XCron CV APK (`com.xcron.cv`, published by `.github/workflows/android-release.yml`) has no way to sign in in production. Production auth exists only through the X Cron handoff, which today starts from X Cron (web or the Jobs app). A user who installs only the CV APK sees the token-paste screen.
@@ -15,6 +25,8 @@ The standalone XCron CV APK (`com.xcron.cv`, published by `.github/workflows/and
 
 ### Security decision
 The **nonce is not echoed in the deep link.** Any app can register `xcroncv://`, so a code alone must be useless: redeeming needs the nonce, which only the real app and the browser page ever saw. Existing web/Jobs flows keep echoing the nonce (their redirect is https). Later hardening: Android App Links on a verified https URL instead of a custom scheme.
+
+The implemented app-to-app path is the direct variant: Jobs already holds the nonce it generated, so it passes `code` + `nonce` in the intent and the CV app redeems them with `redirectUri=xcroncv://auth/callback`. The code is still single-use, 60 s, and bound to that redirect URI; a second app that intercepts the intent has at most a 60 s window and cannot reuse the code. Moving this behind a verified https App Link is the remaining hardening step.
 
 ## Work items
 

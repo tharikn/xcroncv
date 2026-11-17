@@ -61,6 +61,19 @@ describe('DOCX export', () => {
     expect(x).toContain('A &lt;b&gt;&amp;&quot;x&quot;&lt;/b&gt;');
     expect(x).not.toContain('\u0001');
   });
+  it('turns newlines into real Word <w:br/> line breaks', () => {
+    const m = buildRenderModel(profile, TEMPLATE_CATALOG[0], undefined, {});
+    m.sections[0].text = 'line one\nline two';
+    const x = strFromU8(unzipSync(new Uint8Array(renderDocx(m)))['word/document.xml']);
+    expect(x).toContain('line one</w:t></w:r><w:br/><w:r>');
+    expect(x).toContain('<w:t xml:space="preserve">line two</w:t>');
+  });
+  it('emits <w:pageBreakBefore/> only on sections that request a page break', () => {
+    const m = buildRenderModel(profile, TEMPLATE_CATALOG[0], undefined, {});
+    m.sections[1].pageBreakBefore = true;
+    const x = strFromU8(unzipSync(new Uint8Array(renderDocx(m)))['word/document.xml']);
+    expect(x.match(/<w:pageBreakBefore\/>/g)).toHaveLength(1);
+  });
   it('round-trips through the importer (export -> import recovers the facts)', () => {
     const s = parseResumeText(extractDocx(docx).lines);
     expect(s.fullName).toBe('Grace Hopper');
@@ -117,6 +130,23 @@ describe('PDF text extraction + parser (round trip with our own PDF export)', ()
   it('fails cleanly on garbage that looks like a PDF', async () => {
     await expect(extractPdf(Buffer.from('%PDF-1.4 this is not really a pdf'))).rejects.toThrow(/could not be read/);
   });
+});
+
+describe('PDF page breaks', () => {
+  async function pageCount(m: ReturnType<typeof buildRenderModel>): Promise<number> {
+    const sink = new PassThrough(); const chunks: Buffer[] = [];
+    sink.on('data', (c) => chunks.push(c));
+    const done = new Promise<void>((r) => sink.on('end', () => r()));
+    renderPdf(m, sink as never);
+    await done;
+    return (Buffer.concat(chunks).toString('latin1').match(/\/Type\s*\/Page\b/g) ?? []).length;
+  }
+  it('adds a page for a section that requests a page break', async () => {
+    const plain = buildRenderModel(profile, TEMPLATE_CATALOG[0], undefined, {});
+    const broken = buildRenderModel(profile, TEMPLATE_CATALOG[0], undefined, {});
+    broken.sections[1].pageBreakBefore = true;
+    expect(await pageCount(broken)).toBe((await pageCount(plain)) + 1);
+  }, 30_000);
 });
 
 describe('parser', () => {

@@ -35,7 +35,7 @@ import { ResumeSheetComponent } from '../shared/resume-sheet.component';
     @if (warning()) { <div class="banner warn" role="status" data-testid="overflow-warning" style="margin:var(--space-2) var(--page-gutter)">{{ warning() }}</div> }
     @if (error()) { <div class="banner err" role="alert" style="margin:var(--space-2) var(--page-gutter)" data-testid="preview-error">{{ error() }}</div> }
 
-    <div class="preview-viewport" #viewport data-testid="preview-viewport" style="flex:1 1 auto;min-height:0">
+    <div class="preview-viewport" #viewport data-testid="preview-viewport" style="flex:1 1 auto;min-height:0;overflow:auto;scrollbar-gutter:stable">
       @if (model(); as m) {
         <app-resume-sheet [model]="m" [scale]="scale()" [pages]="pages()" (contentHeight)="onHeight($event)" />
       } @else if (!error()) { <p class="muted">Rendering…</p> }

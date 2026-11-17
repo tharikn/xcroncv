@@ -4,7 +4,9 @@ import { RouterLink } from '@angular/router';
 import { IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular/standalone';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 import { ResumeStepperComponent } from '../shared/resume-stepper.component';
+import { ResetProfileDialogComponent } from '../shared/reset-profile-dialog.component';
 import { ApiService } from '../core/api.service';
+import { LocaleService } from '../core/i18n/locale.service';
 import { CareerProfile, Certification, Education, Experience, LanguageItem, Link, Project, Skill } from '../core/models';
 import { errorMessage, NotifyService } from '../core/notify.service';
 import { emptyProfile, moveItem, toProfileInput, validateProfile } from '../core/profile-mapper';
@@ -15,7 +17,7 @@ type ListKey = 'links' | 'experiences' | 'skills' | 'educations' | 'projects' | 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [IonContent, IonHeader, IonToolbar, IonTitle, IonIcon, FormsModule, RouterLink, ResumeStepperComponent, TranslatePipe],
+  imports: [IonContent, IonHeader, IonToolbar, IonTitle, IonIcon, FormsModule, RouterLink, ResumeStepperComponent, ResetProfileDialogComponent, TranslatePipe],
   template: `
     <ion-header><ion-toolbar><ion-title>Career profile</ion-title></ion-toolbar></ion-header>
     <ion-content>
@@ -212,8 +214,13 @@ type ListKey = 'links' | 'experiences' | 'skills' | 'educations' | 'projects' | 
       <div class="sticky-actions" style="position:sticky;bottom:0">
         <button class="btn" data-testid="profile-save" (click)="save()" [disabled]="saving()"><ion-icon name="save-outline" aria-hidden="true"></ion-icon> Save profile</button>
         <a class="btn ghost" routerLink="/templates" data-tour="step-profile-action" data-testid="profile-continue">{{ 'flow.profileContinue' | t }}</a>
+        <button class="btn danger sm" data-testid="profile-reset" (click)="openReset()" [disabled]="saving() || resetting()">
+          <ion-icon name="refresh-outline" aria-hidden="true"></ion-icon> {{ 'profile.reset.button' | t }}
+        </button>
       </div>
     }
+    <app-reset-profile-dialog [open]="resetOpen()" [busy]="resetting()" domId="reset-profile-page"
+                              (cancelRequest)="closeReset()" (confirmRequest)="resetProfile()" />
   `,
 })
 export class ProfilePage implements OnInit, OnDestroy {
@@ -222,10 +229,12 @@ export class ProfilePage implements OnInit, OnDestroy {
   loadError = signal('');
   saving = signal(false);
   errors = signal<string[]>([]);
+  resetOpen = signal(false);
+  resetting = signal(false);
   private snapshot = '';
   private timer?: ReturnType<typeof setTimeout>;
 
-  constructor(private api: ApiService, private notify: NotifyService) {}
+  constructor(private api: ApiService, private notify: NotifyService, private locale: LocaleService) {}
 
   ngOnInit() {
     this.api.getProfile().subscribe({
@@ -235,6 +244,29 @@ export class ProfilePage implements OnInit, OnDestroy {
         else this.loadError.set(errorMessage(e));
       },
     });
+  }
+
+  /** Ionic caches routed pages (IonicRouteStrategy), so ngOnInit does not re-run when returning here
+   *  (e.g. after the resume importer saved new details). Refetch on every entry after the first. */
+  ionViewWillEnter() {
+    if (!this.loaded()) return; // first entry: ngOnInit already fetches
+    if (this.timer) { clearTimeout(this.timer); this.timer = undefined; }
+    void this.refresh();
+  }
+
+  /** Leaving the page (e.g. to /import): flush the debounced autosave now so a stale timer
+   *  cannot fire later and overwrite data saved from another page. */
+  ionViewWillLeave() {
+    if (this.timer) { clearTimeout(this.timer); this.timer = undefined; }
+    if (this.isDirty()) void this.autosave();
+  }
+
+  private async refresh() {
+    if (this.isDirty()) {
+      await this.autosave();
+      if (this.isDirty()) return; // save failed; keep local edits instead of clobbering them
+    }
+    this.ngOnInit();
   }
 
   ngOnDestroy() {
@@ -296,6 +328,34 @@ export class ProfilePage implements OnInit, OnDestroy {
     this.api.saveProfile(toProfileInput(this.f)).subscribe({
       next: (p) => { this.f = this.normalise(p); this.snapshot = this.json(); this.saving.set(false); void this.notify.toast('Profile saved'); },
       error: (e) => { this.saving.set(false); void this.notify.toast(errorMessage(e), 'error'); },
+    });
+  }
+
+  /** Discard any pending debounced save so it cannot overwrite the restored profile. */
+  openReset() {
+    if (this.timer) { clearTimeout(this.timer); this.timer = undefined; }
+    this.resetOpen.set(true);
+  }
+  /** Re-arm the debounce after a cancelled reset so pre-existing edits still autosave. */
+  closeReset() { this.resetOpen.set(false); if (this.isDirty()) this.markDirty(); }
+
+  resetProfile() {
+    if (this.resetting()) return;
+    this.resetting.set(true);
+    this.api.resetProfile().subscribe({
+      next: (p) => {
+        this.f = this.normalise(p);
+        this.snapshot = this.json();
+        this.errors.set([]);
+        this.resetting.set(false);
+        this.resetOpen.set(false);
+        void this.notify.toast(this.locale.t('profile.reset.success'));
+      },
+      error: (e) => {
+        this.resetting.set(false);
+        this.resetOpen.set(false);
+        void this.notify.toast(errorMessage(e), 'error');
+      },
     });
   }
 }

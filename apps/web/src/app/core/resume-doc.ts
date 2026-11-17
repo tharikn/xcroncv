@@ -20,7 +20,7 @@ export interface DocItem {
   id: string; title?: string; subtitle?: string; meta?: string; text?: string;
   bullets?: string[]; tags?: string[]; url?: string; image?: DocImage;
 }
-export interface DocSection { id: string; type: DocSectionType; title: string; text?: string; items?: DocItem[]; hidden?: boolean }
+export interface DocSection { id: string; type: DocSectionType; title: string; text?: string; items?: DocItem[]; hidden?: boolean; pageBreakBefore?: boolean }
 export interface ResumeDoc {
   v: 1;
   header: { name: string; headline?: string; contacts: string[]; photo?: DocImage };

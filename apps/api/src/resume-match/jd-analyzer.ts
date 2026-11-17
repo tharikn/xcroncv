@@ -61,6 +61,46 @@ const DEGREE: Array<[RegExp, number, string]> = [
 const CERT = /\b(certified|certification|certificate|aws certified|pmp|cissp|scrum master)\b/i;
 const RESP_VERBS = /^(?:\W*)(build|design|develop|implement|lead|own|manage|maintain|collaborate|work|ship|deliver|create|write|review|mentor|drive|improve|optimi[sz]e|partner|define|architect|deploy|monitor|support|troubleshoot|analy[sz]e|coordinate|contribute|plan|test|automate|integrate|migrate|participate|ensure)\b/i;
 
+/** Job titles we accept when no explicit "Job title:" label is present. */
+const TITLE_WORDS = /\b(engineer|developer|designer|manager|analyst|architect|lead|consultant|specialist|director|scientist|administrator|officer|intern|recruiter|marketer|writer|accountant|technician|coordinator|strategist|producer|editor|researcher|professor|teacher|nurse|lawyer|attorney|assistant|executive|supervisor|head|vp|president|owner|chef|driver|clerk|representative)\b/i;
+const TITLE_LABEL = /^(?:job\s*title|role|position|title|designation)\s*[:\-–—]\s*(.+)$/i;
+const TITLE_STOP = /^(?:about|we are|we're|our\b|the company|company|location|department|team|salary|compensation|benefits|job description|overview|summary)\b/i;
+
+/**
+ * Deterministic role-title detection for JDs that arrive without a title field.
+ * Only looks at the first lines and explicit labels, so it never guesses from body prose.
+ */
+export function detectJdTitle(rawText: string): string | undefined {
+  const lines = sanitizeJdText(rawText)
+    .split('\n')
+    .map((l) => l.replace(/^[\s\-*•·▪●○◦–—>]+/, '').trim())
+    .filter(Boolean);
+  const clean = (s: string) => s.replace(/\s+/g, ' ').replace(/[.,;:!?]+$/, '').trim();
+
+  for (const line of lines.slice(0, 10)) {
+    const labelled = TITLE_LABEL.exec(line);
+    if (!labelled) continue;
+    const title = clean(labelled[1]);
+    if (title.length >= 3 && title.length <= 80) return title;
+  }
+
+  for (const line of lines.slice(0, 8)) {
+    const title = clean(line);
+    if (title.length < 3 || title.length > 80) continue;
+    if (TITLE_STOP.test(title) || !TITLE_WORDS.test(title)) continue;
+    if (title.split(/\s+/).length > 8) continue;
+    if (/[.!?]$/.test(line)) continue;
+    return title;
+  }
+
+  const hiring = /\b(?:hiring|seeking|looking for|recruiting)\s+(?:an?\s+)?([A-Z][A-Za-z0-9/&+.\- ]{2,60})/i.exec(lines.slice(0, 12).join(' '));
+  if (hiring) {
+    const title = clean(hiring[1].split(/\b(?:to|who|with|for|at|in)\b/i)[0]);
+    if (title.length >= 3 && TITLE_WORDS.test(title)) return title;
+  }
+  return undefined;
+}
+
 export function hashText(text: string): string {
   return createHash('sha256').update(text.normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase()).digest('hex').slice(0, 32);
 }

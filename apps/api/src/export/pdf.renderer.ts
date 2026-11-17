@@ -23,7 +23,9 @@ export function renderPdf(m: RenderModel, out: Writable): void {
   const density = t.density ?? 'normal';
   const g = GAP[density];
   const lineGap = LINE_GAP[density];
-  const doc = new PDFDocument({ size: m.page.size, margin: m.page.marginPt, info: { Title: `${m.header.name} - Resume` } });
+  // bufferPages keeps earlier pages addressable via switchToPage, which the two-column side rail needs
+  // so it can be laid out on pages the main column has already created.
+  const doc = new PDFDocument({ size: m.page.size, margin: m.page.marginPt, bufferPages: true, info: { Title: `${m.header.name} - Resume` } });
   let pages = 1;
   doc.on('pageAdded', () => { pages += 1; });
   doc.pipe(out);
@@ -113,6 +115,7 @@ export function renderPdf(m: RenderModel, out: Writable): void {
       doc.moveTo(x, y).lineTo(x + width, y).lineWidth(0.5).strokeColor(t.accent).stroke();
     }
     doc.moveDown(0.3 * g).fillColor('#111');
+    if (s.pageBreakBefore) { doc.addPage(); doc.x = margin; doc.y = margin; }
     const startPages = pages; const startY = doc.y;
     const ix = timeline ? x + 10 : x; const iw = timeline ? width - 10 : width;
     afterGap(fT.gap);
@@ -166,13 +169,99 @@ export function renderPdf(m: RenderModel, out: Writable): void {
     doc.x = margin;
   };
 
+  // --- two-column side rail: flows into the pages already created by the main column, wrapping inside each page ---
+  // pdfkit paginates a single y cursor; rendering the rail FIRST used to push the main column to page 2 and
+  // leave page 1's left half blank. The main column is now rendered first (native page breaks), then the rail is
+  // drawn into the same pages with its own cursor so a long rail never displaces the main content.
+  const bottomY = doc.page.height - margin;
+  const sideFlow = (cur: { page: number; y: number }, x: number, str: string, font: string, size: number, width: number, color: string, indent = 0) => {
+    let rest = str;
+    const textX = x + indent;
+    const textW = Math.max(1, width - indent); // indented bullets must still end inside the rail
+    const heightOf = (s: string) => { doc.font(font).fontSize(size); return doc.heightOfString(s, { width: textW, lineGap }); };
+    const nextPage = () => {
+      if (cur.page + 1 < pages) { cur.page += 1; cur.y = margin; }
+      else { doc.addPage(); cur.page = pages - 1; cur.y = margin; }
+    };
+    while (rest) {
+      doc.switchToPage(cur.page);
+      doc.x = textX; doc.y = cur.y;
+      doc.font(font).fontSize(size).fillColor(color);
+      const avail = bottomY - cur.y;
+      if (avail <= 2) { nextPage(); continue; }
+      if (heightOf(rest) <= avail) {
+        doc.text(rest, { width: textW, lineGap, height: avail + 0.5 });
+        cur.y = doc.y;
+        break;
+      }
+      // Largest word prefix that fits on this page; the remainder continues on the next one.
+      const tokens = rest.split(/(\s+)/);
+      let lo = 0; let hi = tokens.length;
+      while (lo < hi) { const mid = Math.ceil((lo + hi) / 2); if (heightOf(tokens.slice(0, mid).join('')) <= avail) lo = mid; else hi = mid - 1; }
+      let head = tokens.slice(0, lo).join('');
+      let tail = tokens.slice(lo).join('').replace(/^\s+/, '');
+      if (!head) {
+        // A single token wider than the rail: split by characters so the remainder still continues.
+        const word = tokens[0];
+        let chars = 0;
+        for (let i = 1; i <= word.length; i++) { if (heightOf(word.slice(0, i)) <= avail) chars = i; else break; }
+        chars = Math.max(1, chars); // always make progress, even in a pathologically narrow rail
+        head = word.slice(0, chars);
+        tail = word.slice(chars) + tokens.slice(1).join('').replace(/^\s+/, '');
+      }
+      doc.text(head, { width: textW, lineGap, height: avail + 0.5 });
+      cur.y = doc.y;
+      nextPage();
+      rest = tail;
+    }
+    doc.fillColor('#111');
+  };
+  const sideSection = (s: RenderSection, cur: { page: number; y: number }, x: number, width: number) => {
+    doc.switchToPage(cur.page);
+    doc.x = x; doc.y = cur.y;
+    const hs = t.headingStyle ?? 'plain';
+    const title = t.headingTransform === 'upper' ? s.title.toUpperCase() : s.title;
+    const fT = F(s.id ? `s.${s.id}.title` : undefined, { bold: true, size: base * 1.05, color: t.accent, font: bold });
+    const hSz = fT.size; const hFont = fT.font;
+    doc.font(hFont).fontSize(hSz);
+    const hh = doc.heightOfString(title, { width: width - 12 });
+    if (hs === 'tint') doc.save().fillOpacity(0.1).rect(x, cur.y - 1, width, hh + 3).fill(t.accent).restore();
+    if (hs === 'bar') doc.save().rect(x, cur.y, 3, hh).fill(t.accent).restore();
+    sideFlow(cur, x + (hs === 'bar' ? 8 : hs === 'tint' ? 6 : 0), title, hFont, hSz, width - 12, resolveColor(fT.color, t.accent, '#111'));
+    if (hs === 'short' || t.sectionRule) {
+      doc.switchToPage(cur.page);
+      const y = cur.y + 1;
+      doc.moveTo(x, y).lineTo(x + (hs === 'short' ? Math.min(40, width) : width), y)
+        .lineWidth(hs === 'short' ? 2 : 0.5).strokeColor(t.accent).stroke();
+    }
+    cur.y += 4 * g;
+    const plain = { size: base, color: '#111' };
+    if (s.text) { sideFlow(cur, x, s.text, t.fontFamily, base, width, '#111'); cur.y += 4; }
+    for (const i of s.items ?? []) {
+      const k = (f: string) => (i.id ? `i.${i.id}.${f}` : undefined);
+      const fTitle = F(k('title'), { ...plain, bold: true, font: bold });
+      const fSub = F(k('subtitle'), { ...plain, italic: true, font: italic });
+      const ink = (f: ReturnType<typeof F>) => resolveColor(f.color, t.accent, '#111');
+      if (i.title || i.meta) sideFlow(cur, x, [i.title, i.meta].filter(Boolean).join('    '), fTitle.font, fTitle.size, width, ink(fTitle));
+      if (i.subtitle) sideFlow(cur, x, i.subtitle, fSub.font, fSub.size, width, ink(fSub));
+      if (i.text) { const f = F(k('text'), { ...plain, font: t.fontFamily }); sideFlow(cur, x, i.text, f.font, f.size, width, ink(f)); }
+      if (i.bullets?.length) { const f = F(k('bullets'), { ...plain, font: t.fontFamily }); for (const b of i.bullets) sideFlow(cur, x, `•  ${b}`, f.font, f.size, width, ink(f), 10); }
+      if (i.tags?.length) { const f = F(k('tags'), { ...plain, font: t.fontFamily }); sideFlow(cur, x, i.tags.join(', '), f.font, f.size, width, ink(f)); }
+      if (i.url) { const f = F(k('url'), { ...plain, font: t.fontFamily }); sideFlow(cur, x, i.url, f.font, f.size, width, ink(f)); }
+      cur.y += 4 * g;
+    }
+    cur.y += 4 * g;
+  };
+
   if (m.layout === 'two-column') {
     const sideSet = new Set<string>(m.sideSections);
     const gutter = 18; const sideW = Math.round(w * 0.3); const mainW = w - sideW - gutter;
-    const startY = doc.y; const startPages = pages;
-    for (const s of m.sections.filter((x) => sideSet.has(x.type))) sectionAt(s, margin + mainW + gutter, sideW);
-    if (pages === startPages) doc.y = startY; // side rail fits beside the first page of the main column
+    const startY = doc.y;
+    // Main column first: its native page breaks define the page count and keep left content on page 1.
     for (const s of m.sections.filter((x) => !sideSet.has(x.type))) sectionAt(s, margin, mainW);
+    // Side rail second: wrap it inside the same pages so it neither displaces main content nor spills past a page.
+    const cur = { page: 0, y: startY };
+    for (const s of m.sections.filter((x) => sideSet.has(x.type))) sideSection(s, cur, margin + mainW + gutter, sideW);
   } else {
     for (const s of m.sections) sectionAt(s, margin, w);
   }

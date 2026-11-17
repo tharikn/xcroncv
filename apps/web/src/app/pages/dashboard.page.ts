@@ -40,6 +40,21 @@ import { CareerProfile, ResumeSummary } from '../core/models';
             </section>
           }
 
+          <section class="card ai-cta" aria-labelledby="ai-cta-h" data-testid="dash-ai-cta">
+            <div class="ai-cta-copy">
+              <span class="ai-cta-badge">
+                <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
+                {{ 'dash.aiCta.badge' | t }}
+              </span>
+              <h2 id="ai-cta-h">{{ 'dash.aiCta.title' | t }}</h2>
+              <p class="muted">{{ 'dash.aiCta.sub' | t }}</p>
+            </div>
+            <a class="btn" routerLink="/ai-resume-generator" data-testid="dash-ai-cta-btn">
+              <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
+              {{ 'dash.aiCta.button' | t }}
+            </a>
+          </section>
+
           <section class="grid stats" [attr.aria-label]="'dash.summary' | t">
             <a class="card stat-link" routerLink="/resumes" style="text-decoration:none"><span class="muted small">{{ 'dash.resumes' | t }}</span><span class="stat" data-testid="stat-resumes">{{ resumes().length }}</span></a>
             <a class="card stat-link" routerLink="/templates" style="text-decoration:none"><span class="muted small">{{ 'dash.templates' | t }}</span><span class="stat" data-testid="stat-templates">{{ templateCount() }}</span></a>
@@ -48,14 +63,14 @@ import { CareerProfile, ResumeSummary } from '../core/models';
               <span class="small wrap" data-testid="stat-storage">{{ (files.isNative ? 'dash.storageNative' : 'dash.storageBrowser') | t }}</span></a>
           </section>
 
-          <section class="card" aria-label="Quick tools">
+          <section class="card" [attr.aria-label]="'dash.quickToolsAria' | t">
             <div class="row between">
-              <span class="small muted"><strong>More Tools</strong></span>
+              <span class="small muted"><strong>{{ 'dash.moreTools' | t }}</strong></span>
               <div class="row">
-                <a class="btn sm" routerLink="/ai-resume-generator"><ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon> AI Resume</a>
-                <a class="btn ghost sm" routerLink="/insights"><ion-icon name="eye-outline" aria-hidden="true"></ion-icon> Insights</a>
-                <a class="btn ghost sm" routerLink="/career-tools"><ion-icon name="briefcase-outline" aria-hidden="true"></ion-icon> Career Tools</a>
-                <a class="btn ghost sm" routerLink="/settings"><ion-icon name="settings-outline" aria-hidden="true"></ion-icon> Settings</a>
+                <a class="btn sm" routerLink="/ai-resume-generator"><ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon> {{ 'nav.aiResume' | t }}</a>
+                <a class="btn ghost sm" routerLink="/insights"><ion-icon name="eye-outline" aria-hidden="true"></ion-icon> {{ 'nav.insights' | t }}</a>
+                <a class="btn ghost sm" routerLink="/career-tools"><ion-icon name="briefcase-outline" aria-hidden="true"></ion-icon> {{ 'nav.careerTools' | t }}</a>
+                <a class="btn ghost sm" routerLink="/settings"><ion-icon name="settings-outline" aria-hidden="true"></ion-icon> {{ 'nav.settings' | t }}</a>
               </div>
             </div>
           </section>
@@ -82,6 +97,25 @@ import { CareerProfile, ResumeSummary } from '../core/models';
       </div>
     </ion-content>
   `,
+  styles: [`
+    .ai-cta {
+      flex-direction: row; align-items: center; justify-content: space-between;
+      gap: var(--space-4); flex-wrap: wrap;
+      background: var(--c-surface);
+      border-color: var(--c-primary);
+      box-shadow: 0 6px 20px rgba(124, 92, 255, 0.14);
+    }
+    .ai-cta-copy { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+    .ai-cta-copy h2 { margin: 0; }
+    .ai-cta-copy p { margin: 0; max-width: 38rem; }
+    .ai-cta-badge {
+      align-self: flex-start;
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      background: var(--brand-gradient); color: #fff;
+      padding: 0.15rem 0.6rem; border-radius: 999px;
+      font-size: 0.72rem; font-weight: 800;
+    }
+  `],
 })
 export class DashboardPage {
   loading = signal(true);

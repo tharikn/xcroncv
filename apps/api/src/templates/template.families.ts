@@ -30,7 +30,7 @@ const LV: Record<'early' | 'all' | 'mid' | 'exec', CareerLevel[]> = {
   early: ['student', 'entry'], all: ['entry', 'mid', 'senior'], mid: ['mid', 'senior'], exec: ['senior', 'executive'],
 };
 const spec = (o: Partial<Spec>): Spec => ({
-  fontFamily: 'Helvetica', baseSizePt: 10.5, accent: '#1f2937', upper: true, center: false, right: false, rule: true, hs: 'plain', nameScale: 1.8,
+  fontFamily: 'Helvetica', baseSizePt: 11, accent: '#1f2937', upper: true, center: false, right: false, rule: true, hs: 'tint', nameScale: 2.0,
   density: 'normal', band: false, layout: 'single-column', ats: 'ATS_FIRST', order: ORDER_STD,
   levels: LV.all, style: 'classic', tags: [], ...o,
 });
@@ -156,6 +156,12 @@ export const STYLE_FAMILIES: Family[] = [
     ['minimal-dusk-bar', 'Dusk Bar', 'Dusk-indigo left bar headings that stay readable by ATS parsers.', { accent: '#3730a3', hs: 'bar', nameScale: 2.0 }],
     ['minimal-clay-serif', 'Clay Serif', 'Clay-brown serif, centered, with a short rule and open spacing.', { fontFamily: 'Times-Roman', accent: '#7c2d12', center: true, hs: 'short', nameScale: 2.2 }],
     ['minimal-graphite-mono', 'Graphite Mono', 'Graphite monospaced single column for engineers who like it plain.', { fontFamily: 'Courier', baseSizePt: 9.5, accent: '#1f2937', nameScale: 1.8, density: 'normal', order: ORDER_TECH }],
+    // Additional customization options for better visual variety
+    ['minimal-linen', 'Linen Texture', 'Subtle linen texture effect with calm accent and relaxed scaling.', { accent: '#636e72', nameScale: 2.0, hs: 'bar' }],
+    ['minimal-slate-center', 'Slate Centered', 'Centered slate header with balanced scaling for entry-level profiles.', { accent: '#2d3748', center: true, nameScale: 1.9 }],
+    // New: expanded minimal options with varied heading styles
+    ['minimal-clean', 'Clean Minimal', 'Ultra-clean layout with minimal ornament and generous spacing.', { accent: '#636e72', hs: 'plain', nameScale: 2.1 }],
+    ['minimal-soft', 'Soft Minimal', 'Gentle rounded corners and soft accent for a friendly feel.', { accent: '#718096', hs: 'tint', nameScale: 2.3 }],
   ] },
   { category: 'Structured & sidebar', base: spec({ ats: 'BALANCED', style: 'modern', upper: false, rule: false, hs: 'bar', layout: 'two-column', side: SIDE, tags: ['structured', 'sidebar'] }), rows: [
     ['struct-cobalt-sidebar', 'Cobalt Sidebar', 'Cobalt bars and a side rail for skills, languages and certifications.', { accent: '#1d4ed8', nameScale: 2.2 }],

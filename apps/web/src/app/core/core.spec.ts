@@ -3,6 +3,7 @@ import { emptyProfile, isYearMonth, moveItem, toProfileInput, validateProfile } 
 import { safeFileName } from './file-name';
 import { clamp, fitScale, overflowWarning, pageCount, PAGE_PX } from './preview-layout';
 import { isValidApiUrl } from './url';
+import { NATIVE_HANDOFF_REDIRECT, parseHandoffLink } from './native-handoff.logic';
 
 describe('jwt helpers', () => {
   it('round-trips base64url incl. unicode', () => {
@@ -135,5 +136,34 @@ describe('isValidApiUrl', () => {
     expect(isValidApiUrl('javascript:alert(1)')).toBe(false);
     expect(isValidApiUrl('nonsense')).toBe(false);
     expect(isValidApiUrl('//evil.com')).toBe(false);
+  });
+});
+
+describe('native handoff deep link', () => {
+  const code = 'a'.repeat(43);
+  const nonce = '0123456789abcdef0123456789abcdef';
+  const link = (extra = '') => `${NATIVE_HANDOFF_REDIRECT}?code=${code}&nonce=${nonce}${extra}`;
+
+  it('accepts a well-formed cold/warm start link', () => {
+    expect(parseHandoffLink(link())).toEqual({ code, nonce });
+    expect(parseHandoffLink(link('&utm=x'))).toEqual({ code, nonce });
+    expect(parseHandoffLink(`${NATIVE_HANDOFF_REDIRECT}/?code=${code}&nonce=${nonce}`)).toEqual({ code, nonce });
+  });
+
+  it('rejects the https callback, wrong host/path and other apps', () => {
+    expect(parseHandoffLink(`https://xcroncv.example.com/auth/callback?code=${code}&nonce=${nonce}`)).toBeNull();
+    expect(parseHandoffLink(`xcroncv://other/callback?code=${code}&nonce=${nonce}`)).toBeNull();
+    expect(parseHandoffLink(`xcroncv://auth/reset?code=${code}&nonce=${nonce}`)).toBeNull();
+    expect(parseHandoffLink(`intent://auth/callback?code=${code}&nonce=${nonce}`)).toBeNull();
+    expect(parseHandoffLink('')).toBeNull();
+    expect(parseHandoffLink(null)).toBeNull();
+  });
+
+  it('rejects a short/long code or a malformed nonce', () => {
+    expect(parseHandoffLink(`${NATIVE_HANDOFF_REDIRECT}?code=short&nonce=${nonce}`)).toBeNull();
+    expect(parseHandoffLink(`${NATIVE_HANDOFF_REDIRECT}?code=${'a'.repeat(101)}&nonce=${nonce}`)).toBeNull();
+    expect(parseHandoffLink(`${NATIVE_HANDOFF_REDIRECT}?code=${code}`)).toBeNull();
+    expect(parseHandoffLink(`${NATIVE_HANDOFF_REDIRECT}?code=${code}&nonce=short`)).toBeNull();
+    expect(parseHandoffLink(`${NATIVE_HANDOFF_REDIRECT}?code=${code}&nonce=${'!'.repeat(32)}`)).toBeNull();
   });
 });

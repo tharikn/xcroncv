@@ -1,54 +1,53 @@
-import { Component, computed, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import {
-  IonContent,
-  IonHeader,
-  IonIcon,
-  IonTitle,
-  IonToolbar,
-} from '@ionic/angular/standalone';
+import { IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import {
-  sparklesOutline,
-  documentTextOutline,
-  cloudUploadOutline,
-  checkmarkCircleOutline,
-  refreshOutline,
-  eyeOutline,
-  downloadOutline,
-  arrowBackOutline,
-  layersOutline,
-  createOutline,
   alertCircleOutline,
+  arrowBackOutline,
+  briefcaseOutline,
+  checkmarkCircleOutline,
+  cloudUploadOutline,
+  documentTextOutline,
+  lockClosedOutline,
+  refreshOutline,
+  sparklesOutline,
 } from 'ionicons/icons';
+import { HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../core/api.service';
-import { errorMessage, NotifyService } from '../../core/notify.service';
+import { CareerToolsApi } from '../../core/career-tools.api';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { TemplateLiveCardComponent } from '../../shared/template-live-card.component';
-import {
-  AiResumeGeneratorApi,
-  JdResumeGeneratorResult,
-} from './ai-resume-generator.api';
-import { TemplateSummary } from '../../core/models';
+import { SectionType } from '../../core/models';
+import { errorMessage } from '../../core/notify.service';
+import { AiResumeGeneratorApi, JdResumeGeneratorResult } from './ai-resume-generator.api';
+import { buildTailoredDoc } from './tailored-doc';
 
+interface GeneratedDocuments {
+  resumeId: string;
+  coverLetterId: string | null;
+  templateName: string;
+  targetRole: string;
+  summary: string;
+  letterError?: string;
+}
+
+/**
+ * JD-driven resume + cover letter generator.
+ *
+ * Exactly two steps:
+ *  1. Supply one job description (paste a single textarea, or upload a file).
+ *  2. Both ATS-secure documents are ready, with direct links to edit each one.
+ *
+ * Template choice, section ordering and ATS layout are deterministic (server-side),
+ * so there is no review/gallery step to slow the candidate down.
+ */
 @Component({
   selector: 'app-ai-resume-generator',
   standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    RouterLink,
-    IonContent,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
-    IonIcon,
-    TranslatePipe,
-    TemplateLiveCardComponent,
-  ],
+  imports: [CommonModule, FormsModule, RouterLink, IonContent, IonHeader, IonToolbar, IonTitle, IonIcon, TranslatePipe],
   template: `
     <ion-header>
       <ion-toolbar>
@@ -57,46 +56,64 @@ import { TemplateSummary } from '../../core/models';
     </ion-header>
 
     <ion-content>
-      <div class="page-shell">
-        <!-- Top Back button -->
-        <a class="btn ghost sm" routerLink="/dashboard" style="align-self:flex-start">
-          <ion-icon name="arrow-back-outline" aria-hidden="true"></ion-icon> {{ 'dash.title' | t }}
+      <div class="page-shell ai-page">
+        <a class="back-chip" routerLink="/dashboard" data-testid="ai-resume-back">
+          <ion-icon name="arrow-back-outline" aria-hidden="true"></ion-icon>
+          {{ 'nav.home' | t }}
         </a>
 
-        <!-- Hero Banner -->
-        <div class="jd-hero">
-          <div class="jd-hero-content">
-            <div class="badge-pill">
+        <header class="hero">
+          <div class="hero__body">
+            <span class="hero__badge">
               <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
-              <span>ATS-Optimized &middot; High Voltage</span>
-            </div>
+              {{ 'aiResume.atsBadge' | t }}
+            </span>
             <h1>{{ 'aiResume.hero.title' | t }}</h1>
-            <p>{{ 'aiResume.hero.sub' | t }}</p>
+            <p class="hero__sub">{{ 'aiResume.hero.sub' | t }}</p>
+            <ul class="hero__points">
+              <li>
+                <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+                {{ 'aiResume.hero.point1' | t }}
+              </li>
+              <li>
+                <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+                {{ 'aiResume.hero.point2' | t }}
+              </li>
+              <li>
+                <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+                {{ 'aiResume.hero.point3' | t }}
+              </li>
+            </ul>
           </div>
-        </div>
+          <div class="hero__art" aria-hidden="true">
+            <div class="sheet"></div>
+            <span class="sheet__spark"><ion-icon name="sparkles-outline"></ion-icon></span>
+          </div>
+        </header>
 
-        <!-- Step Indicator -->
-        <div class="steps-nav" role="tablist">
-          <div class="step-item" [class.active]="step() === 1" [class.done]="step() > 1">
-            <span class="step-num">1</span>
-            <span class="step-label">{{ 'aiResume.step.jd' | t }}</span>
-          </div>
-          <div class="step-divider"></div>
-          <div class="step-item" [class.active]="step() === 2" [class.done]="step() > 2">
-            <span class="step-num">2</span>
-            <span class="step-label">{{ 'aiResume.step.review' | t }}</span>
-          </div>
-          <div class="step-divider"></div>
-          <div class="step-item" [class.active]="step() === 3" [class.done]="step() > 3">
-            <span class="step-num">3</span>
-            <span class="step-label">{{ 'aiResume.step.template' | t }}</span>
-          </div>
-          <div class="step-divider"></div>
-          <div class="step-item" [class.active]="step() === 4">
-            <span class="step-num">4</span>
-            <span class="step-label">{{ 'aiResume.step.download' | t }}</span>
-          </div>
-        </div>
+        <ol class="rail" [attr.aria-label]="'aiResume.stepsAria' | t">
+          <li class="rail__step" [class.is-active]="step() === 1" [class.is-done]="step() === 2">
+            <span class="rail__dot">
+              @if (step() === 2) {
+                <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+              } @else {
+                1
+              }
+            </span>
+            <span class="rail__label">{{ 'aiResume.step.jd' | t }}</span>
+          </li>
+          <li class="rail__line" aria-hidden="true"></li>
+          <li class="rail__step" [class.is-active]="step() === 2">
+            <span class="rail__dot">
+              @if (step() === 2) {
+                <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+              } @else {
+                2
+              }
+            </span>
+            <span class="rail__label">{{ 'aiResume.step.documents' | t }}</span>
+          </li>
+        </ol>
 
         @if (error()) {
           <div class="banner err" role="alert" data-testid="ai-resume-error">
@@ -105,304 +122,221 @@ import { TemplateSummary } from '../../core/models';
           </div>
         }
 
-        <!-- STEP 1: Job Description Intake -->
+        @if (profileMissing()) {
+          <div class="banner warn" role="status" data-testid="ai-resume-needs-profile">
+            <span>{{ 'aiResume.needProfile' | t }}</span>
+            <a routerLink="/profile">{{ 'aiResume.goProfile' | t }}</a>
+          </div>
+        }
+
+        <!-- STEP 1: single JD input, paste or upload -->
         @if (step() === 1) {
-          <section class="card" aria-labelledby="step1-heading">
-            <h2 id="step1-heading">1. {{ 'aiResume.step1.title' | t }}</h2>
-            <p class="muted">{{ 'aiResume.step1.desc' | t }}</p>
+          <section class="work" aria-labelledby="step1-heading" data-testid="ai-resume-step1">
+            <article class="panel">
+              <header class="panel__head">
+                <span class="panel__eyebrow" aria-hidden="true">01</span>
+                <h2 id="step1-heading">{{ 'aiResume.step1.title' | t }}</h2>
+                <p class="panel__desc">{{ 'aiResume.step1.desc' | t }}</p>
+              </header>
 
-            <div class="mode-toggle">
-              <button
-                class="chip"
-                [attr.aria-pressed]="inputMode() === 'paste'"
-                (click)="inputMode.set('paste')"
-                type="button"
-              >
-                <ion-icon name="document-text-outline" aria-hidden="true"></ion-icon>
-                {{ 'aiResume.pasteTab' | t }}
-              </button>
-              <button
-                class="chip"
-                [attr.aria-pressed]="inputMode() === 'upload'"
-                (click)="inputMode.set('upload')"
-                type="button"
-              >
-                <ion-icon name="cloud-upload-outline" aria-hidden="true"></ion-icon>
-                {{ 'aiResume.uploadTab' | t }}
-              </button>
-            </div>
+              <div class="mode-row" role="group" [attr.aria-label]="'aiResume.inputModeAria' | t">
+                <button
+                  type="button"
+                  class="chip"
+                  [attr.aria-pressed]="inputMode() === 'paste'"
+                  (click)="inputMode.set('paste')"
+                >
+                  <ion-icon name="document-text-outline" aria-hidden="true"></ion-icon>
+                  {{ 'aiResume.pasteTab' | t }}
+                </button>
+                <button
+                  type="button"
+                  class="chip"
+                  [attr.aria-pressed]="inputMode() === 'upload'"
+                  (click)="inputMode.set('upload')"
+                >
+                  <ion-icon name="cloud-upload-outline" aria-hidden="true"></ion-icon>
+                  {{ 'aiResume.uploadTab' | t }}
+                </button>
+              </div>
 
-            @if (inputMode() === 'paste') {
-              <div class="form-grid">
+              @if (inputMode() === 'paste') {
                 <div class="field">
-                  <label for="ai-job-title">{{ 'aiResume.jobTitleLabel' | t }}</label>
-                  <input
-                    id="ai-job-title"
-                    [(ngModel)]="jobTitle"
-                    maxlength="160"
-                    placeholder="e.g. Senior Frontend Engineer"
-                  />
-                </div>
-                <div class="field">
-                  <label for="ai-company">{{ 'aiResume.companyLabel' | t }}</label>
-                  <input
-                    id="ai-company"
-                    [(ngModel)]="company"
-                    maxlength="120"
-                    placeholder="e.g. Acme Corp"
-                  />
-                </div>
-                <div class="field full">
-                  <label for="ai-jd-text">{{ 'aiResume.jdTextLabel' | t }} *</label>
+                  <div class="field__top">
+                    <label for="ai-jd-text">{{ 'aiResume.jdTextLabel' | t }}</label>
+                    <span class="field__count">{{ 'aiResume.chars' | t: { n: jdText.length } }}</span>
+                  </div>
                   <textarea
                     id="ai-jd-text"
-                    rows="8"
+                    data-testid="ai-resume-jd"
+                    rows="11"
                     [(ngModel)]="jdText"
                     maxlength="30000"
-                    placeholder="Paste the full job description here (skills, responsibilities, qualifications)..."
+                    [placeholder]="'aiResume.jdPlaceholder' | t"
                   ></textarea>
-                  <span class="hint">{{ jdText.length }} / 30000 characters</span>
+                  <span class="field__hint">{{ 'aiResume.step1.helper' | t }}</span>
                 </div>
-              </div>
+              } @else {
+                <div
+                  class="dropzone"
+                  [class.is-dragging]="isDragging()"
+                  [class.has-file]="!!selectedFile()"
+                  data-testid="ai-resume-upload"
+                  (dragover)="onDragOver($event)"
+                  (dragleave)="isDragging.set(false)"
+                  (drop)="onDrop($event)"
+                >
+                  <span class="dropzone__icon">
+                    <ion-icon name="cloud-upload-outline" aria-hidden="true"></ion-icon>
+                  </span>
+                  <h3>{{ 'aiResume.dragDropTitle' | t }}</h3>
+                  <p class="dropzone__sub">{{ 'aiResume.dragDropSub' | t }}</p>
+                  <label class="btn ghost sm file-picker-label">
+                    {{ 'aiResume.browseFiles' | t }}
+                    <input
+                      type="file"
+                      accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      (change)="onFilePicked($event)"
+                    />
+                  </label>
+                  @if (selectedFile()) {
+                    <span class="file-chip" data-testid="ai-resume-file">
+                      <ion-icon name="document-text-outline" aria-hidden="true"></ion-icon>
+                      {{ 'aiResume.selectedFile' | t: { name: selectedFile()!.name } }}
+                    </span>
+                  }
+                </div>
+              }
 
-              <div class="row" style="margin-top: 1rem;">
+              <div class="panel__foot">
                 <button
-                  class="btn"
-                  (click)="analyzePasted()"
-                  [disabled]="busy() || jdText.trim().length < 50"
+                  class="btn generate-btn"
+                  type="button"
+                  data-testid="ai-resume-generate"
+                  (click)="generate()"
+                  [disabled]="!canGenerate()"
                 >
                   @if (busy()) {
                     <ion-icon name="refresh-outline" class="spinning" aria-hidden="true"></ion-icon>
-                    {{ 'aiResume.analyzing' | t }}
+                    {{ 'aiResume.creating' | t }}
                   } @else {
                     <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
                     {{ 'aiResume.generateBtn' | t }}
                   }
                 </button>
+                <p class="panel__hint">{{ 'aiResume.generateHint' | t }}</p>
+                <p class="hint panel__secure">
+                  <ion-icon name="lock-closed-outline" aria-hidden="true"></ion-icon>
+                  {{ 'aiResume.secureNote' | t }}
+                </p>
               </div>
-            } @else {
-              <div
-                class="upload-zone"
-                [class.drag-over]="isDragging()"
-                (dragover)="onDragOver($event)"
-                (dragleave)="isDragging.set(false)"
-                (drop)="onDrop($event)"
-              >
-                <ion-icon name="cloud-upload-outline" class="upload-icon" aria-hidden="true"></ion-icon>
-                <h3>{{ 'aiResume.dragDropTitle' | t }}</h3>
-                <p class="muted">{{ 'aiResume.dragDropSub' | t }}</p>
-                <label class="btn ghost sm file-picker-label">
-                  <span>{{ 'aiResume.browseFiles' | t }}</span>
-                  <input
-                    type="file"
-                    accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    (change)="onFilePicked($event)"
-                    style="display:none;"
-                  />
-                </label>
-                @if (selectedFile()) {
-                  <div class="selected-file-chip">
+            </article>
+
+            <aside class="side">
+              <div class="side__card side__card--gain">
+                <h2 class="side__title">{{ 'aiResume.side.title' | t }}</h2>
+                <ul class="gain">
+                  <li>
+                    <span class="gain__icon"><ion-icon name="document-text-outline" aria-hidden="true"></ion-icon></span>
+                    <p>{{ 'aiResume.side.resume' | t }}</p>
+                  </li>
+                  <li>
+                    <span class="gain__icon"><ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon></span>
+                    <p>{{ 'aiResume.side.letter' | t }}</p>
+                  </li>
+                  <li>
+                    <span class="gain__icon gain__icon--ok"><ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon></span>
+                    <p>{{ 'aiResume.side.facts' | t }}</p>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="side__card side__card--privacy">
+                <span class="side__lock"><ion-icon name="lock-closed-outline" aria-hidden="true"></ion-icon></span>
+                <h3>{{ 'aiResume.side.privacyTitle' | t }}</h3>
+                <p>{{ 'aiResume.side.privacy' | t }}</p>
+              </div>
+            </aside>
+          </section>
+        }
+
+        <!-- STEP 2: both documents created -->
+        @if (step() === 2 && generated(); as docs) {
+          <section class="panel result" aria-labelledby="step2-heading" data-testid="ai-resume-step2">
+            <header class="result__head">
+              <span class="result__mark"><ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon></span>
+              <div class="result__intro">
+                <p class="result__eyebrow">{{ 'aiResume.result.eyebrow' | t }}</p>
+                <h2 id="step2-heading">{{ 'aiResume.step2.title' | t }}</h2>
+                <p class="result__desc">{{ 'aiResume.step2.desc' | t }}</p>
+              </div>
+            </header>
+
+            <div class="docs">
+              <article class="doc" data-testid="ai-resume-resume-card">
+                <header class="doc__head">
+                  <span class="doc__icon"><ion-icon name="document-text-outline" aria-hidden="true"></ion-icon></span>
+                  <h3>{{ 'aiResume.resumeCard.title' | t }}</h3>
+                </header>
+                <div class="doc__meta">
+                  <p>
                     <ion-icon name="document-text-outline" aria-hidden="true"></ion-icon>
-                    <span>{{ selectedFile()!.name }} ({{ (selectedFile()!.size / 1024).toFixed(1) }} KB)</span>
-                  </div>
-                }
-              </div>
+                    {{ 'aiResume.templateApplied' | t: { name: docs.templateName } }}
+                  </p>
+                  <p>
+                    <ion-icon name="briefcase-outline" aria-hidden="true"></ion-icon>
+                    {{ 'aiResume.roleApplied' | t: { role: docs.targetRole } }}
+                  </p>
+                </div>
+                <span class="pill pill--ok">{{ 'aiResume.atsStatus' | t }}</span>
+                <a class="btn doc__action" [routerLink]="['/resumes', docs.resumeId]" data-testid="ai-resume-open-resume">
+                  {{ 'aiResume.openResume' | t }}
+                </a>
+              </article>
 
-              <div class="row" style="margin-top: 1rem;">
-                <button
-                  class="btn"
-                  (click)="analyzeUploadedFile()"
-                  [disabled]="busy() || !selectedFile()"
-                >
-                  @if (busy()) {
-                    <ion-icon name="refresh-outline" class="spinning" aria-hidden="true"></ion-icon>
-                    {{ 'aiResume.analyzing' | t }}
-                  } @else {
+              <article class="doc" data-testid="ai-resume-letter-card">
+                <header class="doc__head">
+                  <span class="doc__icon doc__icon--accent">
                     <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
-                    {{ 'aiResume.generateBtn' | t }}
-                  }
-                </button>
+                  </span>
+                  <h3>{{ 'aiResume.letterCard.title' | t }}</h3>
+                </header>
+                @if (docs.coverLetterId) {
+                  <p class="doc__sub">{{ 'aiResume.letterCard.sub' | t }}</p>
+                  <span class="pill pill--ok">{{ 'aiResume.atsStatus' | t }}</span>
+                  <a
+                    class="btn ghost doc__action"
+                    [routerLink]="['/cover-letters', docs.coverLetterId]"
+                    data-testid="ai-resume-open-letter"
+                  >
+                    {{ 'aiResume.openLetter' | t }}
+                  </a>
+                } @else {
+                  <p class="doc__sub">{{ 'aiResume.letterUnavailable' | t }}</p>
+                }
+              </article>
+            </div>
+
+            @if (docs.letterError) {
+              <div class="banner warn" role="status" data-testid="ai-resume-letter-error">
+                {{ 'aiResume.letterFailed' | t: { error: docs.letterError! } }}
               </div>
             }
-          </section>
-        }
 
-        <!-- STEP 2: Extraction Review -->
-        @if (step() === 2 && result()) {
-          <section class="card" aria-labelledby="step2-heading">
-            <div class="row between">
-              <h2 id="step2-heading">2. {{ 'aiResume.step2.title' | t }}</h2>
-              <span class="badge ok">
-                <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
-                Extracted
-              </span>
-            </div>
-            <p class="muted">{{ 'aiResume.step2.desc' | t }}</p>
-
-            <!-- Detected Meta Grid -->
-            <div class="meta-preview-grid">
-              <div class="meta-item">
-                <span class="meta-label">Role Detected</span>
-                <strong>{{ result()!.jdAnalysis.detectedTitle || jobTitle || 'General Technical Role' }}</strong>
-              </div>
-              <div class="meta-item">
-                <span class="meta-label">Seniority</span>
-                <span class="badge">{{ result()!.jdAnalysis.seniority || 'Mid / Not specified' }}</span>
-              </div>
-              <div class="meta-item">
-                <span class="meta-label">Work Mode</span>
-                <span class="badge">{{ result()!.jdAnalysis.workMode || 'Flexible / Onsite' }}</span>
-              </div>
-              <div class="meta-item">
-                <span class="meta-label">Matched Skills</span>
-                <strong class="stat-highlight">{{ result()!.matchedSkills.length }}</strong>
-              </div>
-            </div>
-
-            <!-- Tailored Summary -->
-            <div class="summary-box">
-              <div class="row between">
-                <span class="label"><strong>{{ 'aiResume.tailoredSummary' | t }}</strong></span>
-                <span class="badge" [class.ok]="result()!.summarySource === 'ai'">
-                  {{ result()!.summarySource === 'ai' ? 'AI Enhanced' : 'Standard' }}
-                </span>
-              </div>
-              <p class="summary-text">{{ result()!.summary }}</p>
-            </div>
-
-            <!-- Matched Skills Chips -->
-            <div>
-              <span class="label" style="margin-bottom:0.5rem; display:block;">
-                <strong>{{ 'aiResume.matchedSkills' | t }} ({{ result()!.matchedSkills.length }})</strong>
-              </span>
-              <div class="row wrap" style="gap:0.4rem;">
-                @for (sk of result()!.matchedSkills; track sk) {
-                  <span class="chip-skill">{{ sk }}</span>
-                }
-                @if (result()!.matchedSkills.length === 0) {
-                  <span class="muted small">No exact skill overlaps with existing profile, but standard requirements mapped.</span>
-                }
-              </div>
-            </div>
-
-            <div class="row between" style="margin-top: 1.5rem;">
-              <button class="btn ghost" (click)="step.set(1)">
-                <ion-icon name="arrow-back-outline" aria-hidden="true"></ion-icon>
-                {{ 'common.cancel' | t }}
-              </button>
-              <button class="btn" (click)="step.set(3)">
-                {{ 'aiResume.nextTemplate' | t }}
-                <ion-icon name="layers-outline" aria-hidden="true"></ion-icon>
-              </button>
-            </div>
-          </section>
-        }
-
-        <!-- STEP 3: Auto-Selected Template & Gallery Switcher -->
-        @if (step() === 3 && result()) {
-          <section class="card" aria-labelledby="step3-heading">
-            <div class="row between">
-              <h2 id="step3-heading">3. {{ 'aiResume.step3.title' | t }}</h2>
-              <span class="badge ok">
+            <div class="summary">
+              <p class="summary__label">
                 <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
-                High-Voltage Template Auto-Picked
-              </span>
-            </div>
-            <p class="muted">{{ 'aiResume.step3.desc' | t }}</p>
-
-            <!-- Current Chosen Template Card -->
-            <div class="selected-template-highlight">
-              <div class="tpl-info">
-                <span class="badge">{{ selectedTemplate()?.category || 'ATS First' }}</span>
-                <h3>{{ selectedTemplate()?.name }}</h3>
-                <p class="muted small">{{ selectedTemplate()?.description }}</p>
-                <div class="tags-row">
-                  @for (tg of selectedTemplate()?.tags ?? []; track tg) {
-                    <span class="tag-chip">#{{ tg }}</span>
-                  }
-                </div>
-              </div>
-              <button
-                class="btn ghost sm"
-                (click)="showGallery.set(!showGallery())"
-                type="button"
-              >
-                <ion-icon name="layers-outline" aria-hidden="true"></ion-icon>
-                {{ showGallery() ? ('aiResume.hideGallery' | t) : ('aiResume.changeTemplate' | t) }}
-              </button>
+                {{ 'aiResume.tailoredSummary' | t }}
+              </p>
+              <p class="summary__body">{{ docs.summary }}</p>
             </div>
 
-            <!-- Optional Template Gallery Grid -->
-            @if (showGallery()) {
-              <div class="gallery-wrapper">
-                <h4>{{ 'aiResume.chooseAlternative' | t }}</h4>
-                <div class="templates-grid">
-                  @for (tpl of result()!.allTemplates; track tpl.id) {
-                    <div
-                      class="template-card"
-                      [class.active]="selectedTemplateId() === tpl.id"
-                      (click)="onSelectTemplate(tpl.id)"
-                    >
-                      <div class="tpl-thumb-container">
-                        <app-template-live-card [template]="tpl"></app-template-live-card>
-                      </div>
-                      <div class="tpl-card-info">
-                        <strong>{{ tpl.name }}</strong>
-                        <span class="small muted">{{ tpl.category }}</span>
-                      </div>
-                    </div>
-                  }
-                </div>
-              </div>
-            }
-
-            <div class="row between" style="margin-top: 1.5rem;">
-              <button class="btn ghost" (click)="step.set(2)">
+            <div class="result__actions">
+              <button class="btn ghost sm" type="button" (click)="back()">
                 <ion-icon name="arrow-back-outline" aria-hidden="true"></ion-icon>
-                {{ 'tour.back' | t }}
+                {{ 'aiResume.editJd' | t }}
               </button>
-              <button class="btn" (click)="proceedToDownload()">
-                {{ 'aiResume.readyToDownload' | t }}
-                <ion-icon name="download-outline" aria-hidden="true"></ion-icon>
-              </button>
-            </div>
-          </section>
-        }
-
-        <!-- STEP 4: Download Ready in Seconds -->
-        @if (step() === 4 && result()) {
-          <section class="card download-card" aria-labelledby="step4-heading">
-            <div class="success-icon-wrap">
-              <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
-            </div>
-            <h2 id="step4-heading">{{ 'aiResume.readyTitle' | t }}</h2>
-            <p class="muted">{{ 'aiResume.readySub' | t }}</p>
-
-            <div class="summary-specs">
-              <div class="spec-row">
-                <span class="muted">Template Applied:</span>
-                <strong>{{ selectedTemplate()?.name }}</strong>
-              </div>
-              <div class="spec-row">
-                <span class="muted">Target Role:</span>
-                <strong>{{ result()!.jdAnalysis.detectedTitle || jobTitle || 'Target Role' }}</strong>
-              </div>
-              <div class="spec-row">
-                <span class="muted">ATS Compliance:</span>
-                <span class="badge ok">100% ATS-Friendly Layout</span>
-              </div>
-            </div>
-
-            <div class="action-buttons-stack">
-              <button class="btn" (click)="saveAsResumeDraft()" [disabled]="saving()">
-                <ion-icon name="create-outline" aria-hidden="true"></ion-icon>
-                {{ saving() ? 'Creating draft...' : ('aiResume.saveAndEdit' | t) }}
-              </button>
-              <a class="btn ghost" routerLink="/cover-letters" [queryParams]="{ jobTitle: jobTitle, company: company }">
-                <ion-icon name="document-text-outline" aria-hidden="true"></ion-icon>
-                {{ 'aiResume.generateCoverLetter' | t }}
-              </a>
-              <button class="btn ghost" (click)="reset()">
+              <button class="btn ghost sm" type="button" (click)="reset()">
                 {{ 'aiResume.startOver' | t }}
               </button>
             </div>
@@ -412,362 +346,408 @@ import { TemplateSummary } from '../../core/models';
     </ion-content>
   `,
   styles: [`
-    .jd-hero {
-      background: var(--brand-gradient);
-      color: #fff;
-      border-radius: var(--radius);
-      padding: 2rem 1.5rem;
-      margin-bottom: 1rem;
-      box-shadow: 0 8px 24px rgba(124, 92, 255, 0.25);
+    .ai-page { gap: 1.15rem; }
+
+    .back-chip {
+      align-self: flex-start;
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      min-height: 2.25rem; padding: 0.3rem 0.7rem;
+      border-radius: 999px; border: 1px solid var(--c-border);
+      background: var(--c-bg); color: var(--c-muted);
+      font-size: 0.82rem; font-weight: 600; text-decoration: none;
     }
-    .badge-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      background: rgba(255, 255, 255, 0.2);
+
+    /* ---------- hero ---------- */
+    .hero {
+      position: relative; overflow: hidden;
+      display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
+      gap: 1.5rem;
+      padding: 1.9rem 1.75rem;
+      border-radius: 20px;
+      background:
+        radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--c-accent) 32%, transparent), transparent 58%),
+        radial-gradient(90% 120% at 0% 100%, color-mix(in srgb, #2b1668 45%, transparent), transparent 60%),
+        var(--brand-gradient);
+      color: #fff;
+      box-shadow: 0 18px 44px color-mix(in srgb, var(--c-primary) 30%, transparent);
+      isolation: isolate;
+    }
+    .hero__body { position: relative; z-index: 1; min-width: 0; }
+    .hero__badge {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.3rem 0.7rem; border-radius: 999px;
+      background: rgba(255, 255, 255, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.35);
       backdrop-filter: blur(8px);
-      padding: 0.25rem 0.75rem;
-      border-radius: 999px;
-      font-size: 0.8rem;
-      font-weight: 700;
-      margin-bottom: 0.75rem;
+      font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
     }
-    .jd-hero h1 {
-      font-size: 1.8rem;
-      font-weight: 800;
-      margin-bottom: 0.4rem;
-      color: #fff;
+    .hero h1 {
+      margin: 0.65rem 0 0.4rem;
+      font-size: clamp(1.55rem, 3.2vw, 2.15rem); line-height: 1.15; font-weight: 800;
+      letter-spacing: -0.02em; color: #fff;
     }
-    .jd-hero p {
-      opacity: 0.92;
-      font-size: 0.95rem;
-      max-width: 36rem;
+    .hero__sub { margin: 0; max-width: 34rem; font-size: 0.95rem; line-height: 1.55; color: rgba(255, 255, 255, 0.92); }
+    .hero__points { margin: 0.95rem 0 0; padding: 0; list-style: none; display: grid; gap: 0.3rem; }
+    .hero__points li {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.8rem; font-weight: 600; color: rgba(255, 255, 255, 0.94);
+    }
+    .hero__points ion-icon { flex: none; font-size: 1rem; color: #d9ffe6; }
+
+    .hero__art { position: relative; z-index: 1; display: grid; place-items: center; padding-right: 0.5rem; }
+    /* Mock ATS page drawn with gradients so it costs almost no CSS. */
+    .sheet {
+      width: 8rem; height: 10rem; border-radius: 12px; transform: rotate(-4deg);
+      background:
+        linear-gradient(var(--c-primary), var(--c-primary)) 0.9rem 0.95rem / 2.3rem 0.4rem no-repeat,
+        repeating-linear-gradient(#ded7f3 0 0.32rem, transparent 0.32rem 0.85rem) 0.9rem 1.9rem / 5.9rem 5.4rem no-repeat,
+        rgba(255, 255, 255, 0.95);
+      box-shadow: 0 16px 32px rgba(20, 10, 50, 0.28), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+    }
+    .sheet__spark {
+      position: absolute; right: 0.1rem; bottom: 0.15rem;
+      display: grid; place-items: center; width: 2.2rem; height: 2.2rem;
+      border-radius: 12px; background: #fff; color: var(--c-primary); font-size: 1.15rem;
+      box-shadow: 0 10px 20px rgba(20, 10, 50, 0.25);
     }
 
-    /* Steps */
-    .steps-nav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-      padding: 0.5rem 0;
-    }
-    .step-item {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      color: var(--c-muted);
-      font-weight: 600;
-      font-size: 0.85rem;
-    }
-    .step-num {
-      width: 1.8rem;
-      height: 1.8rem;
-      display: grid;
-      place-items: center;
-      border-radius: 50%;
-      background: var(--c-surface);
-      border: 1px solid var(--c-border);
-      font-size: 0.8rem;
-    }
-    .step-item.active {
-      color: var(--c-primary);
-    }
-    .step-item.active .step-num {
-      background: var(--c-primary);
-      color: #fff;
-      border-color: var(--c-primary);
-    }
-    .step-item.done {
-      color: var(--c-ok);
-    }
-    .step-item.done .step-num {
-      background: var(--c-ok);
-      color: #fff;
-      border-color: var(--c-ok);
-    }
-    .step-divider {
-      flex: 1;
-      height: 2px;
-      background: var(--c-border);
-    }
-
-    .mode-toggle {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-    }
-
-    .upload-zone {
-      border: 2px dashed var(--c-border);
-      border-radius: var(--radius);
-      padding: 2.5rem 1rem;
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.5rem;
-      background: var(--c-surface);
-      cursor: pointer;
-      transition: border-color 0.2s, background 0.2s;
-    }
-    .upload-zone.drag-over {
-      border-color: var(--c-primary);
-      background: color-mix(in srgb, var(--c-primary) 8%, transparent);
-    }
-    .upload-icon {
-      font-size: 3rem;
-      color: var(--c-primary);
-    }
-    .selected-file-chip {
-      margin-top: 0.75rem;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
+    /* ---------- step rail ---------- */
+    .rail {
+      list-style: none; margin: 0; padding: 0.55rem 0.85rem;
+      display: flex; align-items: center; gap: 0.7rem;
+      border: 1px solid var(--c-border); border-radius: 14px;
       background: var(--c-bg);
-      border: 1px solid var(--c-border);
-      padding: 0.35rem 0.75rem;
-      border-radius: 999px;
-      font-size: 0.85rem;
-      font-weight: 600;
     }
+    .rail__step { display: inline-flex; align-items: center; gap: 0.5rem; min-width: 0; }
+    .rail__dot {
+      flex: none; display: grid; place-items: center;
+      width: 1.9rem; height: 1.9rem; border-radius: 999px;
+      background: var(--c-surface); border: 1px solid var(--c-border);
+      color: var(--c-muted); font-size: 0.8rem; font-weight: 800;
+      transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+    }
+    .rail__dot ion-icon { font-size: 1.1rem; }
+    .rail__label { font-size: 0.85rem; font-weight: 700; color: var(--c-muted); white-space: nowrap; }
+    .rail__step.is-active .rail__dot {
+      background: var(--c-primary); border-color: var(--c-primary); color: var(--c-primary-text);
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--c-primary) 18%, transparent);
+    }
+    .rail__step.is-active .rail__label { color: var(--c-text); }
+    .rail__step.is-done .rail__dot {
+      background: color-mix(in srgb, var(--c-ok) 18%, var(--c-bg));
+      border-color: color-mix(in srgb, var(--c-ok) 55%, var(--c-border));
+      color: var(--c-ok); box-shadow: none;
+    }
+    .rail__line { flex: 1; min-width: 1.25rem; height: 2px; border-radius: 999px; background: var(--c-border); }
 
-    /* Meta preview */
-    .meta-preview-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-      gap: 0.75rem;
-      margin: 1rem 0;
-    }
-    .meta-item {
-      background: var(--c-surface);
-      border: 1px solid var(--c-border);
-      border-radius: 8px;
-      padding: 0.75rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-    .meta-label {
-      font-size: 0.75rem;
-      color: var(--c-muted);
-      text-transform: uppercase;
-      font-weight: 600;
-    }
-    .stat-highlight {
-      font-size: 1.3rem;
-      color: var(--c-primary);
-    }
+    /* ---------- step 1 layout ---------- */
+    .work { display: grid; grid-template-columns: minmax(0, 1fr) 19rem; gap: 1.1rem; align-items: start; }
 
-    .summary-box {
-      background: var(--c-surface);
-      border: 1px solid var(--c-border);
-      border-radius: 8px;
-      padding: 1rem;
-      margin-bottom: 1rem;
+    .panel {
+      display: flex; flex-direction: column; gap: 1rem;
+      padding: 1.35rem 1.25rem;
+      background: var(--c-bg); border: 1px solid var(--c-border);
+      border-radius: 18px;
+      box-shadow: 0 1px 2px rgba(20, 10, 50, 0.04);
     }
-    .summary-text {
-      margin-top: 0.5rem;
-      font-size: 0.95rem;
-      line-height: 1.6;
+    .panel__head { display: flex; flex-direction: column; gap: 0.3rem; }
+    .panel__eyebrow {
+      align-self: flex-start;
+      font-size: 0.7rem; font-weight: 800; letter-spacing: 0.14em;
+      color: color-mix(in srgb, var(--c-primary) 82%, var(--c-text));
     }
+    .panel__head h2 { margin: 0; font-size: 1.2rem; font-weight: 800; letter-spacing: -0.01em; }
+    .panel__desc { margin: 0; color: var(--c-muted); font-size: 0.88rem; line-height: 1.55; max-width: 40rem; }
 
-    .chip-skill {
-      background: var(--c-surface);
-      border: 1px solid var(--c-border);
-      padding: 0.25rem 0.6rem;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: 500;
-    }
+    .mode-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-self: flex-start; }
+    .mode-row .chip { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; font-weight: 600; }
 
-    /* Selected template */
-    .selected-template-highlight {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: var(--c-surface);
-      border: 2px solid var(--c-primary);
-      border-radius: var(--radius);
-      padding: 1.25rem;
-      margin: 1rem 0;
-      gap: 1rem;
-      flex-wrap: wrap;
+    .field { display: flex; flex-direction: column; gap: 0.4rem; }
+    .field__top { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; }
+    .field__top label { font-size: 0.8rem; font-weight: 700; color: var(--c-text); }
+    .field__count {
+      font-size: 0.72rem; font-weight: 600; color: var(--c-muted);
+      font-variant-numeric: tabular-nums;
     }
-    .tags-row {
-      display: flex;
-      gap: 0.35rem;
-      flex-wrap: wrap;
-      margin-top: 0.5rem;
+    .field textarea {
+      width: 100%; resize: vertical; min-height: 13rem;
+      line-height: 1.6; font-size: 0.9rem;
+      border-radius: 14px; border: 1px solid var(--c-border);
+      background: color-mix(in srgb, var(--c-surface) 30%, var(--c-bg));
+      color: var(--c-text); padding: 0.85rem 0.95rem;
     }
-    .tag-chip {
-      font-size: 0.75rem;
-      color: var(--c-muted);
-    }
-
-    .gallery-wrapper {
-      margin-top: 1rem;
-      padding-top: 1rem;
-      border-top: 1px solid var(--c-border);
-    }
-    .templates-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 1rem;
-      margin-top: 0.75rem;
-      max-height: 400px;
-      overflow-y: auto;
-      padding: 0.25rem;
-    }
-    .template-card {
-      border: 2px solid var(--c-border);
-      border-radius: 8px;
-      overflow: hidden;
-      cursor: pointer;
+    .field textarea:focus {
+      outline: none; border-color: color-mix(in srgb, var(--c-primary) 65%, var(--c-border));
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-primary) 18%, transparent);
       background: var(--c-bg);
-      transition: border-color 0.2s, transform 0.2s;
     }
-    .template-card:hover {
+    .field__hint { font-size: 0.74rem; color: var(--c-muted); }
+
+    .dropzone {
+      display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+      padding: 2.1rem 1.1rem; text-align: center;
+      border: 2px dashed color-mix(in srgb, var(--c-border) 88%, var(--c-primary));
+      border-radius: 16px;
+      background:
+        radial-gradient(80% 90% at 50% 0%, color-mix(in srgb, var(--c-primary) 7%, transparent), transparent 70%),
+        color-mix(in srgb, var(--c-surface) 30%, var(--c-bg));
+      cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+    }
+    .dropzone:hover, .dropzone.is-dragging {
       border-color: var(--c-primary);
-      transform: translateY(-2px);
+      background: color-mix(in srgb, var(--c-primary) 8%, var(--c-bg));
     }
-    .template-card.active {
-      border-color: var(--c-primary);
-      box-shadow: 0 0 0 2px var(--c-primary);
+    .dropzone.is-dragging { transform: scale(1.005); }
+    .dropzone__icon {
+      display: grid; place-items: center; width: 3.1rem; height: 3.1rem;
+      border-radius: 999px; font-size: 1.5rem;
+      background: color-mix(in srgb, var(--c-primary) 12%, var(--c-bg)); color: var(--c-primary);
     }
-    .tpl-thumb-container {
-      background: #fafafa;
-      padding: 0.5rem;
-      border-bottom: 1px solid var(--c-border);
-    }
-    .tpl-card-info {
-      padding: 0.5rem;
-      display: flex;
-      flex-direction: column;
+    .dropzone h3 { margin: 0; font-size: 1rem; font-weight: 700; }
+    .dropzone__sub { margin: 0; max-width: 24rem; font-size: 0.8rem; line-height: 1.5; color: var(--c-muted); }
+    .file-picker-label { position: relative; overflow: hidden; margin-top: 0.35rem; }
+    .file-picker-label input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .file-chip {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      max-width: 100%; margin-top: 0.35rem; padding: 0.35rem 0.7rem;
+      border-radius: 999px; border: 1px solid color-mix(in srgb, var(--c-ok) 45%, var(--c-border));
+      background: color-mix(in srgb, var(--c-ok) 9%, var(--c-bg));
+      font-size: 0.78rem; font-weight: 600;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
 
-    /* Step 4 */
-    .download-card {
-      text-align: center;
-      align-items: center;
-      padding: 2.5rem 1.5rem;
+    .panel__foot {
+      display: flex; flex-direction: column; gap: 0.45rem;
+      padding-top: 0.9rem; border-top: 1px solid color-mix(in srgb, var(--c-border) 70%, transparent);
     }
-    .success-icon-wrap {
-      font-size: 3.5rem;
-      color: var(--c-ok);
-      margin-bottom: 0.5rem;
+    .generate-btn {
+      align-self: flex-start; min-width: 16.5rem; min-height: 2.9rem;
+      font-weight: 700; letter-spacing: 0.01em;
+      box-shadow: 0 10px 22px color-mix(in srgb, var(--c-primary) 28%, transparent);
     }
-    .summary-specs {
-      background: var(--c-surface);
-      border: 1px solid var(--c-border);
-      border-radius: 8px;
-      padding: 1rem;
-      width: 100%;
-      max-width: 28rem;
-      margin: 1.5rem 0;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      text-align: left;
-    }
-    .spec-row {
-      display: flex;
-      justify-content: space-between;
-    }
-    .action-buttons-stack {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-      width: 100%;
-      max-width: 22rem;
-    }
+    .generate-btn:disabled { box-shadow: none; }
+    .panel__hint { margin: 0; font-size: 0.74rem; color: var(--c-muted); }
+    .panel__secure { margin: 0; display: flex; align-items: flex-start; gap: 0.4rem; }
+    .panel__secure ion-icon { flex: none; font-size: 0.95rem; margin-top: 0.1rem; }
 
-    .spinning {
-      animation: spin 1s linear infinite;
+    /* ---------- side column ---------- */
+    .side { display: flex; flex-direction: column; gap: 0.9rem; }
+    .side__card {
+      padding: 1.1rem 1rem; border-radius: 18px;
+      border: 1px solid var(--c-border); background: var(--c-bg);
     }
-    @keyframes spin {
-      100% { transform: rotate(360deg); }
+    .side__card--gain {
+      background:
+        radial-gradient(100% 80% at 100% 0%, color-mix(in srgb, var(--c-primary) 10%, transparent), transparent 65%),
+        var(--c-bg);
+    }
+    .side__title { margin: 0 0 0.7rem; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--c-muted); }
+    .gain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.8rem; }
+    .gain li { display: flex; align-items: flex-start; gap: 0.6rem; }
+    .gain__icon {
+      flex: none; display: grid; place-items: center;
+      width: 1.9rem; height: 1.9rem; border-radius: 10px; font-size: 1rem;
+      background: color-mix(in srgb, var(--c-primary) 13%, var(--c-bg)); color: var(--c-primary);
+    }
+    .gain__icon--ok { background: color-mix(in srgb, var(--c-ok) 14%, var(--c-bg)); color: var(--c-ok); }
+    .gain p { margin: 0.1rem 0 0; font-size: 0.82rem; line-height: 1.5; color: var(--c-text); }
+
+    .side__card--privacy {
+      display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-start;
+      background: color-mix(in srgb, var(--c-surface) 46%, var(--c-bg));
+      border-style: dashed;
+    }
+    .side__lock {
+      display: grid; place-items: center; width: 1.7rem; height: 1.7rem;
+      border-radius: 999px; font-size: 0.95rem;
+      background: color-mix(in srgb, var(--c-ok) 14%, var(--c-bg)); color: var(--c-ok);
+    }
+    .side__card--privacy h3 { margin: 0.15rem 0 0; font-size: 0.88rem; font-weight: 700; }
+    .side__card--privacy p { margin: 0; font-size: 0.76rem; line-height: 1.55; color: var(--c-muted); }
+
+    /* ---------- step 2 ---------- */
+    .result { gap: 1.15rem; padding: 1.5rem 1.35rem; }
+    .result__head { display: flex; align-items: flex-start; gap: 0.85rem; }
+    .result__mark {
+      flex: none; display: grid; place-items: center;
+      width: 2.9rem; height: 2.9rem; border-radius: 14px; font-size: 1.6rem;
+      background: color-mix(in srgb, var(--c-ok) 15%, var(--c-bg)); color: var(--c-ok);
+    }
+    .result__intro { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+    .result__eyebrow {
+      margin: 0; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase;
+      color: color-mix(in srgb, var(--c-ok) 80%, var(--c-text));
+    }
+    .result__intro h2 { margin: 0; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.01em; }
+    .result__desc { margin: 0.1rem 0 0; max-width: 42rem; font-size: 0.87rem; line-height: 1.55; color: var(--c-muted); }
+
+    .docs { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 0.9rem; }
+    .doc {
+      display: flex; flex-direction: column; gap: 0.65rem; align-items: flex-start;
+      padding: 1.1rem 1rem; border-radius: 16px;
+      border: 1px solid var(--c-border); background: var(--c-bg);
+      transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+    .doc:hover { border-color: color-mix(in srgb, var(--c-primary) 45%, var(--c-border)); box-shadow: 0 10px 24px color-mix(in srgb, var(--c-primary) 12%, transparent); }
+    .doc__head { display: flex; align-items: center; gap: 0.6rem; }
+    .doc__head h3 { margin: 0; font-size: 1rem; font-weight: 800; }
+    .doc__icon {
+      display: grid; place-items: center; width: 2.2rem; height: 2.2rem;
+      border-radius: 12px; font-size: 1.15rem;
+      background: color-mix(in srgb, var(--c-primary) 13%, var(--c-bg)); color: var(--c-primary);
+    }
+    .doc__icon--accent { background: color-mix(in srgb, var(--c-accent) 18%, var(--c-bg)); color: color-mix(in srgb, var(--c-accent) 70%, var(--c-text)); }
+    .doc__meta { display: flex; flex-direction: column; gap: 0.25rem; width: 100%; }
+    .doc__meta p {
+      margin: 0; display: flex; align-items: center; gap: 0.35rem;
+      font-size: 0.78rem; line-height: 1.4; color: var(--c-muted);
+    }
+    .doc__meta ion-icon { flex: none; font-size: 0.9rem; color: color-mix(in srgb, var(--c-primary) 70%, var(--c-muted)); }
+    .doc__sub { margin: 0; font-size: 0.82rem; line-height: 1.5; color: var(--c-muted); }
+    .pill {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      padding: 0.22rem 0.6rem; border-radius: 999px;
+      font-size: 0.7rem; font-weight: 800; letter-spacing: 0.02em;
+    }
+    .pill--ok { background: color-mix(in srgb, var(--c-ok) 12%, var(--c-bg)); color: color-mix(in srgb, var(--c-ok) 88%, var(--c-text)); border: 1px solid color-mix(in srgb, var(--c-ok) 35%, var(--c-border)); }
+    .doc__action { width: 100%; margin-top: auto; }
+
+    .summary {
+      border-radius: 14px; padding: 0.9rem 1rem;
+      border: 1px solid color-mix(in srgb, var(--c-primary) 30%, var(--c-border));
+      background: color-mix(in srgb, var(--c-primary) 6%, var(--c-bg));
+    }
+    .summary__label {
+      display: flex; align-items: center; gap: 0.35rem; margin: 0;
+      font-size: 0.7rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+      color: color-mix(in srgb, var(--c-primary) 78%, var(--c-text));
+    }
+    .summary__label ion-icon { font-size: 0.95rem; }
+    .summary__body { margin: 0.4rem 0 0; font-size: 0.88rem; line-height: 1.6; color: var(--c-text); }
+
+    .result__actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem; }
+
+    .spinning { animation: spin 1s linear infinite; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    @media (max-width: 900px) {
+      .work { grid-template-columns: minmax(0, 1fr); }
+      .side { flex-direction: row; flex-wrap: wrap; }
+      .side__card { flex: 1 1 16rem; }
+    }
+    @media (max-width: 700px) {
+      .hero { grid-template-columns: minmax(0, 1fr); padding: 1.5rem 1.15rem; }
+      .hero__art { display: none; }
+      .panel { padding: 1.1rem 0.95rem; border-radius: 16px; }
+      .rail { padding: 0.5rem 0.7rem; }
+      .rail__label { font-size: 0.78rem; }
+      .generate-btn { width: 100%; min-width: 0; }
+      .result__head { flex-direction: column; }
+      .result__actions { flex-direction: column; }
+      .result__actions .btn { width: 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .doc, .chip { transition: none; }
+      .spinning { animation: none; }
     }
   `],
 })
-export class AiResumeGeneratorPage implements OnInit {
-  step = signal<number>(1);
+export class AiResumeGeneratorPage {
+  private readonly api = inject(AiResumeGeneratorApi);
+  private readonly coreApi = inject(ApiService);
+  private readonly careerTools = inject(CareerToolsApi);
+  private readonly router = inject(Router);
+
+  step = signal<1 | 2>(1);
   inputMode = signal<'paste' | 'upload'>('paste');
-  busy = signal<boolean>(false);
-  error = signal<string>('');
-  isDragging = signal<boolean>(false);
-  showGallery = signal<boolean>(false);
-  saving = signal<boolean>(false);
-
-  jobTitle = '';
-  company = '';
-  jdText = '';
+  busy = signal(false);
+  error = signal('');
+  profileMissing = signal(false);
+  isDragging = signal(false);
   selectedFile = signal<File | null>(null);
+  jdText = '';
+  analysis = signal<JdResumeGeneratorResult | null>(null);
+  generated = signal<GeneratedDocuments | null>(null);
 
-  result = signal<JdResumeGeneratorResult | null>(null);
-  selectedTemplateId = signal<string>('');
-
-  selectedTemplate = computed(() => {
-    const res = this.result();
-    if (!res) return null;
-    return res.allTemplates.find((t) => t.id === this.selectedTemplateId()) ?? null;
-  });
-
-  constructor(
-    private api: AiResumeGeneratorApi,
-    private coreApi: ApiService,
-    private notify: NotifyService,
-    private router: Router,
-  ) {
+  constructor() {
     addIcons({
-      sparklesOutline,
-      documentTextOutline,
-      cloudUploadOutline,
-      checkmarkCircleOutline,
-      refreshOutline,
-      eyeOutline,
-      downloadOutline,
-      arrowBackOutline,
-      layersOutline,
-      createOutline,
       alertCircleOutline,
+      arrowBackOutline,
+      briefcaseOutline,
+      checkmarkCircleOutline,
+      cloudUploadOutline,
+      documentTextOutline,
+      lockClosedOutline,
+      refreshOutline,
+      sparklesOutline,
     });
   }
 
-  ngOnInit() {}
+  canGenerate(): boolean {
+    if (this.busy()) return false;
+    return this.inputMode() === 'upload' ? !!this.selectedFile() : this.jdText.trim().length >= 50;
+  }
 
-  onDragOver(e: DragEvent) {
-    e.preventDefault();
+  onDragOver(event: DragEvent) {
+    event.preventDefault();
     this.isDragging.set(true);
   }
 
-  onDrop(e: DragEvent) {
-    e.preventDefault();
+  onDrop(event: DragEvent) {
+    event.preventDefault();
     this.isDragging.set(false);
-    const file = e.dataTransfer?.files?.[0];
-    if (file) this.selectedFile.set(file);
+    const file = event.dataTransfer?.files?.[0];
+    if (file) {
+      this.selectedFile.set(file);
+      if (this.inputMode() === 'upload') void this.generate({ navigateToResumeEditor: true });
+    }
   }
 
-  onFilePicked(e: Event) {
-    const input = e.target as HTMLInputElement;
+  onFilePicked(event: Event) {
+    const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
-    if (file) this.selectedFile.set(file);
+    if (file) {
+      this.selectedFile.set(file);
+      // A picked file is an explicit intent: run generation straight away and open the editor.
+      if (this.inputMode() === 'upload') void this.generate({ navigateToResumeEditor: true });
+    }
+    // Reset so picking the same file again still fires the change event.
+    input.value = '';
   }
 
-  async analyzePasted() {
+  /**
+   * One action: analyze the JD, then commit both the resume and the matching cover letter.
+   * When fired automatically right after a file was picked, it navigates straight into the
+   * new resume's editor instead of showing the result step.
+   */
+  async generate(options?: { navigateToResumeEditor?: boolean }) {
+    if (this.busy()) return;
     this.error.set('');
+    this.profileMissing.set(false);
+    const file = this.inputMode() === 'upload' ? this.selectedFile() : null;
+    const jdText = this.jdText.trim();
+    if (!file && jdText.length < 50) return;
+
     this.busy.set(true);
     try {
-      const res = await firstValueFrom(
-        this.api.analyze({
-          jdText: this.jdText,
-          jobTitle: this.jobTitle.trim() || undefined,
-          company: this.company.trim() || undefined,
-        })
-      );
-      this.result.set(res);
-      this.selectedTemplateId.set(res.templateId);
+      try {
+        await firstValueFrom(this.coreApi.getProfile());
+      } catch (e) {
+        if ((e as HttpErrorResponse).status === 404) {
+          this.profileMissing.set(true);
+          return;
+        }
+        throw e;
+      }
+
+      const analysis = await firstValueFrom(file ? this.api.analyzeUpload(file) : this.api.analyze({ jdText }));
+      const docs = await this.createDocuments(analysis);
+      this.analysis.set(analysis);
+      this.generated.set(docs);
+      if (options?.navigateToResumeEditor) {
+        this.router.navigate(['/resumes', docs.resumeId]);
+        return;
+      }
       this.step.set(2);
     } catch (e) {
       this.error.set(errorMessage(e));
@@ -776,63 +756,64 @@ export class AiResumeGeneratorPage implements OnInit {
     }
   }
 
-  async analyzeUploadedFile() {
-    const file = this.selectedFile();
-    if (!file) return;
-    this.error.set('');
-    this.busy.set(true);
+  /** Creates an ATS-first resume with the tailored summary applied, plus its cover letter. */
+  private async createDocuments(analysis: JdResumeGeneratorResult): Promise<GeneratedDocuments> {
+    const role = (analysis.jdAnalysis.detectedTitle || '').trim() || 'Target Role';
+    const safeRole = role.slice(0, 80);
+
+    const resume = await firstValueFrom(this.coreApi.createResume({
+      name: `${safeRole} (ATS)`,
+      targetRole: safeRole,
+      templateId: analysis.templateId,
+    }));
+
+    // Rebuild the document from the render model so the candidate's confirmed
+    // experience/skills/education survive, swapping only the summary text.
+    const model = await firstValueFrom(this.coreApi.renderModel(resume.id));
+    await firstValueFrom(this.coreApi.updateResume(resume.id, {
+      sections: analysis.suggestedSections.map((s) => ({ type: s.key as SectionType, visible: true })),
+      overrides: { doc: buildTailoredDoc(model, analysis.summary) },
+    }));
+
+    let coverLetterId: string | null = null;
+    let letterError: string | undefined;
     try {
-      const res = await firstValueFrom(
-        this.api.analyzeUpload(file, this.jobTitle.trim() || undefined)
-      );
-      this.result.set(res);
-      this.selectedTemplateId.set(res.templateId);
-      this.step.set(2);
+      const letter = await firstValueFrom(this.careerTools.createDraft({
+        title: `${safeRole} application`.slice(0, 120),
+        jobTitle: safeRole,
+        kind: 'standard',
+        tone: 'professional',
+        length: 'medium',
+        resumeId: resume.id,
+        jdText: analysis.jdText.slice(0, 20000),
+      }));
+      coverLetterId = letter.id;
     } catch (e) {
-      this.error.set(errorMessage(e));
-    } finally {
-      this.busy.set(false);
+      letterError = errorMessage(e);
     }
+
+    return {
+      resumeId: resume.id,
+      coverLetterId,
+      templateName: analysis.templateName,
+      targetRole: role,
+      summary: analysis.summary,
+      ...(letterError ? { letterError } : {}),
+    };
   }
 
-  onSelectTemplate(id: string) {
-    this.selectedTemplateId.set(id);
-    this.showGallery.set(false);
-  }
-
-  proceedToDownload() {
-    this.step.set(4);
-  }
-
-  async saveAsResumeDraft() {
-    const res = this.result();
-    if (!res) return;
-    this.saving.set(true);
-    try {
-      const title = res.jdAnalysis.detectedTitle || this.jobTitle || 'AI Resume';
-      const resume = await firstValueFrom(
-        this.coreApi.createResume({
-          name: `${title} (ATS)`,
-          templateId: this.selectedTemplateId() || res.templateId,
-          targetRole: title,
-        })
-      );
-      await this.notify.toast('Draft created successfully!');
-      await this.router.navigate(['/resumes', resume.id]);
-    } catch (e) {
-      this.error.set(errorMessage(e));
-    } finally {
-      this.saving.set(false);
-    }
+  back() {
+    this.step.set(1);
   }
 
   reset() {
     this.step.set(1);
-    this.result.set(null);
+    this.inputMode.set('paste');
+    this.error.set('');
+    this.profileMissing.set(false);
     this.selectedFile.set(null);
     this.jdText = '';
-    this.jobTitle = '';
-    this.company = '';
-    this.error.set('');
+    this.analysis.set(null);
+    this.generated.set(null);
   }
 }

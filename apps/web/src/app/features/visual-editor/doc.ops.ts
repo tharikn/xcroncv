@@ -95,6 +95,8 @@ export const findItem = (doc: ResumeDoc, secId: string, itemId: string) => findS
 export function setSectionTitle(doc: ResumeDoc, id: string, title: string): ResumeDoc { return mapSection(doc, id, (s) => ({ ...s, title })); }
 export function setSectionText(doc: ResumeDoc, id: string, text: string): ResumeDoc { return mapSection(doc, id, (s) => ({ ...s, text })); }
 export function toggleSectionHidden(doc: ResumeDoc, id: string): ResumeDoc { return mapSection(doc, id, (s) => ({ ...s, hidden: s.hidden ? undefined : true })); }
+/** Toggle whether a section starts on a new page (kept as a doc flag; propagated to render model + exports). */
+export function togglePageBreak(doc: ResumeDoc, id: string): ResumeDoc { return mapSection(doc, id, (s) => ({ ...s, pageBreakBefore: s.pageBreakBefore ? undefined : true })); }
 export function removeSection(doc: ResumeDoc, id: string): ResumeDoc { return { ...doc, sections: doc.sections.filter((s) => s.id !== id) }; }
 
 /** Neighbour index in the same column group (two-column templates keep side sections in their own rail). */
@@ -297,7 +299,7 @@ export function cssFor(st: ElementStyle | undefined, accent: string): Record<str
 
 /* ---------- template defaults per element (what "unset" means; shown in the format toolbar) ---------- */
 export interface ThemeLike { fontFamily: string; baseSizePt: number; headerAlign: 'left' | 'center' | 'right'; nameScale?: number }
-export interface ElementDefaults { sizePt: number; bold: boolean; italic: boolean; align: 'left' | 'center' | 'right'; color: 'accent' | 'ink'; font: string }
+export interface ElementDefaults { sizePt: number; bold: boolean; italic: boolean; align: 'left' | 'center' | 'right'; color: 'accent' | 'ink' | 'muted'; font: string }
 
 /** Last path segment: header.name -> name, i.<id>.title -> title, s.<id>.title -> sectionTitle. */
 export function elementKind(key: string): string {
@@ -305,15 +307,23 @@ export function elementKind(key: string): string {
   if (scope === 'header') return key.split('.')[1];
   return scope === 's' ? `section${field[0].toUpperCase()}${field.slice(1)}` : field;
 }
+/** Improved default styling for element visibility and visual hierarchy. */
 export function defaultsFor(key: string, th: ThemeLike, bandHeader = false): ElementDefaults {
   const b = th.baseSizePt; const kind = elementKind(key);
-  const size: Record<string, number> = { name: b * (th.nameScale ?? 1.8), headline: b * 1.1, contacts: b * 0.95, sectionTitle: b * 1.05, meta: b * 0.9, tags: b * 0.9, url: b * 0.9 };
+  // Determine if this key is from a section (scope 's') or item (scope 'i')
+  const isSectionKey = key.startsWith('s.');
+  const isItemKey = key.startsWith('i.');
+  // Size scale: name largest, then section titles, then body text, then meta/caption elements
+  const size: Record<string, number> = { name: b * (th.nameScale ?? 2.0), headline: b * 1.15, contacts: b * 0.95, sectionTitle: b * 1.05, meta: b * 0.9, tags: b * 0.9, url: b * 0.9 };
   return {
     sizePt: Math.round((size[kind] ?? b) * 2) / 2,
-    bold: kind === 'name' || kind === 'sectionTitle' || kind === 'title',
+    // Bold: name is bold; section titles are bold for hierarchy; item titles are normal weight; subtitles are italic; body text is normal weight
+    bold: kind === 'name' || (isSectionKey && kind === 'sectionTitle'),
     italic: kind === 'subtitle',
+    // Color hierarchy: name uses accent, section titles use accent, body text uses ink, meta uses muted
+    color: kind === 'name' || (isSectionKey && kind === 'sectionTitle') ? (bandHeader && kind === 'name' ? 'ink' : 'accent') : kind === 'meta' || kind === 'url' ? 'muted' : 'ink',
+    // Alignment: section titles left-aligned by default; header elements follow theme alignment
     align: key.startsWith('header.') ? th.headerAlign : 'left',
-    color: kind === 'name' || kind === 'sectionTitle' ? (bandHeader && kind === 'name' ? 'ink' : 'accent') : 'ink',
     font: th.fontFamily,
   };
 }

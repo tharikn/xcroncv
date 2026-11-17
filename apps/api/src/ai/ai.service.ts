@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AI_PROVIDER, AI_TASKS, AiRequest, TextGenerationProvider } from './ai.types';
 import { estimateTokens, looksLikeInjection, MAX_INPUT_CHARS, parseOutput, redact, unsupportedNumbers } from './ai-policy';
 import { CreateSuggestionDto, DecideSuggestionDto } from './dto/ai.dto';
+import { HELP_CHAT_FEATURE } from './help/help-chat.types';
 
 const DAY = 86_400_000;
 const dailyLimit = () => Math.max(1, Number(process.env.AI_DAILY_LIMIT) || 20);
@@ -17,7 +18,8 @@ export class AiService {
   private who(u: AuthUser) { return { tenantId: u.tenantId, userId: u.userId }; }
 
   private used(u: AuthUser, now: Date) {
-    return this.prisma.aiUsageEvent.count({ where: { ...this.who(u), createdAt: { gte: new Date(now.getTime() - DAY) }, status: { not: 'UNAVAILABLE' } } });
+    // In-app assistant messages are metered separately (own token budget) so they never eat suggestion quota.
+    return this.prisma.aiUsageEvent.count({ where: { ...this.who(u), feature: { not: HELP_CHAT_FEATURE }, createdAt: { gte: new Date(now.getTime() - DAY) }, status: { not: 'UNAVAILABLE' } } });
   }
 
   async status(u: AuthUser, now = new Date()) {
@@ -136,7 +138,7 @@ export class AiService {
 
   async usage(u: AuthUser, now = new Date()) {
     const since = new Date(now.getTime() - 30 * DAY);
-    const rows = await this.prisma.aiUsageEvent.findMany({ where: { ...this.who(u), createdAt: { gte: since } }, take: 2000 });
+    const rows = await this.prisma.aiUsageEvent.findMany({ where: { ...this.who(u), feature: { not: HELP_CHAT_FEATURE }, createdAt: { gte: since } }, take: 2000 });
     const byFeature: Record<string, { calls: number; ok: number; inputTokens: number; outputTokens: number; costMicros: number }> = {};
     for (const r of rows) {
       const b = (byFeature[r.feature] ??= { calls: 0, ok: 0, inputTokens: 0, outputTokens: 0, costMicros: 0 });

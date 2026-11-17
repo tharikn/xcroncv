@@ -22,7 +22,7 @@ export interface DocItem {
   id: string; title?: string; subtitle?: string; meta?: string; text?: string;
   bullets?: string[]; tags?: string[]; url?: string; image?: DocImage;
 }
-export interface DocSection { id: string; type: DocSectionType; title: string; text?: string; items?: DocItem[]; hidden?: boolean }
+export interface DocSection { id: string; type: DocSectionType; title: string; text?: string; items?: DocItem[]; hidden?: boolean; pageBreakBefore?: boolean }
 export interface ResumeDoc {
   v: 1;
   header: { name: string; headline?: string; contacts: string[]; photo?: DocImage };
@@ -93,6 +93,7 @@ export function sanitizeDoc(raw: unknown): ResumeDoc | undefined {
     const out: DocSection = { id: uid(s.id, `s${si}`), type, title: str(s.title, DOC_LIMITS.title) ?? '' };
     const text = str(s.text, DOC_LIMITS.text); if (text !== undefined) out.text = text;
     if (s.hidden === true) out.hidden = true;
+    if (s.pageBreakBefore === true) out.pageBreakBefore = true;
     if (Array.isArray(s.items)) {
       out.items = s.items.slice(0, DOC_LIMITS.items).map((ri, ii) => {
         const i = obj(ri);

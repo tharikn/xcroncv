@@ -12,6 +12,9 @@ Every change to code, schema, config or behavior must, in the same change:
 Row format: `| YYYY-MM-DD | what changed and why (one or two sentences) | files | tests |`. Newest first. Never edit past rows; add a new one.
 
 ## Recent cross-module changes
+- 2026-11-17: installed XCron CV APK can now be signed in from X Cron Jobs without a WebView: Jobs launches `xcroncv://auth/callback` with a code minted for that redirect, and the CV app redeems it on cold/warm start; both sides show a spinner during the redirect. Also replaced the default Capacitor launcher icon/splash with the XCron CV brand mark - owners [12-web-shell-auth-and-layout](modules/12-web-shell-auth-and-layout.md), [common-app-features](modules/common-app-features.md); see [INTEGRATION](INTEGRATION.md).
+- 2026-11-17: floating help-chat console ported from X Cron (guided by default, opt-in OpenAI-compatible mode, durable daily token budget) so the assistant opens above the shell FAB dock instead of a page; AI Resume generator redesigned and both floating buttons share one dock with a fixed gap - owner [06-38-ai-gateway](modules/06-38-ai-gateway.md), also [12-web-shell-auth-and-layout](modules/12-web-shell-auth-and-layout.md).
+- 2026-11-17: generated the missing Prisma migration for `UserPreference` (model existed in `schema.prisma` but not in the init migration), so a fresh local `xcroncv` schema no longer reports drift on `migrate dev` - owner [12-web-shell-auth-and-layout](modules/12-web-shell-auth-and-layout.md).
 - 2026-11-15: standalone XCron CV Android APK published through GitHub Releases (`xcron-cv.apk`), opened inside the X Cron Jobs app via an in-app WebView and offered on the X Cron portal download panel - owner [common-app-features](modules/common-app-features.md); see [INTEGRATION](INTEGRATION.md).
 - 2026-11-15: resume creation flow - reusable stepper with `data-tour` hooks, live dummy-data template cards + Preview (new `GET /templates/:id/sample`), create-on-choose, editor side panel/bottom sheet, default-PDF export step without first-export dialog, shared `<app-resume-sheet>` - owners [16-17-19-dashboard-preview-templates](modules/16-17-19-dashboard-preview-templates.md), [04-career-profile-and-resumes](modules/04-career-profile-and-resumes.md).
 - 2026-11-15: loading redesign - skeleton placeholders instead of "Loading…" text, non-blocking fading boot splash, theme-matched Android splash - owner [common-app-features](modules/common-app-features.md).
@@ -26,11 +29,11 @@ Row format: `| YYYY-MM-DD | what changed and why (one or two sentences) | files 
 |---|---|
 | [04-career-profile-and-resumes](modules/04-career-profile-and-resumes.md) | - |
 | [05-local-folder-export](modules/05-local-folder-export.md) | - |
-| [06-38-ai-gateway](modules/06-38-ai-gateway.md) | - |
+| [06-38-ai-gateway](modules/06-38-ai-gateway.md) | 2026-11-17 |
 | [06-import-and-office-export](modules/06-import-and-office-export.md) | - |
 | [07-ats-engine](modules/07-ats-engine.md) | - |
 | [07-parsing-test](modules/07-parsing-test.md) | - |
-| [12-web-shell-auth-and-layout](modules/12-web-shell-auth-and-layout.md) | 2026-11-14 |
+| [12-web-shell-auth-and-layout](modules/12-web-shell-auth-and-layout.md) | 2026-11-17 |
 | [16-17-19-dashboard-preview-templates](modules/16-17-19-dashboard-preview-templates.md) | 2026-11-15 |
 | [16-admin-usage-analytics](modules/16-admin-usage-analytics.md) | - |
 | [20-31-quality-review](modules/20-31-quality-review.md) | - |

@@ -1,12 +1,13 @@
-import { NgStyle } from '@angular/common';
+import { DatePipe, NgStyle } from '@angular/common';
 import {
   AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, ViewChild, effect, untracked, computed, input, output, signal,
 } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { IonIcon } from '@ionic/angular/standalone';
 import { ApiService } from '../../core/api.service';
 import { LocaleService } from '../../core/i18n/locale.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { RenderModel, Resume } from '../../core/models';
+import { RenderModel, Resume, ResumeVersion } from '../../core/models';
 import { errorMessage, NotifyService } from '../../core/notify.service';
 import { clamp, FitMode, fitScale, overflowWarning, pageCount } from '../../core/preview-layout';
 import {
@@ -32,10 +33,11 @@ const SECTION_KINDS: DocSectionType[] = ['summary', 'experience', 'skills', 'edu
 @Component({
   selector: 'app-visual-editor',
   standalone: true,
-  imports: [NgStyle, IonIcon, TranslatePipe, VeSheetComponent, VeImageCropComponent],
+  imports: [NgStyle, DatePipe, RouterLink, IonIcon, TranslatePipe, VeSheetComponent, VeImageCropComponent],
   styleUrl: './visual-editor.component.scss',
   template: `
     <div class="ve" #root data-testid="visual-editor">
+      @if (showBar()) {
       <div class="ve-bar" data-tour="ve-bar" role="toolbar" [attr.aria-label]="'ve.bar' | t">
         <button class="btn ghost sm icon" (click)="undo()" [disabled]="!canUndo()" [attr.aria-label]="'ve.undo' | t" [title]="'ve.undo' | t" data-testid="ve-undo"><ion-icon name="arrow-undo-outline" aria-hidden="true"></ion-icon></button>
         <button class="btn ghost sm icon" (click)="redo()" [disabled]="!canRedo()" [attr.aria-label]="'ve.redo' | t" [title]="'ve.redo' | t" data-testid="ve-redo"><ion-icon name="arrow-redo-outline" aria-hidden="true"></ion-icon></button>
@@ -49,8 +51,38 @@ const SECTION_KINDS: DocSectionType[] = ['summary', 'experience', 'skills', 'edu
         <button class="btn ghost sm" (click)="outline.set(!outline())" [attr.aria-expanded]="outline()" aria-controls="ve-outline" data-testid="ve-outline-btn" data-tour="ve-outline-btn"><ion-icon [name]="showOutline() ? 'list-outline' : 'add-outline'" aria-hidden="true"></ion-icon> {{ (showOutline() ? 've.outline' : 've.addSection') | t }}</button>
         <span class="grow"></span>
         <span class="badge" [class.warn]="status() === 'dirty' || status() === 'saving'" [class.ok]="status() === 'saved'" [class.err]="status() === 'error' || status() === 'conflict'" role="status" data-testid="ve-status">{{ statusLabel() | t }}</span>
+        <button class="btn ghost sm" (click)="toggleHistory()" [attr.aria-expanded]="historyOpen()" aria-controls="ve-history" data-testid="ve-history-btn"><ion-icon name="time-outline" aria-hidden="true"></ion-icon> {{ 've.history' | t }}</button>
         <button class="btn ghost sm" (click)="saveVersion()" [disabled]="!model()" data-testid="ve-save-version" data-tour="ve-save-version"><ion-icon name="save-outline" aria-hidden="true"></ion-icon> {{ 've.saveVersion' | t }}</button>
       </div>
+      }
+
+      @if (historyOpen()) {
+        <section class="ve-history" id="ve-history" [attr.aria-label]="'ve.historyPanel' | t" data-testid="ve-history">
+          <div class="row between">
+            <h3>{{ 've.historyDetails' | t }}</h3>
+            <button class="btn ghost sm icon" (click)="historyOpen.set(false)" [attr.aria-label]="'common.dismiss' | t" data-testid="ve-history-close"><ion-icon name="close-outline" aria-hidden="true"></ion-icon></button>
+          </div>
+          <p class="small muted">{{ 've.historyCurrent' | t }} · <span class="badge" [class.warn]="status() === 'dirty' || status() === 'saving'" [class.ok]="status() === 'saved'" [class.err]="status() === 'error' || status() === 'conflict'">{{ statusLabel() | t }}</span></p>
+          @if (versionsLoading()) {
+            <p class="muted small" data-testid="ve-history-loading">{{ 've.historyLoading' | t }}</p>
+          } @else if (versions().length === 0) {
+            <p class="muted small" data-testid="ve-history-empty">{{ 've.historyEmpty' | t }}</p>
+          } @else {
+            <ul class="history-list" data-testid="ve-history-list">
+              @for (v of versions(); track v.id) {
+                <li class="history-item" [attr.data-testid]="'ve-history-v-' + v.versionNumber">
+                  <div class="row between"><strong>{{ 've.historyVersion' | t: { n: v.versionNumber } }}</strong><span class="muted small">{{ v.createdAt | date: 'medium' }}</span></div>
+                  @if (v.changeSummary) { <p class="small">{{ v.changeSummary }}</p> }
+                </li>
+              }
+            </ul>
+          }
+          <div class="row" style="margin-top: var(--space-2)">
+            <button class="btn ghost sm" (click)="saveVersion()" [disabled]="!model()" data-testid="ve-history-save"><ion-icon name="save-outline" aria-hidden="true"></ion-icon> {{ 've.saveVersion' | t }}</button>
+            <a class="btn ghost sm" [routerLink]="['/resumes', resume().id, 'versions']" data-testid="ve-history-open-page"><ion-icon name="open-outline" aria-hidden="true"></ion-icon> {{ 've.historyOpenPage' | t }}</a>
+          </div>
+        </section>
+      }
 
       @if (status() === 'conflict') {
         <div class="banner warn" role="alert" data-testid="ve-conflict">{{ 've.conflict' | t }}
@@ -165,6 +197,7 @@ const SECTION_KINDS: DocSectionType[] = ['summary', 'experience', 'skills', 'edu
               <button class="btn ghost sm icon" (click)="remove()" [attr.aria-label]="'ve.block.delete' | t" data-testid="ve-delete"><ion-icon name="trash-outline" aria-hidden="true"></ion-icon></button>
               @if (bk === 'section') {
                 <button class="btn ghost sm icon" (click)="toggleHide(sel()!.secId!)" [attr.aria-label]="'ve.block.hide' | t" data-testid="ve-hide"><ion-icon name="eye-off-outline" aria-hidden="true"></ion-icon></button>
+                <button class="btn ghost sm icon" (click)="togglePageBreak()" [attr.aria-pressed]="!!sectionPageBreak()" [attr.aria-label]="'ve.block.pageBreak' | t" [title]="'ve.block.pageBreak' | t" data-testid="ve-page-break"><ion-icon name="document-outline" aria-hidden="true"></ion-icon></button>
               }
               @if (canAddItem()) { <button class="btn ghost sm" (click)="addItem()" data-testid="ve-add-item"><ion-icon name="add-outline" aria-hidden="true"></ion-icon> {{ 've.addItem' | t }}</button> }
               @if (bk === 'item') {
@@ -195,6 +228,8 @@ export class VisualEditorComponent implements AfterViewInit, OnDestroy {
   resume = input.required<Resume>();
   /** Hosts that already show a Sections list (the edit page side panel) set this false: the editor then only offers Add section. */
   showOutline = input(true);
+  /** The edit page renders one unified top bar: hide the in-canvas toolbar and drive undo/redo/zoom/panels from the host. */
+  showBar = input(true);
   saved = output<Resume>();
 
   readonly kinds = SECTION_KINDS;
@@ -214,6 +249,9 @@ export class VisualEditorComponent implements AfterViewInit, OnDestroy {
   outline = signal(false);
   colorOpen = signal(false);
   confirmReset = signal(false);
+  historyOpen = signal(false);
+  versions = signal<ResumeVersion[]>([]);
+  versionsLoading = signal(false);
   mode = signal<FitMode>('width');
   manual = signal(1);
   scale = signal(1);
@@ -279,10 +317,12 @@ export class VisualEditorComponent implements AfterViewInit, OnDestroy {
     this.api.renderModel(r.id).subscribe({
       next: (m) => {
         this.base.set(m);
-        const hasEdits = this.status() !== 'saved' || this.history.canUndo;
         const persisted = r.overrides?.doc;
         this.persistedDoc = !!persisted;
-        if (!this.doc() || !hasEdits) this.doc.set(persisted ?? O.docFromModel(m));
+        // Always initialize doc from persisted overrides on load.
+        // The hasEdits check was preventing doc re-hydration from saved overrides
+        // when undo history existed; undo/redo state is tracked separately.
+        if (!this.doc()) this.doc.set(persisted ?? O.docFromModel(m));
         this.loadError.set('');
         setTimeout(() => this.refit());
       },
@@ -355,8 +395,27 @@ export class VisualEditorComponent implements AfterViewInit, OnDestroy {
   async saveVersion() {
     if (!(await this.flush())) return;
     this.api.createVersion(this.resume().id, this.locale.t('ve.versionSummary')).subscribe({
-      next: () => void this.notify.toast(this.locale.t('ve.versionSaved')),
+      next: (v) => {
+        void this.notify.toast(this.locale.t('ve.versionSaved'));
+        if (this.historyOpen()) this.versions.update((vs) => [v, ...vs.filter((x) => x.id !== v.id)]);
+      },
       error: (e) => void this.notify.toast(errorMessage(e), 'error'),
+    });
+  }
+
+  toggleHistory() {
+    const open = !this.historyOpen();
+    this.historyOpen.set(open);
+    if (open) { this.outline.set(false); this.loadVersions(); }
+  }
+
+  private loadVersions() {
+    const r = this.resume();
+    if (!r?.id) return;
+    this.versionsLoading.set(true);
+    this.api.listVersions(r.id).subscribe({
+      next: (vs) => { this.versions.set(vs); this.versionsLoading.set(false); },
+      error: () => { this.versions.set([]); this.versionsLoading.set(false); },
     });
   }
   resetToProfile() {
@@ -499,6 +558,8 @@ export class VisualEditorComponent implements AfterViewInit, OnDestroy {
   }
   moveSec(id: string, delta: -1 | 1) { const d = this.doc(); if (!d) return; this.commitDoc(O.moveSection(d, id, delta, new Set())); }
   toggleHide(id: string) { const d = this.doc(); if (!d) return; this.commitDoc(O.toggleSectionHidden(d, id)); if (this.sel()?.secId === id) this.sel.set(null); }
+  sectionPageBreak() { const d = this.doc(); const id = this.sel()?.secId; return !!(id && d && O.findSection(d, id)?.pageBreakBefore); }
+  togglePageBreak() { const d = this.doc(); const id = this.sel()?.secId; if (d && id) this.commitDoc(O.togglePageBreak(d, id)); }
   removeSec(id: string) { const d = this.doc(); if (!d) return; this.commitDoc(O.removeSection(d, id)); if (this.sel()?.secId === id) this.sel.set(null); }
   focusSection(id: string) {
     const d = this.doc(); const s = d && O.findSection(d, id); if (!s) return;

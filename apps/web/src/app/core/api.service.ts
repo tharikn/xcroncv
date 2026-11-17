@@ -21,6 +21,8 @@ export class ApiService {
   // career profile
   getProfile(): Observable<CareerProfile> { return this.http.get<CareerProfile>(this.url('/career-profile')); }
   saveProfile(p: CareerProfile): Observable<CareerProfile> { return this.http.put<CareerProfile>(this.url('/career-profile'), p); }
+  /** Server-side restore of the canonical starter profile; works on any device without local sample data. */
+  resetProfile(): Observable<CareerProfile> { return this.http.post<CareerProfile>(this.url('/career-profile/reset'), {}); }
   deleteProfile(): Observable<void> { return this.http.delete<void>(this.url('/career-profile')); }
 
   // templates
@@ -42,6 +44,13 @@ export class ApiService {
       catchError((e: HttpErrorResponse) => (e.status === 404 && /Cannot PUT/i.test(String(e.error?.message ?? '')) ? this.updateResume(id, b) : throwError(() => e))));
   }
   deleteResume(id: string): Observable<void> { return this.http.delete<void>(this.url(`/resumes/${id}`)); }
+  createResumeShare(id: string): Observable<{ shareToken: string; sharePath: string }> {
+    return this.http.post<{ shareToken: string; sharePath: string }>(this.url(`/resumes/${id}/share`), {});
+  }
+  revokeResumeShare(id: string): Observable<void> { return this.http.delete<void>(this.url(`/resumes/${id}/share`)); }
+  publicResume(token: string): Observable<{ name: string; model: RenderModel }> {
+    return this.http.get<{ name: string; model: RenderModel }>(this.url(`/public/resumes/${token}`));
+  }
   renderModel(id: string): Observable<RenderModel> { return this.http.get<RenderModel>(this.url(`/resumes/${id}/render-model`)); }
   listVersions(id: string): Observable<ResumeVersion[]> { return this.http.get<ResumeVersion[]>(this.url(`/resumes/${id}/versions`)); }
   createVersion(id: string, changeSummary?: string): Observable<ResumeVersion> {

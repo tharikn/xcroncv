@@ -3,5 +3,5 @@
     <string name="app_name">XCron CV</string>
     <string name="title_activity_main">XCron CV</string>
     <string name="package_name">com.xcron.cv</string>
-    <string name="custom_url_scheme">com.xcron.cv</string>
+    <string name="custom_url_scheme">xcroncv</string>
 </resources>

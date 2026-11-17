@@ -32,7 +32,7 @@ const LINE = { compact: 1.25, normal: 1.4, relaxed: 1.6 } as const;
   styles: [`
     :host { display: block; }
     .sheet { background: #fff; color: #111; box-shadow: var(--shadow, 0 2px 12px rgba(0,0,0,.18)); position: relative; transform-origin: top left; box-sizing: border-box; overflow-wrap: anywhere; }
-    [data-el] { cursor: pointer; border-radius: 2px; min-height: 1em; }
+    [data-el] { cursor: pointer; border-radius: 2px; min-height: 1em; white-space: pre-wrap; }
     [data-el]:empty::before { content: attr(data-ph); color: #8a8a8a; font-style: italic; font-weight: 400; }
     [data-el]:hover { outline: 1px dashed var(--c-primary); outline-offset: 1px; }
     [data-el].sel, [data-el].sel:hover { outline: 2px solid var(--c-primary); outline-offset: 1px; }
@@ -46,6 +46,8 @@ const LINE = { compact: 1.25, normal: 1.4, relaxed: 1.6 } as const;
     ul { margin: 3pt 0 3pt 16pt; padding: 0; } p { margin: 3pt 0; } h1 { margin: 0; }
     .doc-section h2 { margin: 14pt 0 4pt; font-size: 1.05em; }
     .row { display: flex; justify-content: space-between; gap: 8pt; }
+    .page-break-spacer { position: relative; width: 100%; pointer-events: none; }
+    .page-break-spacer::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; border-top: 1px dashed #b0b0b0; }
   `],
   template: `
     @if (model(); as m) {
@@ -110,11 +112,11 @@ const LINE = { compact: 1.25, normal: 1.4, relaxed: 1.6 } as const;
 
         @if (m.layout === 'two-column') {
           <div class="cols" data-testid="doc-columns" style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:18pt">
-            <div data-col="main" data-testid="doc-main">@for (s of m.sections; track s.id) { @if (!m.sideSections.includes(s.type)) { <ng-container *ngTemplateOutlet="sec; context: { $implicit: s, theme: m.theme, timeline: false }"></ng-container> } }</div>
-            <aside data-col="side" data-testid="doc-side">@for (s of m.sections; track s.id) { @if (m.sideSections.includes(s.type)) { <ng-container *ngTemplateOutlet="sec; context: { $implicit: s, theme: m.theme, timeline: false }"></ng-container> } }</aside>
+            <div data-col="main" data-testid="doc-main">@for (s of m.sections; track s.id) { @if (!m.sideSections.includes(s.type)) { @if (s.pageBreakBefore) { <div class="page-break-spacer" data-pb></div> }<ng-container *ngTemplateOutlet="sec; context: { $implicit: s, theme: m.theme, timeline: false }"></ng-container> } }</div>
+            <aside data-col="side" data-testid="doc-side">@for (s of m.sections; track s.id) { @if (m.sideSections.includes(s.type)) { @if (s.pageBreakBefore) { <div class="page-break-spacer" data-pb></div> }<ng-container *ngTemplateOutlet="sec; context: { $implicit: s, theme: m.theme, timeline: false }"></ng-container> } }</aside>
           </div>
         } @else {
-          <div data-col="main">@for (s of m.sections; track s.id) { <ng-container *ngTemplateOutlet="sec; context: { $implicit: s, theme: m.theme, timeline: m.layout === 'timeline' }"></ng-container> }</div>
+          <div data-col="main">@for (s of m.sections; track s.id) { @if (s.pageBreakBefore) { <div class="page-break-spacer" data-pb></div> }<ng-container *ngTemplateOutlet="sec; context: { $implicit: s, theme: m.theme, timeline: m.layout === 'timeline' }"></ng-container> }</div>
         }
         @for (g of guides(); track g) { <div class="page-guide" [style.top.px]="g * pageH()"><span>{{ 've.page' | t: { n: g + 1 } }}</span></div> }
       </div>
@@ -190,7 +192,11 @@ export class VeSheetComponent implements AfterViewChecked {
   @HostListener('keydown', ['$event']) onKey(e: KeyboardEvent) {
     const el = e.target as HTMLElement;
     if (this.editEl && el === this.editEl) {
-      if (e.key === 'Enter') { e.preventDefault(); this.finish(true); } else if (e.key === 'Escape') { e.preventDefault(); this.abort(); }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (e.shiftKey) document.execCommand('insertText', false, '\n'); // Shift+Enter = line break within the field
+        else this.finish(true);
+      } else if (e.key === 'Escape') { e.preventDefault(); this.abort(); }
       return;
     }
     if (e.key === 'Enter' && el?.dataset?.['el'] && !this.editing()) {
@@ -205,7 +211,8 @@ export class VeSheetComponent implements AfterViewChecked {
   @HostListener('paste', ['$event']) onPaste(e: ClipboardEvent) {
     if (!this.editEl || e.target !== this.editEl) return;
     e.preventDefault();
-    const text = (e.clipboardData?.getData('text/plain') ?? '').replace(/\s*[\r\n]+\s*/g, ' ');
+    // Preserve line breaks so multi-line content (e.g. imported summaries) survives paste.
+    const text = (e.clipboardData?.getData('text/plain') ?? '').replace(/\r\n?/g, '\n');
     document.execCommand('insertText', false, text);
   }
 
@@ -229,7 +236,8 @@ export class VeSheetComponent implements AfterViewChecked {
   private finish(enter: boolean) {
     const el = this.editEl; if (!el) return;
     const target = this.targetFrom(el)!;
-    const text = (el.textContent ?? '').replace(/\s*[\r\n]+\s*/g, ' ').trim();
+    // Keep internal line breaks; trim only leading/trailing whitespace on each line.
+    const text = (el.textContent ?? '').replace(/\r\n?/g, '\n').split('\n').map((l) => l.trim()).join('\n').trim();
     this.teardown(el);
     if (text === this.orig) { this.cancel.emit(); return; }
     this.commit.emit({ target, text, enter });
@@ -275,6 +283,7 @@ export class VeSheetComponent implements AfterViewChecked {
 
   ngAfterViewChecked() {
     const root = this.root(); if (!root) return;
+    this.applyPageBreakSpacers(root);
     const h = root.scrollHeight;
     if (h !== this.lastH) { this.lastH = h; queueMicrotask(() => this.measured.emit(h)); }
     const t = this.selection();
@@ -282,5 +291,26 @@ export class VeSheetComponent implements AfterViewChecked {
     if (!t) return;
     this.blockFor(t)?.classList.add('sel-block');
     if (t.el) this.elementFor(t)?.classList.add('sel');
+  }
+
+  /**
+   * Give each page-break spacer exactly the height needed to push the following section onto the next page.
+   * Spacers are processed top-to-bottom per column (forced reflow between each) so earlier spacers shift later ones.
+   */
+  private applyPageBreakSpacers(root: HTMLElement) {
+    const pageH = this.pageH();
+    for (const col of Array.from(root.querySelectorAll<HTMLElement>('[data-col]'))) {
+      const colTop = col.offsetTop;
+      for (const sp of Array.from(col.querySelectorAll<HTMLElement>('.page-break-spacer'))) {
+        const top = sp.offsetTop - colTop;
+        let remaining = pageH - (top % pageH);
+        if (remaining >= pageH - 1) remaining = 0; // already at a page boundary
+        const px = Math.max(0, Math.round(remaining));
+        if (sp.style.height !== `${px}px`) {
+          sp.style.height = `${px}px`;
+          void sp.offsetHeight; // force reflow so the next spacer sees the new flow
+        }
+      }
+    }
   }
 }

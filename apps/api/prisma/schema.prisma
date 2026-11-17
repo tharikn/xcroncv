@@ -174,6 +174,8 @@ model Resume {
   sections        Json
   // validated, allowlisted design overrides (accent colour, font size, page size)
   overrides       Json         @default("{}")
+  // capability token for the read-only public share link (/r/:token); null = sharing disabled
+  shareToken      String?      @unique
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 

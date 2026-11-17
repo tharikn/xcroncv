@@ -1,10 +1,14 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { filter } from 'rxjs';
 import { IonIcon, IonRouterOutlet } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { sparklesOutline, chatbubbleEllipsesOutline } from 'ionicons/icons';
+import { chatbubbleEllipsesOutline, closeOutline, personOutline, sparklesOutline } from 'ionicons/icons';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
+import { HelpChatStore } from '../core/help-chat.api';
+import { HelpChatComponent } from '../shared/help-chat/help-chat.component';
+import { ApiService } from '../core/api.service';
+import { AuthService } from '../core/auth.service';
 
 interface NavItem { path: string; label: string; key: string; icon: string; desktopOnly?: boolean }
 
@@ -14,66 +18,117 @@ interface NavItem { path: string; label: string; key: string; icon: string; desk
  * - Mobile/Bottom bar: clean 4 primary destinations (Home, Resumes, Templates, Profile).
  *   Hides bottom bar during full-screen editing flows (/resumes/:id, /design, /cover-letters/:id)
  *   just like modern mobile editors (Canva, Docs, Notion).
+ *
+ * The bottom-right dock stacks both floating actions with a fixed gap, so the AI Resume
+ * button and the assistant button never touch. The assistant opens a console in place;
+ * it no longer navigates to a page.
  */
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [IonRouterOutlet, IonIcon, RouterLink, RouterLinkActive, TranslatePipe],
+  providers: [HelpChatStore],
+  imports: [IonRouterOutlet, IonIcon, RouterLink, RouterLinkActive, TranslatePipe, HelpChatComponent],
   styles: [`
-    @keyframes fab-pulse {
-      0%, 100% { transform: scale(1); box-shadow: 0 4px 20px rgba(124, 92, 255, 0.4); }
-      50% { transform: scale(1.08); box-shadow: 0 8px 32px rgba(124, 92, 255, 0.65); }
+    @keyframes fab-in {
+      from { opacity: 0; transform: translateY(8px) scale(0.9); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
     }
-    @keyframes fab-bounce {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-4px); }
+    @keyframes fab-blink {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.35; transform: scale(0.9); }
     }
-    .fab-ai-resume {
-      position: fixed; bottom: 5.5rem; right: 1.5rem; z-index: 200;
-      width: 56px; height: 56px; border-radius: 50%;
-      background: linear-gradient(90deg, #7c5cff 0%, #f5a524 100%);
-      color: #fff; border: none; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
+
+    /* One dock owns the corner: consistent gap, no overlap at any width. */
+    .fab-dock {
+      position: fixed;
+      right: max(1.25rem, calc(env(safe-area-inset-right) + 1rem));
+      bottom: max(2rem, calc(env(safe-area-inset-bottom) + 1.25rem));
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.9rem;
+    }
+
+    .fab {
+      position: relative;
+      width: 56px;
+      height: 56px;
+      flex: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 0;
+      color: #fff;
       font-size: 1.5rem;
-      animation: fab-pulse 2s ease-in-out infinite;
-      box-shadow: 0 4px 20px rgba(124, 92, 255, 0.4);
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+    .fab:hover { transform: translateY(-2px) scale(1.04); }
+    .fab:active { transform: scale(0.97); }
+
+    .fab-ai-resume {
+      background: var(--brand-gradient);
+      animation: fab-in 260ms ease-out;
+      box-shadow: 0 8px 24px rgba(124, 92, 255, 0.42);
     }
     .fab-ai-resume .fab-badge {
       position: absolute; top: -4px; right: -4px;
       background: #f5a524; color: #1a1430;
       font-size: 0.6rem; font-weight: 800;
-      padding: 1px 4px; border-radius: 999px;
+      padding: 1px 5px; border-radius: 999px;
       line-height: 1.4;
+      box-shadow: 0 2px 8px rgba(20, 8, 48, 0.3);
     }
+    .fab-new {
+      position: absolute; top: -8px; left: -10px;
+      background: var(--c-ok); color: #fff;
+      font-size: 0.55rem; font-weight: 800; letter-spacing: 0.04em;
+      padding: 2px 6px; border-radius: 999px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+      animation: fab-blink 1.6s ease-in-out infinite;
+    }
+
     .fab-chatbot {
-      position: fixed; bottom: 2rem; right: 1.5rem; z-index: 200;
-      width: 56px; height: 56px; border-radius: 50%;
       background: var(--c-primary);
-      color: #fff; border: none; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.5rem;
-      animation: fab-bounce 3s ease-in-out infinite;
-      box-shadow: 0 4px 16px rgba(109, 79, 240, 0.35);
+      animation: fab-in 260ms ease-out;
+      box-shadow: 0 8px 22px color-mix(in srgb, var(--c-primary) 45%, transparent);
+      border: 1px solid color-mix(in srgb, #fff 16%, transparent);
     }
-    .fab-chatbot:hover .fab-tooltip, .fab-ai-resume:hover .fab-tooltip {
-      opacity: 1; transform: translateX(-8px);
+    .fab-chatbot.is-open {
+      animation: none;
+      background: var(--c-text);
+      color: var(--c-bg);
+      box-shadow: 0 8px 22px rgba(10, 6, 24, 0.35);
     }
+
     .fab-tooltip {
-      position: absolute; right: calc(100% + 0.5rem);
+      position: absolute; right: calc(100% + 0.6rem);
       background: var(--c-text); color: var(--c-bg);
       font-size: 0.75rem; font-weight: 600;
-      padding: 0.25rem 0.6rem; border-radius: 6px;
+      padding: 0.28rem 0.6rem; border-radius: 8px;
       white-space: nowrap; opacity: 0;
-      transition: opacity 0.2s, transform 0.2s;
+      transform: translateX(4px);
+      transition: opacity 0.18s ease, transform 0.18s ease;
       pointer-events: none;
+      box-shadow: 0 6px 16px rgba(10, 6, 24, 0.25);
     }
-    @media (max-width: 991px) {
-      .fab-ai-resume {
-        bottom: calc(4rem + env(safe-area-inset-bottom) + 3.5rem);
+    .fab:hover .fab-tooltip, .fab:focus-visible .fab-tooltip { opacity: 1; transform: translateX(0); }
+
+    @media (hover: none) {
+      .fab-tooltip { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .fab-ai-resume, .fab-chatbot, .fab-new { animation: none; }
+    }    /* Clear the mobile bottom bar (≈3.5rem + safe area) and keep the same gap. */
+    @media (max-width: 991.98px) {
+      .fab-dock {
+        bottom: calc(3.85rem + env(safe-area-inset-bottom) + 0.55rem);
+        right: max(1rem, calc(env(safe-area-inset-right) + 0.85rem));
+        gap: 0.85rem;
       }
-      .fab-chatbot {
-        bottom: calc(4rem + env(safe-area-inset-bottom) + 0.5rem);
-      }
+      .fab { width: 52px; height: 52px; font-size: 1.4rem; }
     }
   `],
   template: `
@@ -90,43 +145,87 @@ interface NavItem { path: string; label: string; key: string; icon: string; desk
           }
         </ul>
       </nav>
+      <header class="topbar" aria-label="Top bar">
+        <div class="topbar-spacer"></div>
+        <a class="topbar-profile" routerLink="/profile" routerLinkActive="active" data-testid="nav-profile" data-tour="nav-profile" [attr.aria-label]="profileLabel()">
+          <span class="topbar-avatar" aria-hidden="true">{{ avatarText() }}</span>
+          <span class="topbar-username">{{ profileLabel() }}</span>
+        </a>
+      </header>
       <main class="main"><ion-router-outlet /></main>
 
-      <!-- FAB 1: AI Resume Generator (blinking pulse, above chatbot FAB) -->
-      <button
-        class="fab-ai-resume"
-        [style.display]="isEditorRoute() ? 'none' : 'flex'"
-        title="AI Resume Generator"
-        aria-label="AI Resume Generator"
-        (click)="router.navigate(['/ai-resume-generator'])">
-        <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
-        <span class="fab-badge">AI</span>
-        <span class="fab-tooltip">AI Resume Generator</span>
-      </button>
+      <!-- Floating action dock: assistant console + AI Resume generator, always separated. -->
+      <div class="fab-dock" [style.display]="isEditorRoute() ? 'none' : 'flex'">
+        @if (!isEditorRoute()) {
+          <app-help-chat />
+        }
 
-      <!-- FAB 2: AI Chatbot Helper (bouncing) -->
-      <button
-        class="fab-chatbot"
-        [style.display]="isEditorRoute() ? 'none' : 'flex'"
-        title="AI Assistant"
-        aria-label="AI Assistant"
-        (click)="router.navigate(['/ai'])">
-        <ion-icon name="chatbubble-ellipses-outline" aria-hidden="true"></ion-icon>
-        <span class="fab-tooltip">AI Assistant</span>
-      </button>
+        <button
+          class="fab fab-ai-resume"
+          data-testid="fab-ai-resume"
+          [attr.title]="'nav.aiResume' | t"
+          [attr.aria-label]="'nav.aiResume' | t"
+          (click)="router.navigate(['/ai-resume-generator'])">
+          <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
+          <span class="fab-badge">AI</span>
+          <span class="fab-new">{{ 'shell.newBadge' | t }}</span>
+          <span class="fab-tooltip">{{ 'nav.aiResume' | t }}</span>
+        </button>
+
+        @if (chat.available()) {
+          <button
+            class="fab fab-chatbot"
+            data-testid="fab-chatbot"
+            [class.is-open]="chat.open()"
+            aria-controls="xcron-help"
+            [attr.aria-expanded]="chat.open()"
+            [attr.title]="(chat.open() ? 'chat.close' : 'chat.open') | t"
+            [attr.aria-label]="(chat.open() ? 'chat.close' : 'chat.open') | t"
+            (click)="chat.toggle()">
+            <ion-icon [name]="chat.open() ? 'close-outline' : 'chatbubble-ellipses-outline'" aria-hidden="true"></ion-icon>
+            <span class="fab-tooltip">{{ (chat.open() ? 'chat.close' : 'chat.open') | t }}</span>
+          </button>
+        }
+      </div>
     </div>
   `,
 })
 export class ShellComponent {
   router = inject(Router);
+  readonly chat = inject(HelpChatStore);
+  private readonly api = inject(ApiService);
+  private readonly auth = inject(AuthService);
   currentUrl = '';
+  readonly profileName = signal('');
+  readonly profileLabel = computed(() => this.profileName() || this.auth.subject() || 'Profile');
+  readonly avatarText = computed(() => this.initials(this.profileLabel()));
 
   constructor() {
-    addIcons({ sparklesOutline, chatbubbleEllipsesOutline });
+    addIcons({ sparklesOutline, chatbubbleEllipsesOutline, closeOutline, personOutline });
+    void this.chat.load();
     this.currentUrl = this.router.url;
     this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd)).subscribe((e) => {
       this.currentUrl = e.urlAfterRedirects;
+      this.loadProfileName();
     });
+    this.loadProfileName();
+  }
+
+  private loadProfileName() {
+    this.api.getProfile().subscribe({
+      next: (p) => this.profileName.set((p?.fullName || '').trim()),
+      error: () => {},
+    });
+  }
+
+  private initials(name: string): string {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return 'U';
+    if (parts.length === 1) {
+      const w = parts[0].replace(/[^A-Za-z0-9]/g, '');
+      return (w.slice(0, 2) || w.slice(0, 1) || 'U').toUpperCase();
+    }
+    return ((parts[0][0] || '') + (parts[parts.length - 1][0] || '')).toUpperCase() || 'U';
   }
 
   isEditorRoute(): boolean {
@@ -139,7 +238,6 @@ export class ShellComponent {
     { path: '/dashboard', label: 'Home', key: 'nav.home', icon: 'home-outline' },
     { path: '/resumes', label: 'Resumes', key: 'nav.resumes', icon: 'document-text-outline' },
     { path: '/templates', label: 'Templates', key: 'nav.templates', icon: 'grid-outline' },
-    { path: '/profile', label: 'Profile', key: 'nav.profile', icon: 'person-outline' },
     // Desktop side-rail retains direct access to tools, while hiding them from mobile bottom nav:
     { path: '/insights', label: 'Insights', key: 'nav.insights', icon: 'eye-outline', desktopOnly: true },
     { path: '/career-tools', label: 'Career tools', key: 'nav.careerTools', icon: 'briefcase-outline', desktopOnly: true },
