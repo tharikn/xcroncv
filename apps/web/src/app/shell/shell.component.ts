@@ -242,6 +242,7 @@ export class ShellComponent {
     { path: '/insights', label: 'Insights', key: 'nav.insights', icon: 'eye-outline', desktopOnly: true },
     { path: '/career-tools', label: 'Career tools', key: 'nav.careerTools', icon: 'briefcase-outline', desktopOnly: true },
     { path: '/ai-resume-generator', label: 'AI Resume', key: 'nav.aiResume', icon: 'sparkles-outline' },
+    { path: '/quick-build', label: 'Quick Build', key: 'nav.quickBuild', icon: 'flash-outline' },
     { path: '/files', label: 'Files', key: 'nav.files', icon: 'folder-outline', desktopOnly: true },
     { path: '/settings', label: 'Settings', key: 'nav.settings', icon: 'settings-outline', desktopOnly: true },
   ];

@@ -41,6 +41,13 @@ export interface HelpChatMessage extends HelpChatTurn {
   id: number;
 }
 
+/** Resume-scoped context sent with each assistant message (template editor content checks). */
+export interface HelpChatContext {
+  resumeId?: string;
+  jobId?: string;
+  versionId?: string;
+}
+
 /**
  * Floating assistant state (port of the X Cron help chat widget).
  * Replies are shown in a console, never on a dedicated page; chat text is not stored anywhere.
@@ -76,6 +83,13 @@ export class HelpChatStore implements OnDestroy {
   /** Screens can set this so the chips match where the user is (e.g. template design options in the editor). */
   private readonly context = signal<'design' | null>(null);
 
+  /** Resume the assistant is helping with (content checks in the template editor). */
+  readonly resumeId = signal('');
+  readonly jobId = signal('');
+
+  /** Quick actions shown in the editor chatbot: content check, sentence fixes, ATS corrections. */
+  readonly showActions = computed(() => this.context() === 'design');
+
   readonly suggestions = computed(() => {
     if (this.context() === 'design') {
       return [
@@ -86,6 +100,8 @@ export class HelpChatStore implements OnDestroy {
         translate(activeLocale(), 'chat.suggest.sections'),
         translate(activeLocale(), 'chat.suggest.save'),
         translate(activeLocale(), 'chat.suggest.version'),
+        translate(activeLocale(), 'chat.suggest.quality'),
+        translate(activeLocale(), 'chat.suggest.improve'),
       ];
     }
     return [
@@ -99,6 +115,43 @@ export class HelpChatStore implements OnDestroy {
   /** Tell the assistant which surface it is serving; pass null to restore the default chips. */
   setContext(next: 'design' | null): void {
     this.context.set(next);
+  }
+
+  /** Attach the resume the assistant should check (content checks from the template editor). */
+  setResume(id: string, jobId = ''): void {
+    this.resumeId.set(id);
+    this.jobId.set(jobId);
+  }
+
+  clearResume(): void {
+    this.resumeId.set('');
+    this.jobId.set('');
+  }
+
+  /** Runs the deterministic content check plus mistakes and ATS corrections for the attached resume. */
+  async checkQuality(): Promise<void> {
+    this.draft.set(translate(activeLocale(), 'chat.runQuality'));
+    await this.send();
+  }
+
+  /** Asks for bounded AI-assisted sentence improvements for the attached resume. */
+  async improveResume(): Promise<void> {
+    this.draft.set(translate(activeLocale(), 'chat.runImprove'));
+    await this.send();
+  }
+
+  /** Starts a sentence-fix flow for specific text (editor toolbar "improve selected text"). */
+  startFix(text: string): void {
+    const t = text.trim();
+    if (!t || this.busy() || this.cooldownLeft() > 0) return;
+    this.draft.set(`Improve this sentence: ${t}`);
+    void this.send();
+  }
+
+  /** Runs the fixed ATS check for the job attached to this resume (corrections/upgrades). */
+  async checkAts(): Promise<void> {
+    this.draft.set(translate(activeLocale(), 'chat.runAts'));
+    await this.send();
   }
 
   ngOnDestroy(): void {
@@ -167,7 +220,11 @@ export class HelpChatStore implements OnDestroy {
 
     try {
       const result = await firstValueFrom(
-        this.http.post<HelpChatReply>(this.url('/ai/help/chat'), { message: text, history }),
+        this.http.post<HelpChatReply>(this.url('/ai/help/chat'), {
+          message: text,
+          history,
+          context: { resumeId: this.resumeId() || undefined, jobId: this.jobId() || undefined },
+        }),
       );
       this.pushAssistant(result.reply);
       this.patchQuota(result);

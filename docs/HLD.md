@@ -90,7 +90,7 @@ HLD.md and LLD.md are the single high-level and low-level documents. Each module
 | 16 | Dashboard (user) | Done; admin usage analytics API done (`modules/16-admin-usage-analytics.md`), admin page at `/admin/usage` done; `UsageApi.emit` wired only to DASHBOARD_OPENED, other events pending; Prisma migration not generated |
 | 17 | Dedicated preview | Done |
 | 18 | Local folder manager | Done (module 05 doc) |
-| 19 | Template gallery | Done: all 100 templates (declarative, data-driven), filters/search/thumbnails, ATS warnings |
+| 19 | Template gallery | Done: all 314 templates (declarative, data-driven), filters/search/thumbnails, ATS warnings |
 | 42 | Cover letters | Done P0/P1 without AI (deterministic draft + claim validation, versions, export, binding); tidy suggestions via the AI gateway (POLISH_TEXT, deterministic adapter); real LLM drafting externally blocked |
 | 46 | Contacts / CRM | Done P0/P1 (contacts, timeline, links, reminders, dedup, encrypted notes, export/delete, consent-gated CSV import with preview and duplicate skipping); calendar/email sync pending |
 | 48 | Job search analytics | Done P0 (manual events, funnel, versions, coverage labels, export/delete, idempotent ingestion from the application vault); host ingestion has a connector interface only (externally blocked) |

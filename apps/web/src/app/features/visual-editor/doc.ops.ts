@@ -127,6 +127,15 @@ export function moveSectionBefore(doc: ResumeDoc, id: string, beforeId: string |
   const out = [...without]; out.splice(at, 0, doc.sections[from]);
   return { ...doc, sections: out };
 }
+/** Reorder popup: apply a full section order (a permutation of the current ids). Unknown or missing ids are ignored. */
+export function reorderSections(doc: ResumeDoc, ids: readonly string[]): ResumeDoc {
+  if (ids.length !== doc.sections.length) return doc;
+  const byId = new Map(doc.sections.map((s) => [s.id, s]));
+  const next = ids.map((id) => byId.get(id));
+  if (next.some((s) => !s)) return doc;
+  if (next.every((s, i) => s === doc.sections[i])) return doc;
+  return { ...doc, sections: next as DocSection[] };
+}
 
 export function addSection(doc: ResumeDoc, type: DocSectionType, title: string, t: Translate, afterId?: string): ResumeDoc {
   if (doc.sections.length >= DOC_LIMITS.sections) return doc;

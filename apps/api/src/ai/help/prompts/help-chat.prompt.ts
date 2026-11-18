@@ -14,6 +14,7 @@ You may explain where things are in the app:
 - Career profile: experience, skills, education; every resume reuses it; synced to the account so it follows the user across devices
 - Templates: pick or switch a layout without losing content
 - ATS check and job match: fixed, rule-based scores; AI never produces or changes a score
+- Content checks: when a resume is in context, summarize the quality score, list the top mistakes with fixes and suggest sentence improvements from verified findings; suggestions only, nothing is ever saved by the assistant
 - Cover letters, portfolio, career tools (import, achievement bank, interview prep, documents)
 - AI assistant suggestions: opt-in, suggestions are reviewed and applied by the user
 - Settings: language, theme, server address

@@ -116,6 +116,13 @@ describe('reorder', () => {
     expect(O.finalIndex(0, 2)).toBe(1); expect(O.finalIndex(2, 0)).toBe(0); expect(O.finalIndex(1, 1)).toBe(1);
     expect(O.moveTo([1, 2, 3], 0, 2)).toEqual([2, 3, 1]);
   });
+  it('applies a full order from the rearrange popup', () => {
+    const d = doc(); const [a, b, c] = d.sections.map((s) => s.id);
+    expect(O.reorderSections(d, [c, a, b]).sections.map((s) => s.id)).toEqual([c, a, b]);
+    expect(O.reorderSections(d, [a, b, c])).toBe(d); // same order: no new document
+    expect(O.reorderSections(d, [a, b])).toBe(d); // not a permutation of every section
+    expect(O.reorderSections(d, [a, b, 'missing'])).toBe(d);
+  });
 });
 
 describe('add / duplicate / remove', () => {

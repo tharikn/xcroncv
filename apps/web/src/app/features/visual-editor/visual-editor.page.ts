@@ -148,6 +148,7 @@ export class VisualEditorPage implements OnInit, OnDestroy {
   ngOnInit() {
     this.id = this.route.snapshot.paramMap.get('id') ?? '';
     this.helpChat.setContext('design');
+    this.helpChat.setResume(this.id);
     this.api.getResume(this.id).subscribe({ next: (res) => this.r.set(res), error: (e) => this.error.set(e.status === 404 ? 'Resume not found.' : errorMessage(e)) });
     void this.helpChat.load();
   }
@@ -155,6 +156,7 @@ export class VisualEditorPage implements OnInit, OnDestroy {
   ngOnDestroy() {
     // The store lives in the shell; leave the generic chips for the next screen.
     this.helpChat.setContext(null);
+    this.helpChat.clearResume();
   }
 
   /** Exports and preview always see the latest edits: flush the autosave first. */

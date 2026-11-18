@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable, shareReplay } from 'rxjs';
+import { Observable, catchError, shareReplay, throwError } from 'rxjs';
 import { ApiService } from './api.service';
 import { RenderModel } from './models';
 
@@ -11,7 +11,14 @@ export class TemplateSampleService {
 
   get(templateId: string): Observable<RenderModel> {
     let o = this.cache.get(templateId);
-    if (!o) { o = this.api.templateSample(templateId).pipe(shareReplay({ bufferSize: 1, refCount: false })); this.cache.set(templateId, o); }
+    if (!o) {
+      // Evict on error so a later retry (card/dialog) re-hits the API instead of replaying a cached failure.
+      o = this.api.templateSample(templateId).pipe(
+        catchError((e) => { this.cache.delete(templateId); return throwError(() => e); }),
+        shareReplay({ bufferSize: 1, refCount: false }),
+      );
+      this.cache.set(templateId, o);
+    }
     return o;
   }
 }

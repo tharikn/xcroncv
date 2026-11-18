@@ -59,7 +59,7 @@
 - All AI features must gracefully fall back to deterministic algorithms when AI is disabled, unconfigured, or offline.
 
 ### 2.5 Declarative, Immutable Template Catalog
-- Templates are declared in `apps/api/src/templates/template.catalog.ts` (3 seed templates) and `template.families.ts` (97 generated families).
+- Templates are declared in `apps/api/src/templates/template.catalog.ts` (3 seed templates) and generated in `template.families.ts` + `template.expansion.ts` (311 generated families).
 - **Never mutate an existing template record**. To change a template, increment its version and append a new entry.
 - Colors and spacing are token-driven; never hardcode hex values in template definitions.
 

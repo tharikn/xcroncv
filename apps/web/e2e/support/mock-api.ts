@@ -88,7 +88,7 @@ export function renderModelFor(state: MockState, resume: any) {
     if (s.type === 'education' && p.educations?.length) sections.push({ type: 'education', title: 'Education', items: p.educations.map((e: any) => ({ title: e.degree, subtitle: e.institution })) });
   }
   const model: any = {
-    schemaVersion: 1, template: { id: tpl.id, version: 1 }, layout: (tpl as any).layout ?? 'single-column', sideSections: [], page: { size: resume.overrides?.pageSize ?? 'A4', marginPt: 40 },
+    schemaVersion: 1, template: { id: tpl.id, version: 1 }, layout: (tpl as any).layout ?? 'single-column', sideSections: tpl.sideSections ?? ((tpl as any).layout === 'two-column' ? ['skills', 'languages'] : []), page: { size: resume.overrides?.pageSize ?? 'A4', marginPt: 40 },
     theme: { ...tpl.theme, accent: resume.overrides?.accent ?? tpl.theme.accent, baseSizePt: resume.overrides?.baseSizePt ?? tpl.theme.baseSizePt },
     header: { name: p.fullName, headline: p.headline, contacts: [p.email, p.phone, p.location].filter(Boolean), links: p.links ?? [] }, sections,
   };

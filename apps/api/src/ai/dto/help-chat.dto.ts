@@ -9,6 +9,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { HelpChatContext } from '../help/help-chat.types';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
@@ -21,6 +22,28 @@ export class HelpChatTurnDto {
   @MinLength(1)
   @MaxLength(800)
   content!: string;
+}
+
+/**
+ * Resume-scoped context for the assistant. Declared before `HelpChatDto` because TypeScript emits
+ * the property's `design:type` metadata eagerly: a class referenced before its declaration throws
+ * "Cannot access ... before initialization" when the module is required.
+ */
+export class HelpChatContextDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  resumeId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  jobId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  versionId?: string;
 }
 
 /**
@@ -40,4 +63,10 @@ export class HelpChatDto {
   @ValidateNested({ each: true })
   @Type(() => HelpChatTurnDto)
   history?: HelpChatTurnDto[];
+
+  /** Resume-scoped context for content checks (quality score, mistakes, sentence fixes, ATS corrections). */
+  @IsOptional()
+  @ValidateNested({ each: false })
+  @Type(() => HelpChatContextDto)
+  context?: HelpChatContextDto;
 }

@@ -8,5 +8,6 @@ import { AtsEngineService } from './ats-engine.service';
   imports: [ResumesModule, ResumeSourceModule],
   controllers: [AtsModelController, ResumeAtsController, AtsReportsController],
   providers: [AtsEngineService],
+  exports: [AtsEngineService],
 })
 export class AtsEngineModule {}

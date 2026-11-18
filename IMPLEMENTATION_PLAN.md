@@ -10,7 +10,7 @@
 | **Real-time Autosave & Concurrency Engine** | **Editor** | ✅ **DONE** | **Debounced autosave (~1200ms), 409 conflict detection, save-state badges** |
 | Resume CRUD, Section Ordering & Overrides | Resume Core | ✅ DONE | Declarative schema, versioned revisions |
 | Visual Editor & Block Formatting | Editor | ✅ DONE | Click-to-edit canvas, drag-and-drop |
-| 100 Template Catalog & Render Models | Templates | ✅ DONE | 3 seed packages + 97 generated families |
+| 314 Template Catalog & Render Models | Templates | ✅ DONE | 3 seed packages + 311 generated families |
 | PDF, DOCX, XLSX & HTML Export Engine | Exporter | ✅ DONE | Streamed directly back to client response |
 | ATS Compatibility Engine (Deterministic) | Analytics | ✅ DONE | Immutable algorithm `ATS_VERSION` |
 | JD Analysis & Keyword Match Scoring | Matching | ✅ DONE | Rule-based parser (`analyzeJd.ts`) |

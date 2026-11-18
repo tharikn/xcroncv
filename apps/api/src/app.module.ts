@@ -42,6 +42,7 @@ import { UsageAnalyticsModule } from './usage-analytics/usage-analytics.module';
 import { PreferencesModule } from './preferences/preferences.module';
 import { AuthExchangeModule } from './auth-exchange/auth-exchange.module';
 import { JdResumeGeneratorModule } from './jd-resume-generator/jd-resume-generator.module';
+import { QuickBuildModule } from './quick-build/quick-build.module';
 
 @Module({
   imports: [
@@ -93,6 +94,8 @@ import { JdResumeGeneratorModule } from './jd-resume-generator/jd-resume-generat
     // Common app features: per-user theme + language preference
     PreferencesModule,
     JdResumeGeneratorModule,
+    // Adaptive Resume Layout Engine + Smart Quick Build (FEATURES_DISABLED=quick-build)
+    ...(featureEnabled('quick-build') ? [QuickBuildModule] : []),
   ],
   controllers: [HealthController],
   providers: [

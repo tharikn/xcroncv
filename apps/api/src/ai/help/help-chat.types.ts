@@ -14,6 +14,13 @@ export interface HelpChatTurn {
 /** `guided` = local deterministic answers (always available, no network). `ai` = user opted in + provider configured. */
 export type HelpChatMode = 'guided' | 'ai';
 
+/** Optional per-message context: which resume the assistant is helping with (editor content checks). */
+export interface HelpChatContext {
+  resumeId?: string;
+  jobId?: string;
+  versionId?: string;
+}
+
 export interface HelpChatQuotaSnapshot {
   enabled: boolean;
   mode: HelpChatMode;

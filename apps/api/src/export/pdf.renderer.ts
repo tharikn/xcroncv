@@ -2,6 +2,7 @@ import PDFDocument from 'pdfkit';
 import { Writable } from 'stream';
 import { RenderModel, RenderSection } from '../render-model/render-model.types';
 import { DocImage, ElementStyle, resolveColor } from '../render-model/resume-doc';
+import { renderPlannedPdf } from './pdf-plan.renderer';
 
 const GAP = { compact: 0.6, normal: 1, relaxed: 1.5 } as const;
 const LINE_GAP = { compact: 0, normal: 0, relaxed: 2 } as const;
@@ -17,6 +18,11 @@ const dataBuf = (i: DocImage) => Buffer.from(i.src.slice(i.src.indexOf(',') + 1)
 
 /** Streams a PDF built from the shared render model into `out`. Nothing is written to disk. */
 export function renderPdf(m: RenderModel, out: Writable): void {
+  // Quick Build resumes carry a resolved plan: paint it verbatim so preview == export.
+  if (m.layoutPlan) {
+    renderPlannedPdf(m, m.layoutPlan, out);
+    return;
+  }
   const t = m.theme;
   const bold = t.fontFamily === 'Times-Roman' ? 'Times-Bold' : `${t.fontFamily}-Bold`;
   const italic = t.fontFamily === 'Times-Roman' ? 'Times-Italic' : t.fontFamily === 'Helvetica' ? 'Helvetica-Oblique' : 'Courier-Oblique';
@@ -255,15 +261,25 @@ export function renderPdf(m: RenderModel, out: Writable): void {
 
   if (m.layout === 'two-column') {
     const sideSet = new Set<string>(m.sideSections);
+    const isSide = (s: RenderSection) => s.column ? s.column === 'side' : sideSet.has(s.type);
     const gutter = 18; const sideW = Math.round(w * 0.3); const mainW = w - sideW - gutter;
     const startY = doc.y;
     // Main column first: its native page breaks define the page count and keep left content on page 1.
-    for (const s of m.sections.filter((x) => !sideSet.has(x.type))) sectionAt(s, margin, mainW);
+    for (const s of m.sections.filter((x) => !isSide(x))) sectionAt(s, margin, mainW);
     // Side rail second: wrap it inside the same pages so it neither displaces main content nor spills past a page.
     const cur = { page: 0, y: startY };
-    for (const s of m.sections.filter((x) => sideSet.has(x.type))) sideSection(s, cur, margin + mainW + gutter, sideW);
+    for (const s of m.sections.filter((x) => isSide(x))) sideSection(s, cur, margin + mainW + gutter, sideW);
   } else {
     for (const s of m.sections) sectionAt(s, margin, w);
   }
+  // --- page numbers (consistent footer on every page) ---
+  const range = doc.bufferedPageRange();
+  for (let i = range.start; i < range.start + range.count; i++) {
+    doc.switchToPage(i);
+    doc.page.margins.bottom = 0;
+    doc.fontSize(8).fillColor('#888888').text(`${i + 1} / ${range.count}`, margin, doc.page.height - 12, { width: w, align: 'center', lineBreak: false });
+    doc.y = margin;
+  }
+  doc.fillColor('#111111');
   doc.end();
 }

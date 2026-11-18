@@ -24,7 +24,7 @@ export class AiController {
   /** Assistant message. Auth required + per-user rate window + daily token budget. */
   @Post('help/chat') @HttpCode(200) @Throttle({ default: { limit: 12, ttl: 60_000 } })
   helpChat(@CurrentUser() u: AuthUser, @Body() dto: HelpChatDto) {
-    return this.help.chat(u, dto.message, dto.history ?? []);
+    return this.help.chat(u, dto.message, dto.history ?? [], dto.context ?? {});
   }
 
   @Post('suggestions') @HttpCode(201) suggest(@CurrentUser() u: AuthUser, @Body() dto: CreateSuggestionDto) { return this.svc.suggest(u, dto); }

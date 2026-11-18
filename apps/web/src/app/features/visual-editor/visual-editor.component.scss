@@ -80,7 +80,7 @@
       padding-bottom: 2px;
       border-bottom: 1px solid var(--c-border);
       span { font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
-      .btn { min-height: 32px; min-width: 32px; }
+      .btn { min-height: 40px; min-width: 40px; }
     }
     .hint { display: none; }
     .grp {
@@ -100,8 +100,8 @@
       border-top: 1px solid var(--c-border);
     }
     .btn, select {
-      min-height: 36px;
-      min-width: 36px;
+      min-height: 40px;
+      min-width: 40px;
       flex-shrink: 0;
     }
     .fmt-font { max-width: 7.5rem; font-size: 0.85rem; }

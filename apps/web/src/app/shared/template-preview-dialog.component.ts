@@ -18,10 +18,19 @@ import { ResumeSheetComponent } from './resume-sheet.component';
         <h2>{{ 'tpl.previewTitle' | t: { name: template.name } }}</h2>
         <button class="btn ghost sm icon" type="button" (click)="close.emit()" [attr.aria-label]="'tpl.close' | t" data-testid="preview-close"><ion-icon name="close-outline" aria-hidden="true"></ion-icon></button>
       </header>
+      <div class="info">
+        <p class="muted small">{{ template.category }} · v{{ template.version }}</p>
+        <p class="small">{{ template.description }}</p>
+        <div class="row"><span class="badge" [attr.data-testid]="'ats-' + template.id">{{ atsLabel(template.atsProfile) }}</span><span class="badge">{{ template.layout }}</span></div>
+        @if (template.atsProfile !== 'ATS_FIRST') { <p class="muted small" [attr.data-testid]="'warn-' + template.id">{{ atsWarning(template) }}</p> }
+      </div>
       <p class="muted small note" data-testid="sample-note">{{ 'tpl.sampleNote' | t }}</p>
       <div class="body">
         @if (model(); as m) { <app-resume-sheet [model]="m" [fitWidth]="true" /> }
-        @else if (failed()) { <p class="muted">{{ template.description }}</p> }
+        @else if (failed()) {
+          <p class="muted">{{ template.description }}</p>
+          <p class="muted"><button class="btn ghost sm" type="button" data-testid="preview-retry" (click)="fetch()">{{ 'tpl.retry' | t }}</button></p>
+        }
         @else { <p class="muted">{{ 'tpl.loadingSample' | t }}</p> }
       </div>
       <footer>
@@ -54,8 +63,20 @@ export class TemplatePreviewDialogComponent implements OnInit {
 
   constructor() { registerFlowIcons(); }
   ngOnInit() {
-    this.samples.get(this.template.id).subscribe({ next: (m) => this.model.set(m), error: () => this.failed.set(true) });
+    this.fetch();
     queueMicrotask(() => (this.host.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-testid=preview-close]')?.focus());
+  }
+  fetch() {
+    this.failed.set(false);
+    this.model.set(null);
+    this.samples.get(this.template.id).subscribe({ next: (m) => this.model.set(m), error: () => this.failed.set(true) });
+  }
+  atsLabel(p: string) { return p === 'ATS_FIRST' ? 'ATS-first' : p === 'BALANCED' ? 'Balanced' : 'Visual / portfolio'; }
+  atsWarning(t: TemplateSummary) {
+    const why = t.layout === 'two-column' ? 'two columns' : t.theme?.headerBand ? 'a coloured header band' : t.layout === 'timeline' ? 'a timeline layout' : 'extra styling';
+    return t.atsProfile === 'VISUAL'
+      ? `Presentation-focused: ${why} may parse less reliably in some ATS.`
+      : `Balanced: ${why} may parse differently in some ATS.`;
   }
   @HostListener('document:keydown.escape') onEsc() { this.close.emit(); }
 }

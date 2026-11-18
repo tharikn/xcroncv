@@ -20,13 +20,7 @@ export class AtsEngineService {
 
   /** Scores one owned resume (live or immutable version) against one owned, stored job description. Stores the evidence-linked result only. */
   async run(user: AuthUser, resumeId: string, dto: RunAtsDto) {
-    const jd = await this.prisma.jobDescription.findFirst({ where: { id: dto.jobDescriptionId, tenantId: user.tenantId, userId: user.userId } });
-    if (!jd) throw new NotFoundException('Job description not found');
-    const src = await this.source.load(user, resumeId, dto.resumeVersionId);
-    const result = computeAts({
-      model: src.model, requirements: (jd.requirements as unknown as Requirement[]) ?? [], jdTitle: jd.title, targetRole: src.targetRole,
-      confirmed: jd.confirmationStatus === 'CONFIRMED',
-    });
+    const { jd, src, result } = await this.compute(user, resumeId, dto.jobDescriptionId, dto.resumeVersionId);
     const row = await this.prisma.atsReport.create({
       data: {
         tenantId: user.tenantId, userId: user.userId, resumeId, resumeVersionId: src.versionId, resumeVersionNumber: src.versionNumber, resumeContentHash: src.hash,
@@ -37,6 +31,27 @@ export class AtsEngineService {
       },
     });
     return this.view(row, src.name);
+  }
+
+  /**
+   * Computes (without storing) the same ATS evidence-linked estimate an assistant or the ATS screen shows:
+   * score, dimensions, weak or missing items and suggested improvements for one owned resume + job posting.
+   */
+  async score(user: AuthUser, resumeId: string, jobId: string, versionId?: string) {
+    const { src, result } = await this.compute(user, resumeId, jobId, versionId);
+    return { ...result, resumeId, resumeName: src.name, resumeVersionId: src.versionId, resumeVersionNumber: src.versionNumber };
+  }
+
+  private async compute(user: AuthUser, resumeId: string, jobId: string, versionId?: string) {
+    const jd = await this.prisma.jobDescription.findFirst({ where: { id: jobId, tenantId: user.tenantId, userId: user.userId } });
+    if (!jd) throw new NotFoundException('Job description not found');
+    const src = await this.source.load(user, resumeId, versionId);
+    const result = computeAts({
+      model: src.model, requirements: (jd.requirements as unknown as Requirement[]) ?? [], jdTitle: jd.title, targetRole: src.targetRole,
+      confirmed: jd.confirmationStatus === 'CONFIRMED',
+    });
+    // keep the job context the same way the stored report does
+    return { jd, src, result };
   }
 
   async list(user: AuthUser, resumeId: string) {

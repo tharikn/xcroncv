@@ -2,26 +2,26 @@ import { Component, ElementRef, Input, OnDestroy, OnInit, inject, signal } from 
 import { TemplateSampleService } from '../core/template-sample.service';
 import { RenderModel, TemplateSummary } from '../core/models';
 import { ResumeSheetComponent } from './resume-sheet.component';
-import { TemplateThumbComponent } from './template-thumb.component';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 
 /**
  * Live thumbnail of a template: the real shared render model filled with dummy data (GET /templates/:id/sample),
- * fetched only once the card scrolls into view. Falls back to the CSS mock if the sample cannot be loaded.
+ * fetched only once the card scrolls into view. If the sample cannot be loaded, the card is a tap target that opens
+ * the full-size preview; the rendered dummy resume is the only thumbnail shown. There is no static mock.
  */
 @Component({
   selector: 'app-template-live-card',
   standalone: true,
-  imports: [ResumeSheetComponent, TemplateThumbComponent, TranslatePipe],
+  imports: [ResumeSheetComponent, TranslatePipe],
   template: `
     <div class="live" [attr.data-testid]="'live-' + template.id" [attr.aria-label]="template.name" role="img">
       @if (model(); as m) { <app-resume-sheet [model]="m" [fitWidth]="true" /> }
-      @else if (failed()) { <app-template-thumb [template]="template" /> }
+      @else if (failed()) { <p class="muted small ph" data-testid="sample-unavailable">{{ 'tpl.unavailable' | t }}</p> }
       @else { <p class="muted small ph">{{ 'tpl.loadingSample' | t }}</p> }
     </div>
   `,
   styles: [`
-    .live { aspect-ratio: 794 / 900; overflow: hidden; border: 1px solid var(--c-border); border-radius: var(--radius); background: var(--c-surface); pointer-events: none; user-select: none; }
+    .live { aspect-ratio: 794 / 900; overflow: hidden; border: 0; border-radius: var(--radius); background: transparent; pointer-events: none; user-select: none; }
     .ph { padding: var(--space-4); text-align: center; }
   `],
 })
@@ -42,6 +42,7 @@ export class TemplateLiveCardComponent implements OnInit, OnDestroy {
   private load() {
     if (this.started) return;
     this.started = true;
+    this.failed.set(false);
     this.samples.get(this.template.id).subscribe({ next: (m) => this.model.set(m), error: () => this.failed.set(true) });
   }
   ngOnDestroy() { this.io?.disconnect(); }

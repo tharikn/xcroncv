@@ -65,6 +65,16 @@ export class QualityReviewService {
     };
   }
 
+  /**
+   * Deterministic content analysis for assistants (help chat, editor checks): runs the same rules as a stored
+   * review and returns them without writing anything. Never stores findings or excerpts beyond the rules themselves.
+   */
+  async analyze(user: AuthUser, resumeId: string, versionId?: string) {
+    const src = await this.source.load(user, resumeId, versionId);
+    const { findings, ...quality } = reviewResume(src.model);
+    return { quality, findings, resumeName: src.name };
+  }
+
   async list(user: AuthUser, resumeId: string) {
     await this.resumes.get(user, resumeId);
     const rows = await this.prisma.qualityReview.findMany({

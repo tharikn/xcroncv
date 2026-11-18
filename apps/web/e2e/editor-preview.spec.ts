@@ -12,7 +12,11 @@ test.describe('Resume editor', () => {
     await page.getByTestId('editor-name').fill('Staff Engineer CV');
     await openEditorPanel(page);
     await page.getByTestId('visible-projects').uncheck();
-    await page.getByTestId('down-summary').click();
+    await page.getByTestId('editor-rearrange-btn').click();
+    await expect(page.getByTestId('ve-rearrange')).toBeVisible();
+    await page.getByTestId('ve-tile-summary').focus();
+    await page.keyboard.press('ArrowDown');
+    await page.getByTestId('ve-rearrange-close').click();
     await closeEditorPanel(page);
     await page.getByTestId('editor-status').selectOption('ACTIVE');
     await expect(page.getByTestId('save-state')).toHaveText('Unsaved changes');

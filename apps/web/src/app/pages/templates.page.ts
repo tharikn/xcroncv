@@ -63,17 +63,12 @@ import { TemplatePreviewDialogComponent } from '../shared/template-preview-dialo
           <div class="grid" data-testid="template-grid">
             @for (t of filtered(); track t.id) {
               <article class="card" [attr.data-testid]="'template-' + t.id">
-                <button type="button" class="live-btn" (click)="previewing.set(t)" [attr.aria-label]="'tpl.previewOf' | t: { name: t.name }" [attr.data-testid]="'live-open-' + t.id">
-                  <app-template-live-card [template]="t" /></button>
-                <div><h3>{{ t.name }}</h3>
-                  <p class="muted small">{{ t.category }} · v{{ t.version }}</p></div>
-                <p class="small">{{ t.description }}</p>
-                <div class="row"><span class="badge" [attr.data-testid]="'ats-' + t.id">{{ atsLabel(t.atsProfile) }}</span><span class="badge">{{ t.layout }}</span></div>
-                @if (t.atsProfile !== 'ATS_FIRST') { <p class="muted small" [attr.data-testid]="'warn-' + t.id">{{ atsWarning(t) }}</p> }
-                <div class="row">
-                  <button class="btn ghost" type="button" [attr.data-testid]="'preview-' + t.id" (click)="previewing.set(t)"><ion-icon name="eye-outline" aria-hidden="true"></ion-icon> {{ 'tpl.preview' | t }}</button>
-                  <button class="btn" data-tour="step-template-action" [attr.data-testid]="'use-' + t.id" (click)="use(t)" [disabled]="busy()">
-                    {{ (resumeId ? 'tpl.useResume' : 'tpl.use') | t }}</button>
+                <div class="thumb">
+                  <app-template-live-card [template]="t" />
+                  <div class="overlay" role="group" [attr.aria-label]="'tpl.previewOf' | t: { name: t.name }">
+                    <button type="button" class="icon-btn" [attr.data-testid]="'preview-' + t.id" (click)="previewing.set(t)" [attr.aria-label]="'tpl.preview' | t"><ion-icon name="eye-outline" aria-hidden="true"></ion-icon></button>
+                    <button type="button" class="icon-btn" data-tour="step-template-action" [attr.data-testid]="'use-' + t.id" (click)="use(t)" [disabled]="busy()" [attr.aria-label]="(resumeId ? 'tpl.useResume' : 'tpl.use') | t"><ion-icon name="checkmark-outline" aria-hidden="true"></ion-icon></button>
+                  </div>
                 </div>
               </article>
             }
@@ -86,8 +81,13 @@ import { TemplatePreviewDialogComponent } from '../shared/template-preview-dialo
     }
   `,
   styles: [`
-    .live-btn { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: pointer; border-radius: var(--radius); }
-    .live-btn:focus-visible { outline: 2px solid var(--c-focus); outline-offset: 2px; }
+    .card { border: 0; padding: 0; background: transparent; box-shadow: none; }
+    .thumb { position: relative; width: 100%; border-radius: var(--radius); overflow: hidden; }
+    .overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: var(--space-3); background: rgba(0, 0, 0, 0.35); opacity: 0; transition: opacity 0.15s ease; pointer-events: none; }
+    .thumb:hover .overlay, .thumb:focus-within .overlay { opacity: 1; pointer-events: auto; }
+    .overlay .icon-btn { display: inline-grid; place-items: center; width: 2.75rem; height: 2.75rem; border: 1px solid var(--c-border); border-radius: 999px; background: var(--c-bg); color: var(--c-text); cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
+    .overlay .icon-btn:disabled { opacity: 0.45; cursor: default; }
+    .overlay .icon-btn ion-icon { font-size: 1.25rem; }
   `],
 })
 export class TemplatesPage implements OnInit {

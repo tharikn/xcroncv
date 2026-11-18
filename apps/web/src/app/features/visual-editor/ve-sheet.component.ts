@@ -1,8 +1,8 @@
 import { NgStyle, NgTemplateOutlet } from '@angular/common';
-import { AfterViewChecked, Component, ElementRef, HostListener, input, output } from '@angular/core';
+import { AfterViewChecked, Component, ElementRef, HostListener, input, output, signal } from '@angular/core';
 import { RenderModel } from '../../core/models';
 import { DOC_FONTS } from '../../core/resume-doc';
-import { PAGE_PX } from '../../core/preview-layout';
+import { PAGE_PX, planAutoBreaks, type BreakCandidate } from '../../core/preview-layout';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { cssFor } from './doc.ops';
 
@@ -112,11 +112,11 @@ const LINE = { compact: 1.25, normal: 1.4, relaxed: 1.6 } as const;
 
         @if (m.layout === 'two-column') {
           <div class="cols" data-testid="doc-columns" style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:18pt">
-            <div data-col="main" data-testid="doc-main">@for (s of m.sections; track s.id) { @if (!m.sideSections.includes(s.type)) { @if (s.pageBreakBefore) { <div class="page-break-spacer" data-pb></div> }<ng-container *ngTemplateOutlet="sec; context: { $implicit: s, theme: m.theme, timeline: false }"></ng-container> } }</div>
-            <aside data-col="side" data-testid="doc-side">@for (s of m.sections; track s.id) { @if (m.sideSections.includes(s.type)) { @if (s.pageBreakBefore) { <div class="page-break-spacer" data-pb></div> }<ng-container *ngTemplateOutlet="sec; context: { $implicit: s, theme: m.theme, timeline: false }"></ng-container> } }</aside>
+            <div data-col="main" data-testid="doc-main">@for (s of m.sections; track s.id) { @if (!isSide(s)) { @if (s.pageBreakBefore || autoBefore(s.id)) { <div class="page-break-spacer" data-pb></div> }<ng-container *ngTemplateOutlet="sec; context: { $implicit: s, theme: m.theme, timeline: false }"></ng-container> } }</div>
+            <aside data-col="side" data-testid="doc-side">@for (s of m.sections; track s.id) { @if (isSide(s)) { @if (s.pageBreakBefore || autoBefore(s.id)) { <div class="page-break-spacer" data-pb></div> }<ng-container *ngTemplateOutlet="sec; context: { $implicit: s, theme: m.theme, timeline: false }"></ng-container> } }</aside>
           </div>
         } @else {
-          <div data-col="main">@for (s of m.sections; track s.id) { @if (s.pageBreakBefore) { <div class="page-break-spacer" data-pb></div> }<ng-container *ngTemplateOutlet="sec; context: { $implicit: s, theme: m.theme, timeline: m.layout === 'timeline' }"></ng-container> }</div>
+          <div data-col="main">@for (s of m.sections; track s.id) { @if (s.pageBreakBefore || autoBefore(s.id)) { <div class="page-break-spacer" data-pb></div> }<ng-container *ngTemplateOutlet="sec; context: { $implicit: s, theme: m.theme, timeline: m.layout === 'timeline' }"></ng-container> }</div>
         }
         @for (g of guides(); track g) { <div class="page-guide" [style.top.px]="g * pageH()"><span>{{ 've.page' | t: { n: g + 1 } }}</span></div> }
       </div>
@@ -129,6 +129,9 @@ export class VeSheetComponent implements AfterViewChecked {
   editing = input(false);
   scale = input(1);
   pages = input(1);
+
+  /** Sections that must start on a new page: user-forced (`pageBreakBefore`) + auto-planned for overflow. */
+  autoBreaks = signal<Set<string>>(new Set<string>());
 
   pick = output<Target | null>();
   startEdit = output<Target>();
@@ -284,6 +287,7 @@ export class VeSheetComponent implements AfterViewChecked {
   ngAfterViewChecked() {
     const root = this.root(); if (!root) return;
     this.applyPageBreakSpacers(root);
+    this.applyAutoBreaks(root);
     const h = root.scrollHeight;
     if (h !== this.lastH) { this.lastH = h; queueMicrotask(() => this.measured.emit(h)); }
     const t = this.selection();
@@ -312,5 +316,36 @@ export class VeSheetComponent implements AfterViewChecked {
         }
       }
     }
+  }
+
+  /** A section starts a new page when it does not fit into the remaining page content area (auto pagination). */
+  autoBefore(id?: string): boolean { return !!id && this.autoBreaks().has(id); }
+
+  /** Two-column placement: explicit per-section override wins, otherwise the template's type list applies. */
+  isSide(s: { type: string; column?: 'main' | 'side' }) { return s.column ? s.column === 'side' : this.model()!.sideSections.includes(s.type); }
+
+  /**
+   * Auto page-break planning: any section whose box crosses the printable content-area bottom
+   * (page height - top padding) is moved to the next page by giving its spacer the remaining height.
+   * Recomputed after every layout pass; explicit `pageBreakBefore` spacers are honoured alongside these.
+   */
+  private applyAutoBreaks(root: HTMLElement) {
+    const m = this.model(); if (!m) return;
+    const pageH = this.pageH();
+    const topPad = m.page.marginPt * 4 / 3; // 1pt = 4/3px; sheet padding is authored in pt
+    const breaks = new Set<string>();
+    for (const col of Array.from(root.querySelectorAll<HTMLElement>('[data-col]'))) {
+      const colTop = col.offsetTop;
+      const cands: BreakCandidate[] = [];
+      for (const sec of Array.from(col.querySelectorAll<HTMLElement>('[data-sec]'))) {
+        const id = sec.dataset['sec'];
+        if (!id) continue;
+        cands.push({ id, top: sec.offsetTop - colTop, height: sec.offsetHeight });
+      }
+      for (const id of planAutoBreaks(cands, pageH, topPad)) breaks.add(id);
+    }
+    const cur = this.autoBreaks();
+    const same = cur.size === breaks.size && [...cur].every((k) => breaks.has(k));
+    if (!same) this.autoBreaks.set(breaks);
   }
 }

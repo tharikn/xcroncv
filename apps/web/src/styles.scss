@@ -287,7 +287,7 @@ ion-title { font-weight: 700; font-size: 1.05rem; padding-inline: 0; }
 .preview-viewport { overflow: auto; background: #e8e9ec; flex: 1 1 auto; padding: var(--space-4); display: flex; justify-content: center; align-items: flex-start; }
 .sheet-wrap { transform-origin: top center; }
 /* sheet--measure is hidden; sheet--page is a visible page card */
-.sheet { position: relative; background: #fff; color: #111; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); white-space: pre-wrap; }
+.sheet { position: relative; background: #fff; color: #111; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
 .sheet.sheet--measure { overflow: visible; box-shadow: none; }
 .sheet.sheet--page { overflow: hidden; }
 /* sheet-stack: a sized container that holds all page cards via absolute positioning */

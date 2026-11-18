@@ -4,14 +4,22 @@ import {
   HttpStatus,
   Injectable,
   Logger,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { AuthUser } from '../../common/auth/auth.types';
 import { PrismaService } from '../../prisma/prisma.service';
 import { estimateTokens, looksLikeInjection, redact } from '../ai-policy';
 import { HELP_CHAT_PROMPT_VERSION, HELP_CHAT_SYSTEM, HELP_CHAT_WELCOME } from './prompts/help-chat.prompt';
+import { AiService } from '../ai.service';
+import { AiTask } from '../ai.types';
+import { AtsEngineService } from '../../ats-engine/ats-engine.service';
+import { QualityReviewService } from '../../quality-review/quality-review.service';
+import { Finding, QualityScore } from '../../quality-review/quality-engine';
+import { AtsResult } from '../../ats-engine/ats-engine';
 import {
   HELP_CHAT_FEATURE,
+  HelpChatContext,
   HelpChatProvider,
   HelpChatQuotaSnapshot,
   HelpChatResult,
@@ -37,6 +45,22 @@ function utcMidnight(now: Date): Date {
   return d;
 }
 
+/** Grounded resume content check assembled from the deterministic engines (quality + ATS) plus AI wording candidates. */
+interface ResumeAssist {
+  quality: QualityScore;
+  findings: Finding[];
+  ats: AtsResult | null;
+  resumeName: string | null;
+  candidates: AssistCandidate[];
+}
+
+interface AssistCandidate { text: string; ruleId: string; title: string }
+
+/** Content-check questions asked from the template editor chatbot (quality, mistakes, fixes, ATS corrections). */
+const CONTENT_CHECK_INTENT = /\b(quality|mistake|flaw|problem|issue|finding|improve|improvement|polish|rewrite|sentence|wording|bullet|grammar|spelling|proofread|fix|check|review|weak|score|readiness|export)\b/i;
+/** Questions that ask for a wording fix, so the bounded AI polish runs (opt-in only, deterministic fallback). */
+const FIX_INTENT = /\b(improve|improve|fix|polish|rewrite|reword|correct|revision|sentence|wording|bullet|grammar|spell|proofread|tighten|strengthen|revise)\b/i;
+
 /**
  * In-app assistant gateway (port of the X Cron help chat, docs 06/38).
  *
@@ -48,6 +72,10 @@ function utcMidnight(now: Date): Date {
  * Two modes:
  *  - `guided`: deterministic local answers. Always available, no network, no consent needed.
  *  - `ai`: an OpenAI-compatible provider, used only when the user turned AI on in /ai.
+ *
+ * When a resume context is attached (template editor content checks) and the question asks
+ * for a content check / improvement, the reply is grounded in the deterministic quality engine
+ * and the ATS engine, plus at most one bounded AI wording fix (user-confirmed suggestions only).
  */
 @Injectable()
 export class HelpChatService {
@@ -55,7 +83,12 @@ export class HelpChatService {
   private readonly guided = new GuidedHelpProvider();
   private readonly external: OpenAiCompatibleHelpProvider | null;
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly quality: QualityReviewService | null,
+    @Optional() private readonly ats: AtsEngineService | null,
+    private readonly ai: AiService,
+  ) {
     this.external = this.resolveExternalProvider();
     this.logger.log(
       `AI help chat: enabled=${this.isEnabled()} provider=${this.external?.id ?? this.guided.id}`,
@@ -120,7 +153,12 @@ export class HelpChatService {
     };
   }
 
-  async chat(u: AuthUser, message: string, history: HelpChatTurn[] = []): Promise<HelpChatResult> {
+  async chat(
+    u: AuthUser,
+    message: string,
+    history: HelpChatTurn[] = [],
+    context: HelpChatContext = {},
+  ): Promise<HelpChatResult> {
     if (!this.isEnabled()) {
       throw new ServiceUnavailableException('The in-app assistant is turned off.');
     }
@@ -157,17 +195,40 @@ export class HelpChatService {
     let reply: string;
     let tokensUsed: number;
 
+    // Resume-scoped content assist (template editor chatbot): deterministic quality score, mistakes with
+    // fixes and ATS corrections from the engines, plus at most one bounded AI wording fix when asked to improve.
+    // Only content-check questions run it; design questions keep flowing to the guided/provider chat.
+    let assist: ResumeAssist | null =
+      context.resumeId && CONTENT_CHECK_INTENT.test(trimmed)
+        ? await this.assist(u, context).catch((e) => {
+            this.logger.warn(`Help chat: content assist failed for ${u.userId}: ${e instanceof Error ? e.message : 'unknown'}`);
+            return null;
+          })
+        : null;
+
     try {
-      const result = await this.withTimeout(
-        provider.chat({
-          system: HELP_CHAT_SYSTEM,
-          history: safeHistory,
-          message: outgoing,
-          maxTokens: this.maxCompletionTokens(),
-        }),
-      );
-      reply = result.reply;
-      tokensUsed = Math.max(1, result.tokensUsed);
+      if (assist) {
+        reply = this.composeAssistReply(assist);
+        tokensUsed = Math.max(1, estimateTokens(reply));
+        if (FIX_INTENT.test(trimmed)) {
+          const fix = await this.sentenceFix(u, context, trimmed, assist.candidates);
+          if (fix) {
+            reply = `${reply}\n\n${fix.text}`.trim();
+            tokensUsed += Math.max(1, estimateTokens(fix.text));
+          }
+        }
+      } else {
+        const result = await this.withTimeout(
+          provider.chat({
+            system: HELP_CHAT_SYSTEM,
+            history: safeHistory,
+            message: outgoing,
+            maxTokens: this.maxCompletionTokens(),
+          }),
+        );
+        reply = result.reply;
+        tokensUsed = Math.max(1, result.tokensUsed);
+      }
     } catch (error) {
       const timeout = error instanceof Error && error.message === 'TIMEOUT';
       const detail = error instanceof Error ? error.message : 'help_chat_failed';
@@ -197,6 +258,77 @@ export class HelpChatService {
       cooldownSecondsRemaining: after.cooldownSecondsRemaining,
       coolDownUntil: after.coolDownUntil,
     };
+  }
+
+  /**
+   * Deterministic content check for a resume the signed-in user owns: quality score + findings with fixes,
+   * and (when a job posting is in context) the ATS estimate with weak-or-missing items and improvements.
+   * Nothing is written to the database; chat stays ephemeral.
+   */
+  private async assist(u: AuthUser, context: HelpChatContext): Promise<ResumeAssist> {
+    const resumeId = context.resumeId!;
+    const versionId = context.versionId ?? undefined;
+    const analysis = await this.quality?.analyze(u, resumeId, versionId);
+    if (!analysis) throw new Error('Quality engine unavailable');
+    const quality: QualityScore = analysis.quality;
+    const findings = analysis.findings;
+    let ats: AtsResult | null = null;
+    if (context.jobId && this.ats) {
+      try {
+        ats = await this.ats.score(u, resumeId, context.jobId, versionId);
+      } catch (error) {
+        this.logger.warn(`Help chat: ATS check failed for ${u.userId}: ${error instanceof Error ? error.message : 'unknown'}`);
+      }
+    }
+    return { quality, findings, ats, resumeName: analysis.resumeName ?? null, candidates: this.candidates(findings) };
+  }
+
+  /** Picks the sentences worth a wording fix (action/weak-phrase/tense/cliché findings), bounded and evidence-linked. */
+  private candidates(findings: Finding[]): AssistCandidate[] {
+    const interesting = new Set([
+      'WRITING.WEAK_PHRASE', 'WRITING.FIRST_PERSON', 'WRITING.TENSE_MISMATCH', 'WRITING.LOWERCASE_START',
+      'WRITING.REPEATED_WORD', 'CONTENT.SUMMARY_CLICHE', 'CONTENT.SUPERLATIVE', 'CONTENT.NO_SUMMARY', 'READABILITY.LONG_SUMMARY',
+    ]);
+    const out: AssistCandidate[] = [];
+    for (const f of findings) {
+      if (f.source !== 'deterministic_rule') continue;
+      if (!interesting.has(f.ruleId)) continue;
+      const text = f.evidence.text;
+      if (!text || text.length > 240) continue;
+      if (out.some((c) => c.text === text)) continue;
+      out.push({ text, ruleId: f.ruleId, title: f.title });
+      if (out.length >= 2) break;
+    }
+    return out;
+  }
+
+  /** Plain-text reply: score, top mistakes with fixes and (when known) ATS corrections. */
+  private composeAssistReply(a: ResumeAssist): string {
+    const q = a.quality;
+    const lines = [
+      `I checked your resume: the quality score is ${q.score} out of 100, so the export readiness is ${q.readiness.replace(/_/g, ' ')}.`,
+    ];
+    const top = a.findings.slice(0, 3);
+    for (const f of top) lines.push(`${f.title}: ${f.explanation} Fix: ${f.recommendation}`);
+    if (a.ats) lines.push(`Against the job you selected, the ATS estimate is ${a.ats.score} out of 100. Improvements to consider: ${a.ats.improvements.join('; ') || 'none found'}.`);
+    if (!top.length) lines.push('No findings. Proofread yourself as well: spelling and grammar are only checked mechanically.');
+    return lines.join(' ');
+  }
+
+  /**
+   * Bounded AI wording fix for the chosen sentences. The deterministic checklist already carries mechanical
+   * fixes; wording-level fixes go through the AI policy gateway (opt-in, consent, redaction, invented-number
+   * guard, daily quota). At most two candidates are sent, so the free AI allowance is not drained by checks.
+   */
+  private async sentenceFix(u: AuthUser, context: HelpChatContext, message: string, candidates: AssistCandidate[]) {
+    if (!this.external) return null; // guided mode: deterministic answers only
+    if (!FIX_INTENT.test(message)) return null;
+    const texts = candidates.map((c) => c.text.trim()).filter((t) => t.length > 3).slice(0, 2);
+    if (!texts.length) return null;
+    const results = await Promise.all(texts.map((t) => this.ai.polish(u, 'POLISH_TEXT', t, {}).catch(() => null)));
+    const first = results.find((r) => r && r.text.trim().length > 3);
+    if (!first) return null;
+    return first;
   }
 
   private assertWithinLimits(usage: { usedTokens: number; lastMessageAt: number }, now: Date): void {

@@ -57,9 +57,10 @@ ${safeUrl(i.url) ? `<p${ik('url')}><a href="${safeUrl(i.url)}" rel="noopener nor
     return `<section${s.pageBreakBefore ? ' class="page-break"' : ''}><h2${sk('title')}>${h(s.title)}</h2>${inner}</section>`;
   };
   const side = new Set<string>(m.sideSections);
+  const isSide = (s: typeof m.sections[number]) => s.column ? s.column === 'side' : side.has(s.type);
   const body = m.layout === 'two-column'
-    ? `<div class="cols"><main>${m.sections.filter((s) => !side.has(s.type)).map(renderSection).join('\n')}</main>`
-      + `<aside>${m.sections.filter((s) => side.has(s.type)).map(renderSection).join('\n')}</aside></div>`
+    ? `<div class="cols"><main>${m.sections.filter((s) => !isSide(s)).map(renderSection).join('\n')}</main>`
+      + `<aside>${m.sections.filter((s) => isSide(s)).map(renderSection).join('\n')}</aside></div>`
     : m.sections.map(renderSection).join('\n');
 
   const pageW = m.page.size === 'A4' ? '210mm' : '8.5in';

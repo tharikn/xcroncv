@@ -121,6 +121,11 @@ const INTENTS: Intent[] = [
     reply: 'Files shows the exports you saved on this device (Documents/XCronCV on a phone, the browser downloads folder otherwise). Nothing in that list is uploaded to the server.',
   },
   {
+    id: 'content-check',
+    pattern: /\b(quality|mistake|flaw|problem|issue|finding|improve|improvement|polish|rewrite|sentence|wording|bullet|grammar|spelling|proofread|fix|check|review|weak|score|readiness|export)\b/i,
+    reply: 'Open the resume editor and use the checks panel: it runs the rule-based quality score, lists every mistake with the exact place and a fix, and adds ATS corrections. The wording-level fixes are suggestions you review before applying; no score is ever AI-computed.',
+  },
+  {
     id: 'thanks',
     pattern: /\b(thanks|thank you|great|perfect|ok|okay)\b/i,
     reply: 'Glad it helped. Ask again any time, or open Career tools to see everything XCron CV can do.',

@@ -47,7 +47,7 @@ export interface TemplateSummary {
 }
 
 export interface RenderItem { id?: string; image?: DocImage; title?: string; subtitle?: string; meta?: string; text?: string; bullets?: string[]; tags?: string[]; url?: string }
-export interface RenderSection { id?: string; type: SectionType | 'custom'; title: string; text?: string; items?: RenderItem[]; pageBreakBefore?: boolean }
+export interface RenderSection { id?: string; type: SectionType | 'custom'; title: string; text?: string; items?: RenderItem[]; pageBreakBefore?: boolean; column?: 'main' | 'side' }
 export interface RenderModel {
   schemaVersion: 1; template: { id: string; version: number };
   page: { size: 'A4' | 'LETTER'; marginPt: number }; theme: TemplateTheme;

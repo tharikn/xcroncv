@@ -8,6 +8,7 @@ import { TemplatesService } from '../templates/templates.service';
 import { profileInclude } from '../career-profile/career-profile.service';
 import { buildRenderModel, defaultSections, mergeOverridesOnWrite, SectionConfig } from '../render-model/render-model.builder';
 import { RenderModel } from '../render-model/render-model.types';
+import type { LayoutPlan } from '../resume-layout/layout.types';
 import { CreateResumeDto, CreateVersionDto, UpdateResumeDto } from './dto/resume.dto';
 
 @Injectable()
@@ -59,12 +60,16 @@ export class ResumesService {
         : this.templates.getLatest(dto.templateId ?? cur.templateId);
       templateId = tpl.id; templateVersion = tpl.version; // changing template never touches content
     }
+    // Any manual content/design edit leaves Quick Build mode: the frozen snapshot and its plan no
+    // longer describe what the user is editing, so the normal profile-driven render takes over.
+    const invalidatesPlan = !!(dto.sections || dto.overrides || dto.templateId || dto.templateVersion);
     const updated = await this.prisma.resume.update({
       where: { id },
       data: {
         name: dto.name, targetRole: dto.targetRole, status: dto.status, templateId, templateVersion,
         sections: dto.sections as unknown as Prisma.InputJsonValue | undefined,
         overrides: dto.overrides ? (mergeOverridesOnWrite(dto.overrides, cur.overrides) as unknown as Prisma.InputJsonValue) : undefined, // allowlist on write; keeps the visual-editor doc unless explicitly reset
+        ...(invalidatesPlan ? { renderSnapshot: Prisma.DbNull, layoutPlan: Prisma.DbNull } : {}),
       },
     });
     this.events?.emit(user, 'resume.updated', { resumeId: id });
@@ -82,9 +87,22 @@ export class ResumesService {
     const profile = await this.prisma.careerProfile.findUniqueOrThrow({
       where: { id: resume.profileId }, include: profileInclude,
     });
+    return { model: this.modelFrom(resume, profile), name: resume.name };
+  }
+
+  /**
+   * Quick Build resumes render from their frozen snapshot + resolved plan so a re-export is
+   * byte-identical and never re-flows. Every other resume keeps the profile-driven path.
+   */
+  private modelFrom(
+    resume: { renderSnapshot: unknown; layoutPlan: unknown; templateId: string; templateVersion: number; sections: unknown; overrides: unknown },
+    profile: Parameters<typeof buildRenderModel>[0],
+  ): RenderModel {
     const tpl = this.templates.getVersion(resume.templateId, resume.templateVersion);
-    const model = buildRenderModel(profile, tpl, resume.sections as unknown as SectionConfig[], resume.overrides);
-    return { model, name: resume.name };
+    const snapshot = resume.renderSnapshot as RenderModel | null;
+    const plan = resume.layoutPlan as LayoutPlan | null;
+    const base = snapshot ?? buildRenderModel(profile, tpl, resume.sections as unknown as SectionConfig[], resume.overrides);
+    return plan ? { ...base, layoutPlan: plan } : base;
   }
 
   async createVersion(user: AuthUser, id: string, dto: CreateVersionDto) {
@@ -138,8 +156,6 @@ export class ResumesService {
     const profile = await this.prisma.careerProfile.findUniqueOrThrow({
       where: { id: resume.profileId }, include: profileInclude,
     });
-    const tpl = this.templates.getVersion(resume.templateId, resume.templateVersion);
-    const model = buildRenderModel(profile, tpl, resume.sections as unknown as SectionConfig[], resume.overrides);
-    return { model, name: resume.name };
+    return { model: this.modelFrom(resume, profile), name: resume.name };
   }
 }

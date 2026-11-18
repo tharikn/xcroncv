@@ -10,8 +10,15 @@ const FAMILY_COUNTS: Record<string, number> = {
   'ATS classic': 10, 'Modern professional': 8, Technology: 8, 'Business / corporate': 6, 'Leadership / executive': 5,
   'Graduate / early career': 5, 'Creative / portfolio': 5, 'Sales / customer / HR': 4,
   'Healthcare / education / public service': 4, 'International / regional': 5,
-  'Bold & colorful': 10, 'Elegant & editorial': 10, 'Minimal & airy': 10, 'Structured & sidebar': 10,
+  'Bold & colorful': 10, 'Elegant & editorial': 10, 'Minimal & airy': 14, 'Structured & sidebar': 10,
+  'Professional services': 10, 'Legal & compliance': 10, 'Finance & accounting': 10, 'Academia & research': 10,
+  'Nonprofit & social impact': 10, 'Military & veterans': 10, 'Startup & founders': 10, 'Product & growth': 10,
+  'Data & AI': 10, 'Marketing & communications': 10, 'Hospitality & events': 10, 'Retail & operations': 10,
+  'Logistics & supply chain': 10, 'Real estate & property': 10, 'Freelance & independent': 10, 'Career change': 10,
+  'Returnship & re-entry': 10, 'Staff & principal IC': 10, 'Design studio': 10, 'Media & entertainment': 10,
+  'Wellness & fitness': 10,
 };
+const TOTAL_TEMPLATES = Object.values(FAMILY_COUNTS).reduce((a, b) => a + b, 0);
 
 const profile: ProfileInput = {
   fullName: 'Ada Lovelace', email: 'ada@example.com', phone: '+44 20 7946 0000', location: 'London',
@@ -44,8 +51,8 @@ const toBuffer = (m: ReturnType<typeof buildRenderModel>) => new Promise<Buffer>
 });
 
 describe('template catalogue (doc 19)', () => {
-  it('has exactly 100 templates with the documented family composition', () => {
-    expect(TEMPLATE_CATALOG).toHaveLength(100);
+  it('has exactly 314 templates with the documented family composition', () => {
+    expect(TEMPLATE_CATALOG).toHaveLength(TOTAL_TEMPLATES);
     const counts: Record<string, number> = {};
     for (const t of TEMPLATE_CATALOG) counts[t.category] = (counts[t.category] ?? 0) + 1;
     expect(counts).toEqual(FAMILY_COUNTS);
@@ -62,9 +69,9 @@ describe('template catalogue (doc 19)', () => {
   });
 
   it('has unique ids/slugs, valid manifests and (id, version) uniqueness', () => {
-    expect(new Set(TEMPLATE_CATALOG.map((t) => t.id)).size).toBe(100);
-    expect(new Set(TEMPLATE_CATALOG.map((t) => t.slug)).size).toBe(100);
-    expect(new Set(TEMPLATE_CATALOG.map((t) => `${t.id}@${t.version}`)).size).toBe(100);
+    expect(new Set(TEMPLATE_CATALOG.map((t) => t.id)).size).toBe(TOTAL_TEMPLATES);
+    expect(new Set(TEMPLATE_CATALOG.map((t) => t.slug)).size).toBe(TOTAL_TEMPLATES);
+    expect(new Set(TEMPLATE_CATALOG.map((t) => `${t.id}@${t.version}`)).size).toBe(TOTAL_TEMPLATES);
     for (const t of TEMPLATE_CATALOG) {
       expect(t.id).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
       expect(t.name.length).toBeGreaterThan(2);
@@ -119,7 +126,7 @@ describe('template catalogue (doc 19)', () => {
   it('lists latest versions with gallery metadata and filters', () => {
     const svc = new TemplatesService();
     const all = svc.list();
-    expect(all).toHaveLength(100);
+    expect(all).toHaveLength(TOTAL_TEMPLATES);
     for (const t of all) {
       expect(t.careerLevels.length).toBeGreaterThan(0);
       expect(['classic', 'modern', 'minimal', 'formal', 'creative']).toContain(t.style);

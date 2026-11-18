@@ -5,19 +5,21 @@ import {
 import { RouterLink } from '@angular/router';
 import { IonIcon } from '@ionic/angular/standalone';
 import { ApiService } from '../../core/api.service';
+import { HelpChatStore } from '../../core/help-chat.api';
 import { LocaleService } from '../../core/i18n/locale.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { RenderModel, Resume, ResumeVersion } from '../../core/models';
 import { errorMessage, NotifyService } from '../../core/notify.service';
 import { clamp, FitMode, fitScale, overflowWarning, pageCount } from '../../core/preview-layout';
 import {
-  DocImage, DocSectionType, DOC_FONTS, ElementStyle, LOGO_RANGE, PHOTO_RANGE, RESUME_PALETTE, ResumeDoc, SIZE_RANGE, SPACE_RANGE,
+  DocImage, DocSection, DocSectionType, DOC_FONTS, ElementStyle, LOGO_RANGE, PHOTO_RANGE, RESUME_PALETTE, ResumeDoc, SIZE_RANGE, SPACE_RANGE,
 } from '../../core/resume-doc';
 import * as O from './doc.ops';
 import { pinchScale, touchDistance, wheelScale } from './geometry';
 import { History } from './history';
 import { LoadedImage, loadImage, validateImageFile } from './image-process';
 import { VeImageCropComponent } from './ve-image-crop.component';
+import { VeRearrangeComponent } from './ve-rearrange.component';
 import { sameTarget, Target, VeSheetComponent } from './ve-sheet.component';
 import { registerVisualEditorIcons } from './visual-editor.icons';
 
@@ -33,7 +35,7 @@ const SECTION_KINDS: DocSectionType[] = ['summary', 'experience', 'skills', 'edu
 @Component({
   selector: 'app-visual-editor',
   standalone: true,
-  imports: [NgStyle, DatePipe, RouterLink, IonIcon, TranslatePipe, VeSheetComponent, VeImageCropComponent],
+  imports: [NgStyle, DatePipe, RouterLink, IonIcon, TranslatePipe, VeSheetComponent, VeImageCropComponent, VeRearrangeComponent],
   styleUrl: './visual-editor.component.scss',
   template: `
     <div class="ve" #root data-testid="visual-editor">
@@ -49,6 +51,7 @@ const SECTION_KINDS: DocSectionType[] = ['summary', 'experience', 'skills', 'edu
         <button class="btn ghost sm" (click)="setFit('page')" [attr.aria-pressed]="mode() === 'page'" data-testid="ve-fit-page">{{ 've.fitPage' | t }}</button>
         <span class="sep" aria-hidden="true"></span>
         <button class="btn ghost sm" (click)="outline.set(!outline())" [attr.aria-expanded]="outline()" aria-controls="ve-outline" data-testid="ve-outline-btn" data-tour="ve-outline-btn"><ion-icon [name]="showOutline() ? 'list-outline' : 'add-outline'" aria-hidden="true"></ion-icon> {{ (showOutline() ? 've.outline' : 've.addSection') | t }}</button>
+        <button class="btn ghost sm" (click)="openRearrange()" [attr.aria-label]="'ve.rearrange' | t" data-testid="ve-rearrange-open"><ion-icon name="grid-outline" aria-hidden="true"></ion-icon> {{ 've.rearrange' | t }}</button>
         <span class="grow"></span>
         <span class="badge" [class.warn]="status() === 'dirty' || status() === 'saving'" [class.ok]="status() === 'saved'" [class.err]="status() === 'error' || status() === 'conflict'" role="status" data-testid="ve-status">{{ statusLabel() | t }}</span>
         <button class="btn ghost sm" (click)="toggleHistory()" [attr.aria-expanded]="historyOpen()" aria-controls="ve-history" data-testid="ve-history-btn"><ion-icon name="time-outline" aria-hidden="true"></ion-icon> {{ 've.history' | t }}</button>
@@ -96,15 +99,18 @@ const SECTION_KINDS: DocSectionType[] = ['summary', 'experience', 'skills', 'edu
 
       @if (outline()) {
         <section class="ve-outline" id="ve-outline" [attr.aria-label]="'ve.outline' | t" data-testid="ve-outline">
-          <div class="row between"><h3>{{ 've.sections' | t }}</h3><button class="btn ghost sm icon" (click)="outline.set(false)" [attr.aria-label]="'common.dismiss' | t"><ion-icon name="close-outline" aria-hidden="true"></ion-icon></button></div>
+          <div class="row between"><h3>{{ 've.sections' | t }}</h3>
+            <div class="row">
+              <button class="btn ghost sm icon" (click)="openRearrange()" [attr.aria-label]="'ve.rearrange' | t" [title]="'ve.rearrange' | t" data-testid="ve-outline-rearrange"><ion-icon name="grid-outline" aria-hidden="true"></ion-icon></button>
+              <button class="btn ghost sm icon" (click)="outline.set(false)" [attr.aria-label]="'common.dismiss' | t"><ion-icon name="close-outline" aria-hidden="true"></ion-icon></button>
+            </div>
+          </div>
           @if (showOutline()) {
           <ul class="list">
-            @for (s of doc()?.sections ?? []; track s.id; let i = $index) {
+            @for (s of doc()?.sections ?? []; track s.id) {
               <li class="row" [attr.data-testid]="'ve-out-' + s.id" [class.dim]="s.hidden">
                 <button class="btn ghost sm grow left" (click)="focusSection(s.id)">{{ s.title || ('ve.untitled' | t) }}</button>
                 <button class="btn ghost sm icon" (click)="toggleHide(s.id)" [attr.aria-label]="(s.hidden ? 've.block.show' : 've.block.hide') | t" [attr.aria-pressed]="!!s.hidden"><ion-icon [name]="s.hidden ? 'eye-off-outline' : 'eye-outline'" aria-hidden="true"></ion-icon></button>
-                <button class="btn ghost sm icon" (click)="moveSec(s.id, -1)" [disabled]="i === 0" [attr.aria-label]="'ve.block.up' | t"><ion-icon name="chevron-up-outline" aria-hidden="true"></ion-icon></button>
-                <button class="btn ghost sm icon" (click)="moveSec(s.id, 1)" [disabled]="i === (doc()?.sections?.length ?? 0) - 1" [attr.aria-label]="'ve.block.down' | t"><ion-icon name="chevron-down-outline" aria-hidden="true"></ion-icon></button>
                 <button class="btn ghost sm icon" (click)="removeSec(s.id)" [attr.aria-label]="'ve.block.delete' | t"><ion-icon name="trash-outline" aria-hidden="true"></ion-icon></button>
               </li>
             }
@@ -139,6 +145,12 @@ const SECTION_KINDS: DocSectionType[] = ['summary', 'experience', 'skills', 'edu
 
           @if (textKey(); as k) {
             <div class="grp" role="group" [attr.aria-label]="'ve.fmt' | t">
+              <button class="btn ghost sm icon" (click)="askAiFix()" [disabled]="helpChat.busy()" data-testid="ve-ai-fix" [attr.aria-label]="'chat.improveSentences' | t" [title]="'chat.improveSentences' | t">
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor" stroke="none">
+                  <path d="M12 2c.6 3.4 2.4 5.2 5.8 5.8-3.4.6-5.2 2.4-5.8 5.8-.6-3.4-2.4-5.2-5.8-5.8C9.6 7.2 11.4 5.4 12 2z" />
+                  <path d="M18.5 16.5c.5 1.9 1.9 3.3 4.2 3.8-2.3.5-3.7 1.9 4.2 3.8-.5-1.9-1.9-3.3 4.2-3.8-2.3-.5-3.7-1.9-4.2-3.8z" opacity=".55" />
+                </svg>
+              </button>
               <select class="fmt-font" [value]="style(k).font ?? ''" (change)="setFont($any($event.target).value)" [attr.aria-label]="'ve.fmt.font' | t" data-testid="ve-font">
                 <option value="">{{ 've.fmt.template' | t }}</option>
                 @for (f of fonts; track f.id) { <option [value]="f.id">{{ f.id === 'Times-Roman' ? 'Times' : f.id }}</option> }
@@ -191,8 +203,12 @@ const SECTION_KINDS: DocSectionType[] = ['summary', 'experience', 'skills', 'edu
           @if (blockKind(); as bk) {
             <div class="grp" role="group" [attr.aria-label]="'ve.block' | t">
               <button class="btn ghost sm icon grip" (pointerdown)="startDrag($event)" (keydown)="gripKey($event)" [attr.aria-label]="'ve.block.drag' | t" [title]="'ve.block.drag' | t" data-testid="ve-grip"><ion-icon name="reorder-three-outline" aria-hidden="true"></ion-icon></button>
-              <button class="btn ghost sm icon" (click)="moveBlock(-1)" [disabled]="!canMove(-1)" [attr.aria-label]="'ve.block.up' | t" data-testid="ve-up"><ion-icon name="chevron-up-outline" aria-hidden="true"></ion-icon></button>
-              <button class="btn ghost sm icon" (click)="moveBlock(1)" [disabled]="!canMove(1)" [attr.aria-label]="'ve.block.down' | t" data-testid="ve-down"><ion-icon name="chevron-down-outline" aria-hidden="true"></ion-icon></button>
+              @if (bk === 'item') {
+                <button class="btn ghost sm icon" (click)="moveBlock(-1)" [disabled]="!canMove(-1)" [attr.aria-label]="'ve.block.up' | t" data-testid="ve-up"><ion-icon name="chevron-up-outline" aria-hidden="true"></ion-icon></button>
+                <button class="btn ghost sm icon" (click)="moveBlock(1)" [disabled]="!canMove(1)" [attr.aria-label]="'ve.block.down' | t" data-testid="ve-down"><ion-icon name="chevron-down-outline" aria-hidden="true"></ion-icon></button>
+              } @else {
+                <button class="btn ghost sm icon" (click)="openRearrange()" [attr.aria-label]="'ve.rearrange' | t" [title]="'ve.rearrange' | t" data-testid="ve-rearrange-block"><ion-icon name="grid-outline" aria-hidden="true"></ion-icon></button>
+              }
               <button class="btn ghost sm icon" (click)="duplicate()" [attr.aria-label]="'ve.block.duplicate' | t" data-testid="ve-duplicate"><ion-icon name="copy-outline" aria-hidden="true"></ion-icon></button>
               <button class="btn ghost sm icon" (click)="remove()" [attr.aria-label]="'ve.block.delete' | t" data-testid="ve-delete"><ion-icon name="trash-outline" aria-hidden="true"></ion-icon></button>
               @if (bk === 'section') {
@@ -215,6 +231,11 @@ const SECTION_KINDS: DocSectionType[] = ['summary', 'experience', 'skills', 'edu
 
       @if (drag(); as d) {
         <div class="drop-line" [style.top.px]="d.y" [style.left.px]="d.left" [style.width.px]="d.width" data-testid="ve-drop-line"></div>
+      }
+
+      @if (rearrange()) {
+        <ve-rearrange [sections]="doc()?.sections ?? []" [layout]="layoutKind()" [sideSections]="sideTypes()" [focusId]="sel()?.secId ?? null"
+                      (reordered)="onRearrange($event)" (closed)="rearrange.set(false)"></ve-rearrange>
       }
 
       <input #file type="file" hidden accept="image/png,image/jpeg,image/webp,image/gif" (change)="onFile($event)" data-testid="ve-file" />
@@ -247,6 +268,7 @@ export class VisualEditorComponent implements AfterViewInit, OnDestroy {
   loadError = signal('');
   errorText = signal('');
   outline = signal(false);
+  rearrange = signal(false);
   colorOpen = signal(false);
   confirmReset = signal(false);
   historyOpen = signal(false);
@@ -285,7 +307,7 @@ export class VisualEditorComponent implements AfterViewInit, OnDestroy {
   private resetTimer: ReturnType<typeof setTimeout> | undefined;
   private persistedDoc = false;
 
-  constructor(private api: ApiService, private locale: LocaleService, private notify: NotifyService, private cdr: ChangeDetectorRef) {
+  constructor(private api: ApiService, private locale: LocaleService, private notify: NotifyService, private cdr: ChangeDetectorRef, readonly helpChat: HelpChatStore) {
     registerVisualEditorIcons();
     effect(() => {
       const r = this.resume();
@@ -539,8 +561,44 @@ export class VisualEditorComponent implements AfterViewInit, OnDestroy {
   setColor(c: string) { this.fmt({ color: c }); }
   resetFmt() { const k = this.textKey(), d = this.doc(); if (k && d) this.commitDoc(O.resetStyle(d, k)); }
 
+  /** Opens the assistant for a bounded sentence improvement of the selected text (AI opt-in, deterministic fallback). */
+  askAiFix(): void {
+    const text = this.selectedText();
+    if (!text.trim()) { void this.notify.toast(this.locale.t('ve.aiFixEmpty'), 'error'); return; }
+    this.helpChat.startFix(text);
+    this.helpChat.open.set(true);
+  }
+
+  /** The plain text of the currently selected element (toolbar assistant context). */
+  selectedText(): string {
+    const t = this.sel(); const d = this.doc(); if (!t || !d) return '';
+    const el = t.el ?? '';
+    if (el === 'header.name') return d.header.name ?? '';
+    if (el === 'header.headline') return d.header.headline ?? '';
+    const parts = el.split('.');
+    if (parts[0] === 's' && t.secId) {
+      const s = O.findSection(d, t.secId);
+      const f = parts[2];
+      if (f === 'title') return s?.title ?? '';
+      if (f === 'text') return s?.text ?? '';
+      return '';
+    }
+    if (parts[0] === 'i' && t.secId && t.itemId) {
+      const it = O.findItem(d, t.secId, t.itemId);
+      const f = parts[2];
+      if (f === 'bullets') return t.bullet !== undefined ? (it?.bullets ?? [])[t.bullet] ?? '' : '';
+      const v = f === 'title' ? it?.title : f === 'subtitle' ? it?.subtitle : f === 'meta' ? it?.meta : f === 'text' ? it?.text : f === 'url' ? it?.url : undefined;
+      return typeof v === 'string' ? v : '';
+    }
+    return '';
+  }
+
   /* ---------- block operations ---------- */
   private side() { return new Set(this.base()?.sideSections ?? []); }
+  layoutKind = computed(() => this.base()?.layout ?? 'single-column');
+  sideTypes = computed<string[]>(() => this.base()?.sideSections ?? []);
+  openRearrange() { if (this.doc()) this.rearrange.set(true); }
+  onRearrange(sections: DocSection[]) { const d = this.doc(); if (d) this.commitDoc({ ...d, sections }); }
   canMove(delta: -1 | 1): boolean {
     const t = this.sel(); const d = this.doc(); if (!t || !d) return false;
     if (t.kind === 'section') return O.neighbourIndex(d, t.secId!, delta, this.side()) >= 0;
@@ -556,7 +614,6 @@ export class VisualEditorComponent implements AfterViewInit, OnDestroy {
     else if (t.kind === 'item') this.commitDoc(O.moveItem(d, t.secId!, t.itemId!, delta));
     this.keepInView();
   }
-  moveSec(id: string, delta: -1 | 1) { const d = this.doc(); if (!d) return; this.commitDoc(O.moveSection(d, id, delta, new Set())); }
   toggleHide(id: string) { const d = this.doc(); if (!d) return; this.commitDoc(O.toggleSectionHidden(d, id)); if (this.sel()?.secId === id) this.sel.set(null); }
   sectionPageBreak() { const d = this.doc(); const id = this.sel()?.secId; return !!(id && d && O.findSection(d, id)?.pageBreakBefore); }
   togglePageBreak() { const d = this.doc(); const id = this.sel()?.secId; if (d && id) this.commitDoc(O.togglePageBreak(d, id)); }
@@ -707,7 +764,7 @@ export class VisualEditorComponent implements AfterViewInit, OnDestroy {
     const el = e.target as HTMLElement | null;
     const typing = !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
     const mod = e.ctrlKey || e.metaKey;
-    if (!this.model() || this.crop()) return;
+    if (!this.model() || this.crop() || this.rearrange()) return;
     if (mod && !typing && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? this.redo() : this.undo(); }
     else if (mod && !typing && e.key.toLowerCase() === 'y') { e.preventDefault(); this.redo(); }
     else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && !el?.isContentEditable && this.blockKind()) { e.preventDefault(); this.moveBlock(e.key === 'ArrowUp' ? -1 : 1); }

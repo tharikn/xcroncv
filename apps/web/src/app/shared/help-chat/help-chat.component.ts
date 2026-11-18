@@ -50,6 +50,20 @@ import { HelpChatStore } from '../../core/help-chat.api';
           </p>
         </div>
 
+        @if (chat.showActions()) {
+          <div class="hc-actions" data-testid="hc-actions">
+            <button type="button" class="hc-action" data-testid="hc-action-quality" [disabled]="chat.busy() || chat.cooldownLeft() > 0" (click)="run('quality')">
+              <span class="hc-action__dot" aria-hidden="true"></span> {{ 'chat.checkQuality' | t }}
+            </button>
+            <button type="button" class="hc-action" data-testid="hc-action-improve" [disabled]="chat.busy() || chat.cooldownLeft() > 0" (click)="run('improve')">
+              <span class="hc-action__dot" aria-hidden="true"></span> {{ 'chat.improveSentences' | t }}
+            </button>
+            <button type="button" class="hc-action" data-testid="hc-action-ats" [disabled]="chat.busy() || chat.cooldownLeft() > 0" (click)="run('ats')">
+              <span class="hc-action__dot" aria-hidden="true"></span> {{ 'chat.checkAts' | t }}
+            </button>
+          </div>
+        }
+
         <div class="hc-log" #log role="log" aria-live="polite">
           @for (msg of chat.messages(); track msg.id) {
             <div class="hc-row" [class.hc-row--user]="msg.role === 'user'">
@@ -215,6 +229,19 @@ import { HelpChatStore } from '../../core/help-chat.api';
       font-variant-numeric: tabular-nums;
     }
     .hc-wait { color: var(--c-warn); }
+
+    .hc-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0.55rem 0.95rem 0.2rem; border-bottom: 1px solid color-mix(in srgb, var(--c-border) 60%, transparent); }
+    .hc-action {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.4rem 0.7rem; border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--c-primary) 38%, var(--c-border));
+      background: color-mix(in srgb, var(--c-primary) 9%, var(--c-bg));
+      color: var(--c-text); font: inherit; font-size: 0.76rem; font-weight: 600; line-height: 1.25; cursor: pointer;
+      transition: background 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
+    }
+    .hc-action:hover:not(:disabled) { background: color-mix(in srgb, var(--c-primary) 16%, var(--c-bg)); border-color: color-mix(in srgb, var(--c-primary) 60%, var(--c-border)); transform: translateY(-1px); }
+    .hc-action:disabled { opacity: 0.55; cursor: not-allowed; }
+    .hc-action__dot { width: 0.4rem; height: 0.4rem; border-radius: 999px; background: var(--c-primary); }
 
     .hc-log {
       overflow: auto;
@@ -395,6 +422,14 @@ export class HelpChatComponent {
   send(event: Event): void {
     event.preventDefault();
     void this.chat.send();
+  }
+
+  /** Quick actions from the assistant panel (content check / sentence fixes / ATS corrections). */
+  run(action: 'quality' | 'improve' | 'ats'): void {
+    if (this.chat.busy() || this.chat.cooldownLeft() > 0) return;
+    if (action === 'quality') void this.chat.checkQuality();
+    else if (action === 'improve') void this.chat.improveResume();
+    else void this.chat.checkAts();
   }
 
   onKeydown(event: KeyboardEvent): void {

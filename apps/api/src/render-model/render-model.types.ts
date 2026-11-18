@@ -1,4 +1,5 @@
 import { SectionType, TemplateLayout, TemplateTheme } from '../templates/template.types';
+import type { LayoutPlan } from '../resume-layout/layout.types';
 import { DocImage, ElementStyle } from './resume-doc';
 
 export interface RenderItem {
@@ -20,6 +21,7 @@ export interface RenderSection {
   text?: string;          // summary only
   items?: RenderItem[];
   pageBreakBefore?: boolean;  // visual-editor documents only: force this section onto a new page
+  column?: 'main' | 'side'; // visual-editor placement override (defaults from sideSections types)
 }
 
 export interface RenderModel {
@@ -32,4 +34,9 @@ export interface RenderModel {
   header: { name: string; headline?: string; contacts: string[]; links: Array<{ label: string; url: string }>; photo?: DocImage };
   styles?: Record<string, ElementStyle>;   // per-element formatting from the visual editor
   sections: RenderSection[];
+  /**
+   * Resolved adaptive layout (Quick Build). When present the PDF/HTML renderers paint exactly this
+   * plan; when absent they fall back to the legacy flow renderer. Absent on every pre-existing resume.
+   */
+  layoutPlan?: LayoutPlan;
 }

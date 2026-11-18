@@ -2,7 +2,7 @@ import { CareerLevel, SectionType, TemplateStyle, TemplateTheme, TemplateVersion
 
 /**
  * Data-driven predefined catalogue (doc 19 section 2): one row per template, each family supplies defaults.
- * Generates the 57 packages that follow the 3 hand-written seed packages in template.catalog.ts.
+ * Generates the templates that follow the 3 hand-written seed packages in template.catalog.ts.
  * Published versions are immutable - to change a template's look, ship `version: 2`, never edit a row's v1 output.
  */
 const ORDER_STD: SectionType[] = ['summary', 'experience', 'skills', 'education', 'projects', 'certifications', 'languages'];
@@ -16,17 +16,17 @@ const ORDER_EXEC: SectionType[] = ['summary', 'experience', 'education', 'certif
 const ORDER_INTL: SectionType[] = ['summary', 'experience', 'education', 'languages', 'skills', 'certifications', 'projects'];
 const SIDE: SectionType[] = ['skills', 'languages', 'certifications'];
 
-interface Spec {
+export interface Spec {
   fontFamily: TemplateTheme['fontFamily']; baseSizePt: number; accent: string; upper: boolean; center: boolean; right: boolean; rule: boolean;
   density: 'compact' | 'normal' | 'relaxed'; band: boolean;
   layout: 'single-column' | 'two-column' | 'timeline'; ats: 'ATS_FIRST' | 'BALANCED' | 'VISUAL';
   hs: NonNullable<TemplateTheme['headingStyle']>; nameScale: number;
   order: SectionType[]; side?: SectionType[]; levels: CareerLevel[]; style: TemplateStyle; tags: string[];
 }
-type Row = [id: string, name: string, description: string, over?: Partial<Spec>];
-interface Family { category: string; base: Spec; rows: Row[] }
+export type Row = [id: string, name: string, description: string, over?: Partial<Spec>];
+export interface Family { category: string; base: Spec; rows: Row[] }
 
-const LV: Record<'early' | 'all' | 'mid' | 'exec', CareerLevel[]> = {
+export const LV: Record<'early' | 'all' | 'mid' | 'exec', CareerLevel[]> = {
   early: ['student', 'entry'], all: ['entry', 'mid', 'senior'], mid: ['mid', 'senior'], exec: ['senior', 'executive'],
 };
 const spec = (o: Partial<Spec>): Spec => ({
@@ -157,11 +157,11 @@ export const STYLE_FAMILIES: Family[] = [
     ['minimal-clay-serif', 'Clay Serif', 'Clay-brown serif, centered, with a short rule and open spacing.', { fontFamily: 'Times-Roman', accent: '#7c2d12', center: true, hs: 'short', nameScale: 2.2 }],
     ['minimal-graphite-mono', 'Graphite Mono', 'Graphite monospaced single column for engineers who like it plain.', { fontFamily: 'Courier', baseSizePt: 9.5, accent: '#1f2937', nameScale: 1.8, density: 'normal', order: ORDER_TECH }],
     // Additional customization options for better visual variety
-    ['minimal-linen', 'Linen Texture', 'Subtle linen texture effect with calm accent and relaxed scaling.', { accent: '#636e72', nameScale: 2.0, hs: 'bar' }],
+    ['minimal-linen', 'Linen Texture', 'Subtle linen texture effect with calm accent and relaxed scaling.', { accent: '#636e72', nameScale: 2.1, hs: 'bar' }],
     ['minimal-slate-center', 'Slate Centered', 'Centered slate header with balanced scaling for entry-level profiles.', { accent: '#2d3748', center: true, nameScale: 1.9 }],
     // New: expanded minimal options with varied heading styles
     ['minimal-clean', 'Clean Minimal', 'Ultra-clean layout with minimal ornament and generous spacing.', { accent: '#636e72', hs: 'plain', nameScale: 2.1 }],
-    ['minimal-soft', 'Soft Minimal', 'Gentle rounded corners and soft accent for a friendly feel.', { accent: '#718096', hs: 'tint', nameScale: 2.3 }],
+    ['minimal-soft', 'Soft Minimal', 'Gentle rounded corners and soft accent for a friendly feel.', { accent: '#4a5568', hs: 'tint', nameScale: 2.3 }],
   ] },
   { category: 'Structured & sidebar', base: spec({ ats: 'BALANCED', style: 'modern', upper: false, rule: false, hs: 'bar', layout: 'two-column', side: SIDE, tags: ['structured', 'sidebar'] }), rows: [
     ['struct-cobalt-sidebar', 'Cobalt Sidebar', 'Cobalt bars and a side rail for skills, languages and certifications.', { accent: '#1d4ed8', nameScale: 2.2 }],
@@ -177,7 +177,7 @@ export const STYLE_FAMILIES: Family[] = [
   ] },
 ];
 
-export const GENERATED_TEMPLATES: TemplateVersionPackage[] = [...FAMILIES, ...STYLE_FAMILIES].flatMap((f) => f.rows.map(([id, name, description, over]) => {
+export const buildTemplates = (families: Family[]): TemplateVersionPackage[] => families.flatMap((f) => f.rows.map(([id, name, description, over]) => {
   const s: Spec = { ...f.base, ...over };
   const pkg: TemplateVersionPackage = {
     id, slug: id, name, category: f.category, description,
@@ -195,3 +195,5 @@ export const GENERATED_TEMPLATES: TemplateVersionPackage[] = [...FAMILIES, ...ST
   if (s.layout === 'two-column') pkg.sideSections = s.side ?? SIDE;
   return pkg;
 }));
+
+export const GENERATED_TEMPLATES: TemplateVersionPackage[] = buildTemplates([...FAMILIES, ...STYLE_FAMILIES]);

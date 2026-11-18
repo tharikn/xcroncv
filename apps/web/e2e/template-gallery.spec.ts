@@ -2,7 +2,7 @@ import { expect, Page, test } from '@playwright/test';
 import { TEMPLATE_CATALOG } from '../../api/src/templates/template.catalog';
 import { RESUME_ID, setup } from './support/setup';
 
-// Serve the real 100-template catalogue (same manifests the API lists) to the gallery.
+// Serve the real 314-template catalogue (same manifests the API lists) to the gallery.
 const LATEST = TEMPLATE_CATALOG.map((t) => ({
   id: t.id, slug: t.slug, name: t.name, category: t.category, description: t.description, tags: t.tags, version: t.version,
   atsProfile: t.atsProfile, pageSizes: t.pageSizes, layout: t.layout, theme: t.theme,
@@ -31,12 +31,12 @@ async function gallery(page: Page, url = '/templates') {
 }
 const cards = (page: Page) => page.getByTestId('template-grid').locator('article');
 
-test.describe('Template gallery (100 templates)', () => {
-  test('shows all 100 templates, each with a thumbnail, ATS label and use action', async ({ page }) => {
+test.describe('Template gallery (314 templates)', () => {
+  test('shows all 314 templates, each with a thumbnail, ATS label and use action', async ({ page }) => {
     await gallery(page);
-    await expect(cards(page)).toHaveCount(100);
-    await expect(page.getByTestId('template-count')).toHaveText('100 of 100 templates');
-    await expect(page.locator('app-template-live-card [role="img"]')).toHaveCount(100);
+    await expect(cards(page)).toHaveCount(314);
+    await expect(page.getByTestId('template-count')).toHaveText('314 of 314 templates');
+    await expect(page.locator('app-template-live-card [role="img"]')).toHaveCount(314);
     for (const t of LATEST) await expect(page.getByTestId(`ats-${t.id}`)).toHaveCount(1);
     await expect(page.getByTestId('use-exec-concise')).toBeVisible();
   });
@@ -48,7 +48,7 @@ test.describe('Template gallery (100 templates)', () => {
     await page.getByRole('button', { name: 'Leadership / executive' }).click();
     await expect(cards(page)).toHaveCount(5);
     await page.getByTestId('cat-all').click();
-    await expect(cards(page)).toHaveCount(100);
+    await expect(cards(page)).toHaveCount(314);
   });
 
   test('filters by ATS profile, layout, career level, style and page format; filters combine', async ({ page }) => {
@@ -77,7 +77,7 @@ test.describe('Template gallery (100 templates)', () => {
     await page.getByTestId('filter-ats').selectOption('ATS_FIRST');
     await expect(page.getByTestId('templates-empty')).toBeVisible();
     await page.getByRole('button', { name: 'Clear filters' }).click();
-    await expect(cards(page)).toHaveCount(100);
+    await expect(cards(page)).toHaveCount(314);
   });
 
   test('searches by name, tag and description', async ({ page }) => {

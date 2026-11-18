@@ -1,9 +1,9 @@
 import { BadRequestException, ForbiddenException, HttpException, HttpStatus, Inject, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { AuthUser } from '../common/auth/auth.types';
 import { PrismaService } from '../prisma/prisma.service';
-import { AI_PROVIDER, AI_TASKS, AiRequest, TextGenerationProvider } from './ai.types';
+import { AI_PROVIDER, AI_TASKS, AiRequest, AiStructuredOutput, ProviderInfo, TextGenerationProvider, AiTask } from './ai.types';
 import { estimateTokens, looksLikeInjection, MAX_INPUT_CHARS, parseOutput, redact, unsupportedNumbers } from './ai-policy';
-import { CreateSuggestionDto, DecideSuggestionDto } from './dto/ai.dto';
+import { AiContextDto, CreateSuggestionDto, DecideSuggestionDto } from './dto/ai.dto';
 import { HELP_CHAT_FEATURE } from './help/help-chat.types';
 
 const DAY = 86_400_000;
@@ -59,21 +59,44 @@ export class AiService {
   }
 
   async suggest(u: AuthUser, dto: CreateSuggestionDto, now = new Date()) {
+    const { output, redacted, injectionFlagged, source } = await this.runTask(u, dto.task, dto.text, dto.context, now);
+    const row = await this.prisma.aiSuggestion.create({
+      data: {
+        ...this.who(u), feature: dto.task, provider: this.provider.info.id, promptVersion: this.provider.info.promptVersion,
+        inputPreview: redact(dto.text ?? '').text.slice(0, 160), output: output as never,
+        provenance: { redacted, injectionFlagged, unsupportedNumbers: [], sourceFields: ['text', ...(dto.context?.skills?.length ? ['skills'] : []), ...(dto.context?.title ? ['title'] : [])] } as never,
+      },
+    });
+    return this.view(row);
+  }
+
+  /**
+   * Assistant wording fix (help chat / sentence improvement): runs the same policy gateway and returns the
+   * suggestion text without persisting it, so chat replies can quote wording fixes without chat text storage.
+   * The user still reviews and applies any change through the normal suggestion flow.
+   */
+  async polish(u: AuthUser, task: AiTask, text: string, context: AiContextDto | undefined, now = new Date()) {
+    const { output } = await this.runTask(u, task, text, context, now);
+    return { text: output.text, notes: output.notes, questions: output.questions };
+  }
+
+  /** Policy gateway body: consent -> availability -> validation -> redaction -> quota -> timeout -> output validation -> invention check. */
+  private async runTask(u: AuthUser, task: AiTask, text: string, context: AiContextDto | undefined, now = new Date): Promise<{ output: AiStructuredOutput; redacted: boolean; injectionFlagged: boolean; source: string }> {
     const setting = await this.prisma.aiSetting.findFirst({ where: this.who(u) });
     if (!setting?.enabled) throw new ForbiddenException('AI assistance is off. Turn it on to request suggestions; the manual tools keep working either way.');
     if (!this.provider.info.available) {
-      await this.record(u, dto.task, 'UNAVAILABLE', [0, 0], 0);
+      await this.record(u, task, 'UNAVAILABLE', [0, 0], 0);
       throw new ServiceUnavailableException('No AI provider is available right now. Your text is unchanged; continue manually.');
     }
-    const text = (dto.text ?? '').trim();
-    if (!text && dto.task !== 'SUMMARY_DRAFT') throw new BadRequestException('Enter some text first');
-    if (text.length > MAX_INPUT_CHARS) throw new BadRequestException(`Text is limited to ${MAX_INPUT_CHARS} characters`);
+    const clean = (text ?? '').trim();
+    if (!clean && task !== 'SUMMARY_DRAFT') throw new BadRequestException('Enter some text first');
+    if (clean.length > MAX_INPUT_CHARS) throw new BadRequestException(`Text is limited to ${MAX_INPUT_CHARS} characters`);
     if ((await this.used(u, now)) >= dailyLimit()) throw new HttpException('Daily AI limit reached. Try again later or continue manually.', HttpStatus.TOO_MANY_REQUESTS);
 
-    const red = redact(text);
-    const ctx = dto.context ?? {};
-    const req: AiRequest = { task: dto.task, text: red.text, context: { title: ctx.title, years: ctx.years, skills: ctx.skills } };
-    const injectionFlagged = looksLikeInjection(text);
+    const red = redact(clean);
+    const ctx = context ?? {};
+    const req: AiRequest = { task, text: red.text, context: { title: ctx.title, years: ctx.years, skills: ctx.skills } };
+    const injectionFlagged = looksLikeInjection(clean);
     const started = Date.now();
     const inTokens = estimateTokens(red.text + JSON.stringify(req.context));
 
@@ -86,7 +109,7 @@ export class AiService {
       ]);
     } catch (e) {
       const timeout = (e as Error).message === 'TIMEOUT';
-      await this.record(u, dto.task, timeout ? 'TIMEOUT' : 'ERROR', [inTokens, 0], Date.now() - started);
+      await this.record(u, task, timeout ? 'TIMEOUT' : 'ERROR', [inTokens, 0], Date.now() - started);
       throw new ServiceUnavailableException(timeout
         ? 'The AI provider took too long. Your text is unchanged; continue manually.'
         : 'The AI provider failed. Your text is unchanged; continue manually.');
@@ -95,23 +118,16 @@ export class AiService {
     const out = parseOutput(raw);
     const outTokens = estimateTokens(JSON.stringify(raw ?? ''));
     if (!out) {
-      await this.record(u, dto.task, 'INVALID_OUTPUT', [inTokens, outTokens], Date.now() - started);
+      await this.record(u, task, 'INVALID_OUTPUT', [inTokens, outTokens], Date.now() - started);
       throw new HttpException('The assistant returned something unusable, so it was discarded. Please try again or edit manually.', HttpStatus.BAD_GATEWAY);
     }
     const source = `${red.text} ${ctx.years ?? ''} ${(ctx.skills ?? []).join(' ')} ${ctx.title ?? ''}`;
     if (unsupportedNumbers(out, source).length) {
-      await this.record(u, dto.task, 'INVALID_OUTPUT', [inTokens, outTokens], Date.now() - started);
+      await this.record(u, task, 'INVALID_OUTPUT', [inTokens, outTokens], Date.now() - started);
       throw new HttpException('The suggestion contained numbers that were not in your input, so it was discarded.', HttpStatus.BAD_GATEWAY);
     }
-    await this.record(u, dto.task, 'OK', [inTokens, outTokens], Date.now() - started);
-    const row = await this.prisma.aiSuggestion.create({
-      data: {
-        ...this.who(u), feature: dto.task, provider: this.provider.info.id, promptVersion: this.provider.info.promptVersion,
-        inputPreview: red.text.slice(0, 160), output: out as never,
-        provenance: { redacted: red.redacted, injectionFlagged, unsupportedNumbers: [], sourceFields: ['text', ...(ctx.skills?.length ? ['skills'] : []), ...(ctx.title ? ['title'] : [])] } as never,
-      },
-    });
-    return this.view(row);
+    await this.record(u, task, 'OK', [inTokens, outTokens], Date.now() - started);
+    return { output: out, redacted: red.redacted, injectionFlagged, source };
   }
 
   private view(r: { id: string; feature: string; provider: string; status: string; inputPreview: string; output: unknown; provenance: unknown; createdAt: Date; decidedAt: Date | null }) {

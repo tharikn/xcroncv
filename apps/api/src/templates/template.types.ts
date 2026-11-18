@@ -11,7 +11,7 @@ export interface TemplateTheme {
   headingTransform: 'upper' | 'none';
   headerAlign: 'left' | 'center' | 'right';
   sectionRule: boolean;
-  /** Optional design tokens (added with the 60-template catalogue; absent on the first 3 = defaults). */
+  /** Optional design tokens (added with the style-studio catalogue; absent on the first 3 = defaults). */
   density?: 'compact' | 'normal' | 'relaxed';
   headerBand?: boolean;      // accent-filled header band with white text
   /** Section-heading treatment (100-template catalogue; absent = 'plain', i.e. text + optional rule). */
@@ -42,4 +42,25 @@ export interface TemplateVersionPackage {
   careerLevels?: CareerLevel[];
   style?: TemplateStyle;
   theme: TemplateTheme;
+  /**
+   * Optional placement rules for the adaptive layout engine. Absent = layout defaults
+   * (see resume-layout/section-policy.ts). Declaring them never changes a published version:
+   * add a new version instead.
+   */
+  sectionPolicies?: Partial<Record<SectionType, Partial<SectionPolicyOverride>>>;
+}
+
+/** Declarative subset a template may set; the engine fills the rest from layout defaults. */
+export interface SectionPolicyOverride {
+  preferred: 'main' | 'side' | 'either';
+  weight: number;
+  canMove: boolean;
+  canReorder: boolean;
+  canCompress: boolean;
+  canInline: boolean;
+  canShorten: boolean;
+  canSplit: boolean;
+  canDrop: boolean;
+  minItems: number;
+  keepWithNext: boolean;
 }

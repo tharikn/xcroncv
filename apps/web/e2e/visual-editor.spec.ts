@@ -106,19 +106,24 @@ test.describe('Visual editor', () => {
     await expect(h2).not.toHaveCSS('text-align', 'center');
   });
 
-  test('reorder sections and items with the arrow buttons and Alt+Arrow; saved order matches', async ({ page }) => {
+  test('reorder sections in the layout popup; saved order matches', async ({ page }) => {
     const state = await setup(page, { resume: true });
     await page.goto(URL_);
     await expect(page.getByTestId('ve-section')).toHaveCount(4);
     expect(await order(page)).toEqual(['summary', 'experience', 'skills', 'education']);
     await sec(page, 'experience').locator('h2').click({ position: { x: 4, y: 4 } });
-    await expect(page.getByTestId('ve-up')).toBeEnabled();
-    await page.getByTestId('ve-up').click();
+    await page.getByTestId('ve-rearrange-block').click();
+    await expect(page.getByTestId('ve-rearrange')).toBeVisible();
+    await expect(page.getByTestId('ve-tile-summary').locator('.rr-n')).toHaveText('1');
+    await expect(page.getByTestId('ve-tile-experience').locator('.rr-n')).toHaveText('2');
+    await page.getByTestId('ve-tile-experience').focus();
+    await page.keyboard.press('ArrowUp');
     expect(await order(page)).toEqual(['experience', 'summary', 'skills', 'education']);
-    await expect(page.getByTestId('ve-up')).toBeDisabled();
-    await page.getByTestId('ve-down').click();
-    await page.getByTestId('ve-down').click();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
     expect(await order(page)).toEqual(['summary', 'skills', 'experience', 'education']);
+    await page.getByTestId('ve-rearrange-close').click();
+    await expect(page.getByTestId('ve-rearrange')).toBeHidden();
     await page.getByTestId('ve-undo').click();
     expect(await order(page)).toEqual(['summary', 'experience', 'skills', 'education']);
     await page.getByTestId('ve-redo').click();
@@ -287,11 +292,17 @@ test.describe('Visual editor', () => {
     await page.keyboard.type('X'); await page.keyboard.press('Enter');
     // every tool control is at least a comfortable touch target
     await sec(page, 'experience').locator('h2').tap({ position: { x: 4, y: 4 } });
-    for (const id of ['ve-up', 've-down', 've-duplicate', 've-delete']) {
+    for (const id of ['ve-rearrange-block', 've-duplicate', 've-delete']) {
       const b = (await page.getByTestId(id).boundingBox())!;
       expect(b.width).toBeGreaterThanOrEqual(40); expect(b.height).toBeGreaterThanOrEqual(40);
     }
-    await page.getByTestId('ve-up').tap();
+    await page.getByTestId('ve-rearrange-block').tap();
+    await expect(page.getByTestId('ve-rearrange')).toBeVisible();
+    const tile = page.getByTestId('ve-tile-experience');
+    const tileBox = (await tile.boundingBox())!;
+    expect(tileBox.height).toBeGreaterThanOrEqual(40);
+    await tile.focus();
+    await page.keyboard.press('ArrowUp');
     expect((await order(page))[0]).toBe('experience');
     void isMobile;
   });

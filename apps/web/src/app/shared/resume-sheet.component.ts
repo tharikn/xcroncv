@@ -1,7 +1,7 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { AfterViewChecked, Component, ElementRef, EventEmitter, Input, NgZone, OnDestroy, Output, ViewChild, inject, signal } from '@angular/core';
 import { RenderModel } from '../core/models';
-import { PAGE_PX } from '../core/preview-layout';
+import { PAGE_PX, planAutoBreaks, type BreakCandidate } from '../core/preview-layout';
 
 /** Gap (px) shown between page cards in the preview — purely visual, not part of the printed output. */
 const PAGE_GAP_PX = 24;
@@ -55,9 +55,7 @@ const FONT: Record<string, string> = {
                  [attr.data-layout]="m.layout" [attr.data-template]="m.template.id">
               <ng-container *ngTemplateOutlet="body; context: { $implicit: m }"></ng-container>
             </div>
-            @if (pg > 0) {
-              <span class="sheet--page-label">Page {{ pg + 1 }}</span>
-            }
+            <span class="sheet--page-label">Page {{ pg + 1 }} / {{ pages }}</span>
           </div>
         }
       </div>
@@ -116,16 +114,16 @@ const FONT: Record<string, string> = {
           <div class="cols" data-testid="doc-columns" style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:18pt">
             <div data-col="main" data-testid="doc-main">
               @for (s of m.sections; track s.type) {
-                @if (!m.sideSections.includes(s.type)) {
-                  @if (s.pageBreakBefore) { <div class="page-break-spacer" data-pb></div> }
+                @if (!isSide(s)) {
+                  @if (s.pageBreakBefore || autoBefore(s.id)) { <div class="page-break-spacer" data-pb></div> }
                   <ng-container *ngTemplateOutlet="sec; context: { $implicit: s, theme: m.theme, timeline: false }"></ng-container>
                 }
               }
             </div>
             <aside data-col="side" data-testid="doc-side">
               @for (s of m.sections; track s.type) {
-                @if (m.sideSections.includes(s.type)) {
-                  @if (s.pageBreakBefore) { <div class="page-break-spacer" data-pb></div> }
+                @if (isSide(s)) {
+                  @if (s.pageBreakBefore || autoBefore(s.id)) { <div class="page-break-spacer" data-pb></div> }
                   <ng-container *ngTemplateOutlet="sec; context: { $implicit: s, theme: m.theme, timeline: false }"></ng-container>
                 }
               }
@@ -134,7 +132,7 @@ const FONT: Record<string, string> = {
         } @else {
           <div data-col="main">
           @for (s of m.sections; track s.type) {
-            @if (s.pageBreakBefore) { <div class="page-break-spacer" data-pb></div> }
+            @if (s.pageBreakBefore || autoBefore(s.id)) { <div class="page-break-spacer" data-pb></div> }
             <ng-container *ngTemplateOutlet="sec; context: { $implicit: s, theme: m.theme, timeline: m.layout === 'timeline' }"></ng-container>
           }
           </div>
@@ -157,6 +155,9 @@ export class ResumeSheetComponent implements AfterViewChecked, OnDestroy {
   private hostW = signal(0);
   contentH = signal(0);
 
+  /** Sections that must start on a new page: user-forced (`pageBreakBefore`) + auto-planned for overflow. */
+  autoBreaks = signal<Set<string>>(new Set<string>());
+
   effScale() {
     if (!this.fitWidth) return this.scale;
     return this.hostW() > 0 ? this.hostW() / this.pageW() : 0.3;
@@ -168,6 +169,9 @@ export class ResumeSheetComponent implements AfterViewChecked, OnDestroy {
 
   /** Array of page indices [0, 1, … pages-1] for the page-card loop. */
   pageRange() { return Array.from({ length: Math.max(1, this.pages) }, (_, i) => i); }
+
+  /** Two-column placement: explicit per-section override wins, otherwise the template's type list applies. */
+  isSide(s: { type: string; column?: 'main' | 'side' }) { return s.column ? s.column === 'side' : (this.model?.sideSections ?? []).includes(s.type); }
 
   /** Total width of the scaled page stack. */
   stackW() { return this.pageW() * this.effScale(); }
@@ -195,6 +199,7 @@ export class ResumeSheetComponent implements AfterViewChecked, OnDestroy {
       });
     }
     this.applyPageBreakSpacers();
+    this.applyAutoBreaks();
     const el = this.sheet?.nativeElement;
     if (!el) return;
     const h = el.scrollHeight;
@@ -221,6 +226,34 @@ export class ResumeSheetComponent implements AfterViewChecked, OnDestroy {
         }
       }
     }
+  }
+
+  /** A section starts a new page when it does not fit into the remaining page content area (auto pagination). */
+  autoBefore(id?: string): boolean { return !!id && this.autoBreaks().has(id); }
+
+  /** Auto page-break planning: a section whose box crosses the printable content-area bottom moves to the next page. */
+  private applyAutoBreaks() {
+    const m = this.model;
+    const pageH = this.pageH();
+    const topPad = m ? m.page.marginPt * 4 / 3 : 72; // 1pt = 4/3px; sheet padding is authored in pt
+    const breaks = new Set<string>();
+    if (m) {
+      for (const sheet of Array.from((this.host.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.sheet'))) {
+        for (const col of Array.from(sheet.querySelectorAll<HTMLElement>('[data-col]'))) {
+          const colTop = col.offsetTop;
+          const cands: BreakCandidate[] = [];
+          for (const sec of Array.from(col.querySelectorAll<HTMLElement>('[data-sec]'))) {
+            const id = sec.dataset['sec'];
+            if (!id) continue;
+            cands.push({ id, top: sec.offsetTop - colTop, height: sec.offsetHeight });
+          }
+          for (const id of planAutoBreaks(cands, pageH, topPad)) breaks.add(id);
+        }
+      }
+    }
+    const cur = this.autoBreaks();
+    const same = cur.size === breaks.size && [...cur].every((k) => breaks.has(k));
+    if (!same) this.autoBreaks.set(breaks);
   }
 
   ngOnDestroy() { this.ro?.disconnect(); }

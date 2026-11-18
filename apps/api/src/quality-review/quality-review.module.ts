@@ -8,5 +8,6 @@ import { QualityReviewService } from './quality-review.service';
   imports: [ResumesModule, ResumeSourceModule],
   controllers: [ResumeQualityController, QualityReviewsController],
   providers: [QualityReviewService],
+  exports: [QualityReviewService],
 })
 export class QualityReviewModule {}

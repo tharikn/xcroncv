@@ -1,3 +1,4 @@
+import { EXPANSION_TEMPLATES } from './template.expansion';
 import { GENERATED_TEMPLATES } from './template.families';
 import { CareerLevel, TemplateStyle, TemplateVersionPackage } from './template.types';
 
@@ -5,7 +6,7 @@ const ORDER_STD = ['summary', 'experience', 'skills', 'education', 'projects', '
 const ORDER_TECH = ['summary', 'skills', 'experience', 'projects', 'education', 'certifications', 'languages'] as const;
 const ORDER_GRAD = ['summary', 'education', 'projects', 'skills', 'experience', 'certifications', 'languages'] as const;
 
-/** The 3 hand-written seed packages (v1, immutable). The other 97 are generated in template.families.ts. */
+/** The 3 hand-written seed packages (v1, immutable). The rest are generated in template.families.ts (101) and template.expansion.ts (210). */
 const SEED_TEMPLATES: TemplateVersionPackage[] = [
   {
     id: 'ats-classic', slug: 'ats-classic', name: 'Classic Chronological', category: 'ATS classic',
@@ -40,4 +41,4 @@ export const SEED_META: Record<string, { careerLevels: CareerLevel[]; style: Tem
   'graduate-clean': { careerLevels: ['student', 'entry'], style: 'minimal' },
 };
 
-export const TEMPLATE_CATALOG: TemplateVersionPackage[] = [...SEED_TEMPLATES, ...GENERATED_TEMPLATES];
+export const TEMPLATE_CATALOG: TemplateVersionPackage[] = [...SEED_TEMPLATES, ...GENERATED_TEMPLATES, ...EXPANSION_TEMPLATES];

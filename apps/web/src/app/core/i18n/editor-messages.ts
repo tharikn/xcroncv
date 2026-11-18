@@ -20,6 +20,7 @@ export const VE_EN = {
   've.type.summary': 'Summary', 've.type.experience': 'Experience', 've.type.skills': 'Skills', 've.type.education': 'Education',
   've.type.projects': 'Projects', 've.type.certifications': 'Certifications', 've.type.languages': 'Languages', 've.type.custom': 'Custom section',
   've.tools': 'Formatting and block tools', 've.deselect': 'Close tools', 've.block': 'Block',
+  've.rearrange': 'Rearrange sections', 've.rearrangeMain': 'Main column', 've.rearrangeSide': 'Side column', 've.rearrangeHeader': 'Header',
   've.block.up': 'Move up', 've.block.down': 'Move down', 've.block.duplicate': 'Duplicate', 've.block.delete': 'Delete',
   've.block.hide': 'Hide section', 've.block.show': 'Show section', 've.block.drag': 'Drag to reorder (or use the arrows)',
   've.block.pageBreak': 'Start this section on a new page',
@@ -38,6 +39,7 @@ export const VE_EN = {
   've.crop.hint': 'Drag to move, pinch or use the slider to zoom. Only the cropped result is saved.',
   've.crop.boxLabel': 'Crop area: drag to move, arrow keys nudge, plus and minus zoom', 've.crop.zoom': 'Zoom',
   've.crop.apply': 'Use image', 've.crop.failed': 'The image could not be processed. Try a smaller one.',
+  've.aiFix': 'Improve selected text', 've.aiFixEmpty': 'Select some text first.',
   've.hint.select': 'Tap the selected text again, or press Enter, to edit it.', 've.hint.editing': 'Editing. Press Enter to finish, Esc to cancel.',
   've.ph.name': 'Your name', 've.ph.headline': 'Headline', 've.ph.contacts': 'Email · phone · city', 've.ph.sectionTitle': 'Section title',
   've.ph.text': 'Write something', 've.ph.itemTitle': 'Title', 've.ph.meta': 'Dates', 've.ph.subtitle': 'Subtitle',
@@ -53,6 +55,7 @@ export const VE_EN = {
 } as const;
 
 export const VE_TA: Record<keyof typeof VE_EN, string> = {
+  've.aiFix': 'தேர்ந்தெடுக்கப்பட்ட உரையை மேம்படுத்து', 've.aiFixEmpty': 'முதலில் சில உரையைத் தேர்ந்தெடுக்கவும்.',
   've.title': 'காட்சி எடிட்டர்', 've.pageActions': 'எடிட்டர் செயல்கள்', 've.back': 'ரெஸ்யூமிற்குத் திரும்பு', 've.preview': 'முன்னோட்டம்',
   've.bar': 'எடிட்டர் கருவிகள்', 've.undo': 'செயல்தவிர்', 've.redo': 'மீண்டும் செய்', 've.zoomOut': 'சிறிதாக்கு', 've.zoomIn': 'பெரிதாக்கு',
   've.fitWidth': 'அகலத்திற்குப் பொருத்து', 've.fitPage': 'பக்கத்திற்குப் பொருத்து', 've.outline': 'பிரிவுகள்', 've.sections': 'பிரிவுகள்',
@@ -73,6 +76,7 @@ export const VE_TA: Record<keyof typeof VE_EN, string> = {
   've.type.summary': 'சுருக்கம்', 've.type.experience': 'அனுபவம்', 've.type.skills': 'திறன்கள்', 've.type.education': 'கல்வி',
   've.type.projects': 'திட்டங்கள்', 've.type.certifications': 'சான்றிதழ்கள்', 've.type.languages': 'மொழிகள்', 've.type.custom': 'தனிப்பயன் பிரிவு',
   've.tools': 'வடிவமைப்பு மற்றும் தொகுதி கருவிகள்', 've.deselect': 'கருவிகளை மூடு', 've.block': 'தொகுதி',
+  've.rearrange': 'பிரிவுகளை மறுவரிசைப்படுத்து', 've.rearrangeMain': 'முதன்மை நெடுவரிசை', 've.rearrangeSide': 'பக்க நெடுவரிசை', 've.rearrangeHeader': 'தலைப்பகுதி',
   've.block.up': 'மேலே நகர்த்து', 've.block.down': 'கீழே நகர்த்து', 've.block.duplicate': 'நகலெடு', 've.block.delete': 'நீக்கு',
   've.block.hide': 'பிரிவை மறை', 've.block.show': 'பிரிவைக் காட்டு', 've.block.drag': 'மறுவரிசைப்படுத்த இழுக்கவும் (அல்லது அம்புகளைப் பயன்படுத்தவும்)',
   've.block.pageBreak': 'இந்தப் பிரிவைப் புதிய பக்கத்தில் தொடங்கு',
@@ -106,6 +110,7 @@ export const VE_TA: Record<keyof typeof VE_EN, string> = {
 };
 
 export const VE_HI: Record<keyof typeof VE_EN, string> = {
+  've.aiFix': 'चयनित टेक्स्ट बेहतर बनाएं', 've.aiFixEmpty': 'पहले कुछ टेक्स्ट चुनें।',
   've.title': 'विज़ुअल एडिटर', 've.pageActions': 'एडिटर क्रियाएँ', 've.back': 'रेज़्यूमे पर वापस', 've.preview': 'पूर्वावलोकन',
   've.bar': 'एडिटर टूल', 've.undo': 'पूर्ववत करें', 've.redo': 'फिर से करें', 've.zoomOut': 'ज़ूम आउट', 've.zoomIn': 'ज़ूम इन',
   've.fitWidth': 'चौड़ाई के अनुसार', 've.fitPage': 'पूरा पृष्ठ', 've.outline': 'अनुभाग', 've.sections': 'अनुभाग',
@@ -126,6 +131,7 @@ export const VE_HI: Record<keyof typeof VE_EN, string> = {
   've.type.summary': 'सारांश', 've.type.experience': 'अनुभव', 've.type.skills': 'कौशल', 've.type.education': 'शिक्षा',
   've.type.projects': 'प्रोजेक्ट', 've.type.certifications': 'प्रमाणपत्र', 've.type.languages': 'भाषाएँ', 've.type.custom': 'कस्टम अनुभाग',
   've.tools': 'फ़ॉर्मेटिंग और ब्लॉक टूल', 've.deselect': 'टूल बंद करें', 've.block': 'ब्लॉक',
+  've.rearrange': 'अनुभागों का क्रम बदलें', 've.rearrangeMain': 'मुख्य कॉलम', 've.rearrangeSide': 'साइड कॉलम', 've.rearrangeHeader': 'हेडर',
   've.block.up': 'ऊपर ले जाएँ', 've.block.down': 'नीचे ले जाएँ', 've.block.duplicate': 'डुप्लिकेट', 've.block.delete': 'हटाएँ',
   've.block.hide': 'अनुभाग छिपाएँ', 've.block.show': 'अनुभाग दिखाएँ', 've.block.drag': 'क्रम बदलने के लिए खींचें (या तीर का उपयोग करें)',
   've.block.pageBreak': 'इस अनुभाग को नए पृष्ठ पर शुरू करें',

@@ -6,6 +6,8 @@ import {
 
 const YM = /^\d{4}-(0[1-9]|1[0-2])$/;
 const ymMsg = { message: 'must be YYYY-MM' };
+const PHONE = /^[+\d\s().-]{7,40}$/;
+const phoneMsg = { message: 'must be a valid phone number' };
 
 export class LinkDto {
   @IsString() @MaxLength(60) label: string;
@@ -70,7 +72,7 @@ export class LanguageDto {
 export class UpsertProfileDto {
   @IsString() @MaxLength(150) fullName: string;
   @IsOptional() @IsEmail() email?: string;
-  @IsOptional() @IsString() @MaxLength(40) phone?: string;
+  @IsOptional() @IsString() @MaxLength(40) @Matches(PHONE, phoneMsg) phone?: string;
   @IsOptional() @IsString() @MaxLength(120) location?: string;
   @IsOptional() @IsArray() @ArrayMaxSize(10) @ValidateNested({ each: true }) @Type(() => LinkDto)
   links?: LinkDto[];
