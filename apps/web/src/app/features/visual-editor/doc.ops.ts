@@ -1,6 +1,6 @@
 import { RenderModel, SectionConfig } from '../../core/models';
 import {
-  DOC_FONTS, DOC_LIMITS, DocImage, DocItem, DocSection, DocSectionType, ElementStyle, ResumeDoc, SIZE_RANGE, SPACE_RANGE,
+  DOC_LIMITS, DocImage, DocItem, DocSection, DocSectionType, ElementStyle, ResumeDoc, SIZE_RANGE, SPACE_RANGE,
 } from '../../core/resume-doc';
 
 /** Pure, immutable operations on the visual-editor document. The component only calls these; they are unit tested. */
@@ -284,31 +284,12 @@ function copyStyles(styles: Record<string, ElementStyle>, src: DocSection, copy:
   return out;
 }
 
-/* ---------- style -> CSS (preview). Mirrors the HTML/PDF renderers' resolution of tokens ---------- */
-export function resolveColor(c: string | undefined, accent: string): string | undefined {
-  if (!c) return undefined;
-  if (c === 'accent') return accent;
-  if (c === 'ink') return '#111111';
-  if (c === 'muted') return '#555555';
-  return /^#[0-9a-fA-F]{6}$/.test(c) ? c : undefined;
-}
-export function cssFor(st: ElementStyle | undefined, accent: string): Record<string, string | null> {
-  if (!st) return {};
-  const font = st.font ? DOC_FONTS.find((f) => f.id === st.font)?.css : undefined;
-  return {
-    'font-family': font ?? null,
-    'font-size': st.sizePt !== undefined ? `${st.sizePt}pt` : null,
-    'font-weight': st.bold === undefined ? null : st.bold ? '700' : '400',
-    'font-style': st.italic === undefined ? null : st.italic ? 'italic' : 'normal',
-    color: resolveColor(st.color, accent) ?? null,
-    'text-align': st.align ?? null,
-    'margin-bottom': st.spaceAfterPt !== undefined ? `${st.spaceAfterPt}pt` : null,
-  };
-}
+/* ---------- style -> CSS (re-exported from core so every render surface shares one resolver) ---------- */
+export { resolveColor, cssFor } from '../../core/resume-doc';
 
 /* ---------- template defaults per element (what "unset" means; shown in the format toolbar) ---------- */
 export interface ThemeLike { fontFamily: string; baseSizePt: number; headerAlign: 'left' | 'center' | 'right'; nameScale?: number }
-export interface ElementDefaults { sizePt: number; bold: boolean; italic: boolean; align: 'left' | 'center' | 'right'; color: 'accent' | 'ink' | 'muted'; font: string }
+export interface ElementDefaults { sizePt: number; bold: boolean; italic: boolean; align: 'left' | 'center' | 'right'; color: 'accent' | 'ink' | 'muted' | 'paper'; font: string }
 
 /** Last path segment: header.name -> name, i.<id>.title -> title, s.<id>.title -> sectionTitle. */
 export function elementKind(key: string): string {
@@ -319,18 +300,19 @@ export function elementKind(key: string): string {
 /** Improved default styling for element visibility and visual hierarchy. */
 export function defaultsFor(key: string, th: ThemeLike, bandHeader = false): ElementDefaults {
   const b = th.baseSizePt; const kind = elementKind(key);
-  // Determine if this key is from a section (scope 's') or item (scope 'i')
+  // These multipliers mirror the actual renderers (ve-sheet, preview, HTML, PDF), so the
+  // toolbar never reports a "default" that the document does not use.
   const isSectionKey = key.startsWith('s.');
-  const isItemKey = key.startsWith('i.');
-  // Size scale: name largest, then section titles, then body text, then meta/caption elements
-  const size: Record<string, number> = { name: b * (th.nameScale ?? 2.0), headline: b * 1.15, contacts: b * 0.95, sectionTitle: b * 1.05, meta: b * 0.9, tags: b * 0.9, url: b * 0.9 };
+  const size: Record<string, number> = { name: b * (th.nameScale ?? 1.8), headline: b * 1.1, contacts: b * 0.95, sectionTitle: b * 1.05, meta: b * 0.9, tags: b * 0.9, url: b * 0.9 };
   return {
     sizePt: Math.round((size[kind] ?? b) * 2) / 2,
-    // Bold: name is bold; section titles are bold for hierarchy; item titles are normal weight; subtitles are italic; body text is normal weight
-    bold: kind === 'name' || (isSectionKey && kind === 'sectionTitle'),
+    // Name, section titles and item titles are bold in every renderer; subtitles are italic.
+    bold: kind === 'name' || kind === 'title' || (isSectionKey && kind === 'sectionTitle'),
     italic: kind === 'subtitle',
-    // Color hierarchy: name uses accent, section titles use accent, body text uses ink, meta uses muted
-    color: kind === 'name' || (isSectionKey && kind === 'sectionTitle') ? (bandHeader && kind === 'name' ? 'ink' : 'accent') : kind === 'meta' || kind === 'url' ? 'muted' : 'ink',
+    // Band headers paint the name on the accent colour, so its default is paper white.
+    color: kind === 'name' || (isSectionKey && kind === 'sectionTitle')
+      ? (bandHeader && kind === 'name' ? 'paper' : 'accent')
+      : kind === 'meta' || kind === 'url' ? 'muted' : 'ink',
     // Alignment: section titles left-aligned by default; header elements follow theme alignment
     align: key.startsWith('header.') ? th.headerAlign : 'left',
     font: th.fontFamily,

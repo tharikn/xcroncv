@@ -74,6 +74,24 @@ describe('DOCX export', () => {
     const x = strFromU8(unzipSync(new Uint8Array(renderDocx(m)))['word/document.xml']);
     expect(x.match(/<w:pageBreakBefore\/>/g)).toHaveLength(1);
   });
+
+  it('applies per-element editor styles and keeps logical lines together', () => {
+    const m = buildRenderModel(profile, TEMPLATE_CATALOG[0], undefined, {});
+    m.styles = {
+      'header.name': { color: 'accent', sizePt: 24 },
+      'i.i1.title': { bold: true, color: '#123456', align: 'center', spaceAfterPt: 8 },
+    };
+    const section = m.sections.find((s) => s.items?.length);
+    section!.id = 's1';
+    section!.items![0].id = 'i1';
+    const x = strFromU8(unzipSync(new Uint8Array(renderDocx(m)))['word/document.xml']);
+    expect(x).toContain(`<w:color w:val="${m.theme.accent.toUpperCase().replace('#', '')}"/>`); // accent token
+    expect(x).toContain('<w:sz w:val="48"/>'); // 24pt name
+    expect(x).toContain('<w:color w:val="123456"/>');
+    expect(x).toContain('<w:jc w:val="center"/>');
+    expect(x).toContain('<w:spacing w:after="160"/>'); // 8pt
+    expect(x).toContain('<w:keepLines/>');
+  });
   it('round-trips through the importer (export -> import recovers the facts)', () => {
     const s = parseResumeText(extractDocx(docx).lines);
     expect(s.fullName).toBe('Grace Hopper');

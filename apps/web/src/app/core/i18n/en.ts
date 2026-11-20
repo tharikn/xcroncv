@@ -98,6 +98,12 @@ export const EN = {
   'chat.checkQuality': 'Check quality and mistakes',
   'chat.improveSentences': 'Improve sentences',
   'chat.checkAts': 'Check ATS corrections',
+  'chat.fixOverflow': 'Fix page overflow',
+  'chat.accentHeadings': 'Accent headings',
+  'chat.centerHeader': 'Center header',
+  'chat.runFixOverflow': 'Fit my design on the page by tightening spacing and text size',
+  'chat.runAccentHeadings': 'Use the accent color for my name and section headings',
+  'chat.runCenterHeader': 'Center my header name, headline and contacts',
 
   'common.loading': 'Loading…', 'common.dismiss': 'Dismiss', 'common.cancel': 'Cancel', 'common.delete': 'Delete',
   'common.offline': 'You are offline. Changes that need the server will fail until you reconnect.',

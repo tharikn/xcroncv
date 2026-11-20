@@ -14,8 +14,8 @@ describe('tour config', () => {
     }
   });
   it('follows the flow import -> profile -> template -> edit -> export', () => {
-    expect(stepsFor('main').map((s) => s.id)).toEqual(['import', 'profile', 'template', 'canvas', 'bar', 'outline', 'panel', 'version', 'continue', 'export']);
-    expect(stepsFor('editor').map((s) => s.id)).toEqual(['canvas', 'bar', 'outline', 'panel', 'version', 'continue']);
+    expect(stepsFor('main').map((s) => s.id)).toEqual(['import', 'profile', 'template', 'canvas', 'bar', 'outline', 'rearrange', 'panel', 'quality', 'version', 'continue', 'export']);
+    expect(stepsFor('editor').map((s) => s.id)).toEqual(['canvas', 'bar', 'outline', 'rearrange', 'panel', 'quality', 'version', 'continue']);
     expect(stepsFor('editor').every((s) => s.page === 'editor')).toBe(true);
   });
 });

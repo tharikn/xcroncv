@@ -1,5 +1,12 @@
-import { expect, test } from '@playwright/test';
+import { expect, Page, test } from '@playwright/test';
 import { setup } from './support/setup';
+
+/** Sections start collapsed; expand one the way a user does before touching its fields. */
+async function expand(page: Page, section: string) {
+  const header = page.getByRole('button', { name: section, exact: true });
+  if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
+  await expect(header).toHaveAttribute('aria-expanded', 'true');
+}
 
 test.describe('Career profile', () => {
   test('creates a profile from scratch and sends exactly the API DTO', async ({ page }) => {
@@ -8,16 +15,24 @@ test.describe('Career profile', () => {
     await expect(page.getByTestId('save-state')).toHaveText('All changes saved');
 
     await page.getByTestId('fullName').fill('Grace Hopper');
+    await page.getByTestId('headline').fill('Rear Admiral and computer scientist');
     await page.getByTestId('email').fill('grace@example.com');
+    await page.getByTestId('phone').fill('+1 555 010 0100');
+    await page.getByTestId('location').fill('Arlington, USA');
+    await page.getByTestId('summary').fill('Invented the first compiler and pioneered machine-independent programming.');
+    await expand(page, 'Experience');
+    await expand(page, 'Skills');
     await page.getByTestId('add-experience').click();
     await page.getByTestId('exp-employer').fill('US Navy');
     await page.getByTestId('exp-title').fill('Rear Admiral');
     await page.getByTestId('exp-start').fill('1943-12');
+    await page.getByTestId('experience-0').getByLabel('Location *').fill('Arlington, USA');
     await page.getByTestId('exp-current').check();
     await page.getByRole('button', { name: 'Add bullet' }).click();
     await page.getByTestId('exp-bullet').fill('Invented the first compiler.');
     await page.getByTestId('add-skill').click();
     await page.getByTestId('skill-name').fill('COBOL');
+    await page.getByRole('textbox', { name: 'Category *' }).fill('Programming');
     await expect(page.getByTestId('save-state')).toHaveText('Unsaved changes');
 
     await page.getByTestId('profile-save').click();
@@ -35,6 +50,7 @@ test.describe('Career profile', () => {
     const state = await setup(page, { profile: false });
     await page.goto('/profile');
     await page.getByTestId('email').fill('not-an-email');
+    await expand(page, 'Experience');
     await page.getByTestId('add-experience').click();
     await page.getByTestId('exp-start').fill('2020-13');
     await page.getByTestId('profile-save').click();
@@ -66,6 +82,7 @@ test.describe('Career profile', () => {
     ] } });
     await page.goto('/profile');
     const employers = page.getByTestId('exp-employer');
+    await expand(page, 'Experience');
     await expect(employers.nth(0)).toHaveValue('First Co');
     await page.getByRole('button', { name: 'Move experience 1 down' }).click();
     await expect(employers.nth(0)).toHaveValue('Second Co');
@@ -75,9 +92,47 @@ test.describe('Career profile', () => {
     await expect(employers.first()).toHaveValue('First Co');
   });
 
+  test('education course drives the branch list and every education field is mandatory', async ({ page }) => {
+    const state = await setup(page);
+    await page.goto('/profile');
+    await expand(page, 'Education');
+    await page.getByTestId('add-education').click();
+    const card = page.getByTestId('education-1');
+    await expect(card).toBeVisible();
+
+    // a second click must not stack another untouched blank card
+    await page.getByTestId('add-education').click();
+    await expect(page.locator('[data-testid^="education-"]')).toHaveCount(2);
+
+    await card.getByLabel('Institution *').fill('Yale University');
+    await card.getByLabel('Course *').selectOption('Bachelor of Science (B.Sc)');
+    await expect(card.getByLabel('Branch / specialisation *').locator('option[value="Mathematics"]')).toHaveCount(1);
+    await card.getByLabel('Branch / specialisation *').selectOption('Mathematics');
+    await card.getByLabel('Start (YYYY-MM) *').fill('2016-09');
+    await card.getByLabel('End (YYYY-MM) *').fill('2020-05');
+
+    await page.getByTestId('profile-save').click();
+    await expect(page.getByTestId('save-state')).toHaveText('All changes saved');
+    const put = state.requests.filter((r) => r.method === 'PUT' && r.path === '/career-profile').at(-1)!;
+    expect(put.body.educations[1]).toMatchObject({
+      institution: 'Yale University', degree: 'Bachelor of Science (B.Sc)', field: 'Mathematics', startDate: '2016-09', endDate: '2020-05',
+    });
+  });
+
+  test('blank education rows are dropped on load instead of rendering empty cards', async ({ page }) => {
+    await setup(page, { profile: { educations: [
+      { id: 'ed1', institution: 'Home tutored', degree: 'Bachelor of Science (B.Sc)', field: 'Mathematics', startDate: '2014-09', endDate: '2018-05' },
+      { id: 'ed2', institution: '', degree: '', field: '', startDate: '', endDate: '' },
+    ] } });
+    await page.goto('/profile');
+    await expand(page, 'Education');
+    await expect(page.locator('[data-testid^="education-"]')).toHaveCount(1);
+    await expect(page.getByTestId('save-state')).toHaveText('All changes saved');
+  });
+
   test('shows an error banner when the profile fails to load', async ({ page }) => {
     const state = await setup(page);
-    state.failNext = { path: /career-profile/, status: 500 };
+    state.failNext = { path: /career-profile/, status: 500, times: 99 };
     await page.goto('/profile');
     await expect(page.getByRole('alert')).toContainText('Injected failure');
   });
@@ -85,7 +140,7 @@ test.describe('Career profile', () => {
   test('surfaces server-side save failures as a toast', async ({ page }) => {
     const state = await setup(page);
     await page.goto('/profile');
-    await page.getByTestId('headline').fill('x');
+    await page.getByTestId('headline').fill('Engineer');
     state.failNext = { path: /career-profile/, status: 400 };
     await page.getByTestId('profile-save').click();
     await expect(page.getByText('Injected failure')).toBeVisible();

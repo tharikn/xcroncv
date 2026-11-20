@@ -169,7 +169,9 @@ ion-title { font-weight: 700; font-size: 1.05rem; padding-inline: 0; }
 .field textarea { min-height: 5.5rem; resize: vertical; }
 .field input[type='color'] { padding: 0.2rem; }
 .field input[type='range'] { padding: 0; accent-color: var(--c-primary); }
-.field input:invalid, .field.invalid input, .field.invalid textarea { border-color: var(--c-danger); }
+.field input:user-invalid, .field select:user-invalid, .field textarea:user-invalid,
+.field.invalid input, .field.invalid textarea { border-color: var(--c-danger); }
+.field input.ng-invalid.ng-touched, .field select.ng-invalid.ng-touched, .field textarea.ng-invalid.ng-touched { border-color: var(--c-danger); }
 .hint { font-size: 0.8rem; color: var(--c-muted); }
 .error { color: var(--c-danger); font-size: 0.85rem; }
 .checkbox { display: flex; gap: var(--space-2); align-items: center; min-height: var(--control-min-height); }

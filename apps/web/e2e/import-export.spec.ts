@@ -13,7 +13,7 @@ test.describe('Module 06 - Import (review and confirm)', () => {
   test('profile page links to the importer', async ({ page }) => {
     await setup(page);
     await page.goto('/profile');
-    await page.getByTestId('goto-import').click();
+    await page.getByTestId('import-resume-action').click();
     await expect(page).toHaveURL(/\/import$/);
     await expect(page.getByTestId('upload-card')).toContainText('not stored');
   });

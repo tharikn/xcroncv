@@ -1,6 +1,12 @@
-import { CareerProfile } from './models';
+import { CareerProfile, Education } from './models';
 
 const nn = <T>(v: T | null | undefined): T | undefined => (v === null || v === '' ? undefined : v);
+
+/** An education row the user has not filled in at all (e.g. an accidentally added blank row). */
+export function isBlankEducation(e: Education): boolean {
+  return !(e.institution ?? '').trim() && !(e.degree ?? '').trim() && !(e.field ?? '').trim()
+    && !(e.startDate ?? '').trim() && !(e.endDate ?? '').trim() && !(e.grade ?? '').trim();
+}
 
 export const YM_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -26,7 +32,7 @@ export function toProfileInput(p: CareerProfile): CareerProfile {
     skills: (p.skills ?? []).filter((s) => s.name.trim()).map((s) => ({
       name: s.name.trim(), category: nn(s.category), proficiency: nn(s.proficiency), yearsUsed: nn(s.yearsUsed),
     })),
-    educations: (p.educations ?? []).map((e) => ({
+    educations: (p.educations ?? []).filter((e) => !isBlankEducation(e)).map((e) => ({
       institution: e.institution, degree: e.degree, field: nn(e.field), startDate: nn(e.startDate), endDate: nn(e.endDate), grade: nn(e.grade),
     })),
     projects: (p.projects ?? []).map((x) => ({
@@ -113,6 +119,108 @@ export function validateProfile(p: CareerProfile): string[] {
     if (l.name && l.name.trim().length > 60) errs.push(`${n}: name must be 60 characters or fewer.`);
     if (l.proficiency && l.proficiency.trim().length > 40) errs.push(`${n}: proficiency must be 40 characters or fewer.`);
   });
+  return errs;
+}
+
+/**
+ * Strict validation used by the /profile form, where every visible field is mandatory.
+ * Every sub-field the user can see must be filled in and within its min/max length; empty
+ * education rows are ignored so a stray blank row can never block saving.
+ *
+ * Kept separate from `validateProfile` because the import/AI review screens legitimately build
+ * partial profiles from a document and must still be able to save what the user ticked.
+ */
+export function validateProfileFull(p: CareerProfile): string[] {
+  const errs: string[] = [];
+  const text = (value: string | null | undefined, name: string, min: number, max: number) => {
+    const v = (value ?? '').trim();
+    if (!v) { errs.push(`${name} is required.`); return; }
+    if (v.length < min) errs.push(`${name} must be at least ${min} characters.`);
+    else if (v.length > max) errs.push(`${name} must be ${max} characters or fewer.`);
+  };
+
+  text(p.fullName, 'Full name', 2, 150);
+  text(p.headline, 'Headline', 3, 150);
+  if (!p.email?.trim()) errs.push('Email is required.');
+  else if (!EMAIL_PATTERN.test(p.email.trim())) errs.push('Email address looks invalid.');
+  else if (p.email.trim().length > 254) errs.push('Email must be 254 characters or fewer.');
+  if (!p.phone?.trim()) errs.push('Phone is required.');
+  else if (!PHONE_PATTERN.test(p.phone.trim())) errs.push('Phone number looks invalid.');
+  text(p.location, 'Location', 2, 120);
+  text(p.summary, 'Summary', 10, 2000);
+
+  (p.links ?? []).forEach((l, i) => {
+    const n = `Link ${i + 1}`;
+    text(l.label, `${n}: label`, 2, 60);
+    if (!l.url?.trim()) errs.push(`${n}: URL is required.`);
+    else if (!URL_PATTERN.test(l.url.trim())) errs.push(`${n}: URL must start with http:// or https://.`);
+    else if (l.url.trim().length > 500) errs.push(`${n}: URL must be 500 characters or fewer.`);
+  });
+
+  (p.experiences ?? []).forEach((e, i) => {
+    const n = `Experience ${i + 1}`;
+    text(e.employerName, `${n}: employer`, 2, 150);
+    text(e.jobTitle, `${n}: job title`, 2, 150);
+    text(e.location, `${n}: location`, 2, 120);
+    if (!e.startDate) errs.push(`${n}: start date is required.`);
+    else if (!YM_PATTERN.test(e.startDate)) errs.push(`${n}: start date must be YYYY-MM.`);
+    if (!e.isCurrent) {
+      if (!e.endDate) errs.push(`${n}: end date is required (or mark the role as current).`);
+      else if (!YM_PATTERN.test(e.endDate)) errs.push(`${n}: end date must be YYYY-MM.`);
+      else if (e.startDate && YM_PATTERN.test(e.startDate) && e.endDate < e.startDate) errs.push(`${n}: end date is before start date.`);
+    }
+    (e.bullets ?? []).forEach((b, bi) => text(b.content, `${n}: bullet ${bi + 1}`, 3, 600));
+  });
+
+  (p.skills ?? []).forEach((s, i) => {
+    const n = `Skill ${i + 1}`;
+    text(s.name, `${n}: name`, 1, 80);
+    text(s.category, `${n}: category`, 2, 60);
+    if (s.proficiency && s.proficiency.trim().length > 40) errs.push(`${n}: proficiency must be 40 characters or fewer.`);
+    if (s.yearsUsed != null && (s.yearsUsed < 0 || !Number.isInteger(s.yearsUsed))) errs.push(`${n}: years used must be a non-negative integer.`);
+  });
+
+  (p.educations ?? []).forEach((e, i) => {
+    if (isBlankEducation(e)) return;
+    const n = `Education ${i + 1}`;
+    text(e.institution, `${n}: institution`, 2, 150);
+    text(e.degree, `${n}: course`, 2, 150);
+    text(e.field, `${n}: branch`, 2, 150);
+    if (!e.startDate) errs.push(`${n}: start date is required.`);
+    else if (!YM_PATTERN.test(e.startDate)) errs.push(`${n}: start date must be YYYY-MM.`);
+    if (!e.endDate) errs.push(`${n}: end date is required.`);
+    else if (!YM_PATTERN.test(e.endDate)) errs.push(`${n}: end date must be YYYY-MM.`);
+    else if (e.startDate && YM_PATTERN.test(e.startDate) && e.endDate < e.startDate) errs.push(`${n}: end date is before start date.`);
+    if (e.grade && e.grade.trim().length > 40) errs.push(`${n}: grade must be 40 characters or fewer.`);
+  });
+
+  (p.projects ?? []).forEach((x, i) => {
+    const n = `Project ${i + 1}`;
+    text(x.name, `${n}: name`, 2, 150);
+    if (!x.url?.trim()) errs.push(`${n}: URL is required.`);
+    else if (!URL_PATTERN.test(x.url.trim())) errs.push(`${n}: URL must start with http:// or https://.`);
+    else if (x.url.trim().length > 500) errs.push(`${n}: URL must be 500 characters or fewer.`);
+    text(x.description, `${n}: description`, 10, 1000);
+    const techs = (x.technologies ?? []).map((t) => (t ?? '').trim()).filter(Boolean);
+    if (techs.length === 0) errs.push(`${n}: add at least one technology.`);
+    techs.forEach((t) => { if (t.length > 60) errs.push(`${n}: technology must be 60 characters or fewer.`); });
+  });
+
+  (p.certifications ?? []).forEach((c, i) => {
+    const n = `Certification ${i + 1}`;
+    text(c.name, `${n}: name`, 2, 150);
+    text(c.issuer, `${n}: issuer`, 2, 150);
+    if (c.issuedDate && !YM_PATTERN.test(c.issuedDate)) errs.push(`${n}: issued date must be YYYY-MM.`);
+    if (c.expiryDate && !YM_PATTERN.test(c.expiryDate)) errs.push(`${n}: expiry date must be YYYY-MM.`);
+    if (c.issuedDate && c.expiryDate && YM_PATTERN.test(c.issuedDate) && YM_PATTERN.test(c.expiryDate) && c.expiryDate < c.issuedDate) errs.push(`${n}: expiry date is before issued date.`);
+  });
+
+  (p.languages ?? []).forEach((l, i) => {
+    const n = `Language ${i + 1}`;
+    text(l.name, `${n}: name`, 2, 60);
+    text(l.proficiency, `${n}: proficiency`, 2, 40);
+  });
+
   return errs;
 }
 

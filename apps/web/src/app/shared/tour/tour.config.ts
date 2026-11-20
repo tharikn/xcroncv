@@ -25,7 +25,7 @@ export interface TourStep {
 const BOTH = ['main', 'editor'] as const;
 
 export const TOUR_STEPS: readonly TourStep[] = [
-  { id: 'import', page: 'profile', flows: ['main'], targets: ['import-resume-action', 'goto-import'], titleKey: 'tour.import.title', bodyKey: 'tour.import.body', mode: 'info' },
+  { id: 'import', page: 'profile', flows: ['main'], targets: ['import-resume-action'], titleKey: 'tour.import.title', bodyKey: 'tour.import.body', mode: 'info' },
   { id: 'profile', page: 'profile', flows: ['main'], targets: ['step-profile-action', 'nav-profile'], titleKey: 'tour.profile.title', bodyKey: 'tour.profile.body', mode: 'click' },
   { id: 'template', page: 'templates', flows: ['main'], targets: ['step-template-action', 'nav-templates'], titleKey: 'tour.template.title', bodyKey: 'tour.template.body', mode: 'click' },
   // Editing text mirrors the visual editor: click selects, a second click or Enter edits in place, a floating toolbar formats.

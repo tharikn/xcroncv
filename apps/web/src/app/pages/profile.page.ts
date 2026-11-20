@@ -3,12 +3,14 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IonAccordion, IonAccordionGroup, IonContent, IonHeader, IonIcon, IonItem, IonLabel, IonTitle, IonToolbar } from '@ionic/angular/standalone';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
+import { FieldErrorComponent } from '../shared/field-error.component';
 import { ResetProfileDialogComponent } from '../shared/reset-profile-dialog.component';
 import { ApiService } from '../core/api.service';
 import { LocaleService } from '../core/i18n/locale.service';
 import { CareerProfile, Certification, Education, Experience, LanguageItem, Link, Project, Skill } from '../core/models';
+import { COURSE_NAMES, branchesFor, withSavedOption } from '../core/course-catalog';
 import { errorMessage, NotifyService } from '../core/notify.service';
-import { emptyProfile, moveItem, toProfileInput, validateProfile } from '../core/profile-mapper';
+import { emptyProfile, isBlankEducation, moveItem, toProfileInput, validateProfileFull } from '../core/profile-mapper';
 
 type Form = Required<Pick<CareerProfile, 'links' | 'experiences' | 'skills' | 'educations' | 'projects' | 'certifications' | 'languages'>> & CareerProfile;
 type ListKey = 'links' | 'experiences' | 'skills' | 'educations' | 'projects' | 'certifications' | 'languages';
@@ -16,7 +18,7 @@ type ListKey = 'links' | 'experiences' | 'skills' | 'educations' | 'projects' | 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [IonAccordion, IonAccordionGroup, IonContent, IonHeader, IonToolbar, IonTitle, IonIcon, IonItem, IonLabel, FormsModule, RouterLink, ResetProfileDialogComponent, TranslatePipe],
+  imports: [IonAccordion, IonAccordionGroup, IonContent, IonHeader, IonToolbar, IonTitle, IonIcon, IonItem, IonLabel, FormsModule, RouterLink, ResetProfileDialogComponent, FieldErrorComponent, TranslatePipe],
   template: `
     <ion-header><ion-toolbar><ion-title>Career profile</ion-title></ion-toolbar></ion-header>
     <ion-content>
@@ -62,12 +64,24 @@ type ListKey = 'links' | 'experiences' | 'skills' | 'educations' | 'projects' | 
               <section class="card" aria-labelledby="basics-h">
             <h2 id="basics-h">Basics</h2>
             <div class="form-grid">
-              <div class="field"><label for="fullName">Full name *</label><input id="fullName" data-testid="fullName" [(ngModel)]="f.fullName" (ngModelChange)="markDirty()" autocomplete="name" required maxlength="150" /></div>
-              <div class="field"><label for="headline">Headline</label><input id="headline" data-testid="headline" [(ngModel)]="f.headline" (ngModelChange)="markDirty()" maxlength="150" /></div>
-              <div class="field"><label for="email">Email</label><input id="email" data-testid="email" type="email" inputmode="email" [(ngModel)]="f.email" (ngModelChange)="markDirty()" autocomplete="email" maxlength="254" pattern="[^\\s@]+@[^\\s@]+\\.[^\\s@]+" /></div>
-              <div class="field"><label for="phone">Phone</label><input id="phone" data-testid="phone" type="tel" [(ngModel)]="f.phone" (ngModelChange)="markDirty()" autocomplete="tel" maxlength="40" pattern="[+\\d\\s().-]{7,40}" /></div>
-              <div class="field full"><label for="location">Location</label><input id="location" data-testid="location" [(ngModel)]="f.location" (ngModelChange)="markDirty()" autocomplete="address-level2" maxlength="120" /></div>
-              <div class="field full"><label for="summary">Summary</label><textarea id="summary" data-testid="summary" [(ngModel)]="f.summary" (ngModelChange)="markDirty()" maxlength="2000"></textarea>
+              <div class="field"><label for="fullName">Full name *</label>
+                <input id="fullName" #fullNameCtl="ngModel" data-testid="fullName" [(ngModel)]="f.fullName" (ngModelChange)="markDirty()" autocomplete="name" required minlength="2" maxlength="150" />
+                <app-field-error [control]="fullNameCtl" label="Full name" /></div>
+              <div class="field"><label for="headline">Headline *</label>
+                <input id="headline" #headlineCtl="ngModel" data-testid="headline" [(ngModel)]="f.headline" (ngModelChange)="markDirty()" required minlength="3" maxlength="150" />
+                <app-field-error [control]="headlineCtl" label="Headline" /></div>
+              <div class="field"><label for="email">Email *</label>
+                <input id="email" #emailCtl="ngModel" data-testid="email" type="email" inputmode="email" [(ngModel)]="f.email" (ngModelChange)="markDirty()" autocomplete="email" required maxlength="254" minlength="5" pattern="[^\\s@]+@[^\\s@]+\\.[^\\s@]+" />
+                <app-field-error [control]="emailCtl" label="Email" /></div>
+              <div class="field"><label for="phone">Phone *</label>
+                <input id="phone" #phoneCtl="ngModel" data-testid="phone" type="tel" [(ngModel)]="f.phone" (ngModelChange)="markDirty()" autocomplete="tel" required maxlength="40" minlength="7" pattern="[+\\d\\s().-]{7,40}" />
+                <app-field-error [control]="phoneCtl" label="Phone" /></div>
+              <div class="field full"><label for="location">Location *</label>
+                <input id="location" #locationCtl="ngModel" data-testid="location" [(ngModel)]="f.location" (ngModelChange)="markDirty()" autocomplete="address-level2" required minlength="2" maxlength="120" />
+                <app-field-error [control]="locationCtl" label="Location" /></div>
+              <div class="field full"><label for="summary">Summary *</label>
+                <textarea id="summary" #summaryCtl="ngModel" data-testid="summary" [(ngModel)]="f.summary" (ngModelChange)="markDirty()" required minlength="10" maxlength="2000"></textarea>
+                <app-field-error [control]="summaryCtl" label="Summary" />
                 <span class="hint">{{ (f.summary || '').length }}/2000</span></div>
             </div>
           </section>
@@ -79,15 +93,20 @@ type ListKey = 'links' | 'experiences' | 'skills' | 'educations' | 'projects' | 
             <div slot="content">
               <section class="card" aria-labelledby="links-h">
             <div class="group-title"><h2 id="links-h">Links</h2>
-              <button class="btn ghost sm" data-testid="add-link" (click)="add('links', { label: '', url: '' })"><ion-icon name="add-outline" aria-hidden="true"></ion-icon> Add link</button></div>
-            @for (l of f.links; track $index) {
+              <button class="btn ghost sm" data-testid="add-link" (click)="addLink()"><ion-icon name="add-outline" aria-hidden="true"></ion-icon> Add link</button></div>
+            @if (f.links.length === 0) { <p class="muted">No links added yet.</p> }
+            @for (l of f.links; track i; let i = $index) {
               <div class="item-card">
                 <div class="form-grid">
-                  <div class="field"><label [for]="'ll' + $index">Label</label><input [id]="'ll' + $index" [(ngModel)]="l.label" (ngModelChange)="markDirty()" placeholder="Portfolio" maxlength="60" /></div>
-                  <div class="field"><label [for]="'lu' + $index">URL</label><input [id]="'lu' + $index" [(ngModel)]="l.url" (ngModelChange)="markDirty()" inputmode="url" placeholder="https://" type="url" maxlength="500" pattern="https?://\\S+" /></div>
+                  <div class="field"><label [for]="'ll' + i">Label *</label>
+                    <input [id]="'ll' + i" #linkLabelCtl="ngModel" [(ngModel)]="l.label" (ngModelChange)="markDirty()" placeholder="Portfolio" required minlength="2" maxlength="60" />
+                    <app-field-error [control]="linkLabelCtl" label="Label" /></div>
+                  <div class="field"><label [for]="'lu' + i">URL *</label>
+                    <input [id]="'lu' + i" #linkUrlCtl="ngModel" [(ngModel)]="l.url" (ngModelChange)="markDirty()" inputmode="url" placeholder="https://" type="url" required minlength="10" maxlength="500" pattern="https?://\\S+" />
+                    <app-field-error [control]="linkUrlCtl" label="URL" /></div>
                 </div>
                 <div class="row">
-                  <button class="btn ghost sm" (click)="remove('links', $index)" [attr.aria-label]="'Remove link ' + ($index + 1)"><ion-icon name="trash-outline" aria-hidden="true"></ion-icon> Remove</button>
+                  <button class="btn ghost sm" (click)="remove('links', i)" [attr.aria-label]="'Remove link ' + (i + 1)"><ion-icon name="trash-outline" aria-hidden="true"></ion-icon> Remove</button>
                 </div>
               </div>
             }
@@ -105,20 +124,31 @@ type ListKey = 'links' | 'experiences' | 'skills' | 'educations' | 'projects' | 
             @for (e of f.experiences; track i; let i = $index) {
               <div class="item-card" [attr.data-testid]="'experience-' + i">
                 <div class="form-grid">
-                  <div class="field"><label [for]="'ee' + i">Employer *</label><input [id]="'ee' + i" data-testid="exp-employer" [(ngModel)]="e.employerName" (ngModelChange)="markDirty()" required maxlength="150" /></div>
-                  <div class="field"><label [for]="'ej' + i">Job title *</label><input [id]="'ej' + i" data-testid="exp-title" [(ngModel)]="e.jobTitle" (ngModelChange)="markDirty()" required maxlength="150" /></div>
-                  <div class="field"><label [for]="'es' + i">Start (YYYY-MM) *</label><input [id]="'es' + i" data-testid="exp-start" [(ngModel)]="e.startDate" (ngModelChange)="markDirty()" placeholder="2021-03" inputmode="numeric" maxlength="7" required pattern="\\d{4}-(0[1-9]|1[0-2])" /></div>
-                  <div class="field"><label [for]="'ed' + i">End (YYYY-MM)</label><input [id]="'ed' + i" [(ngModel)]="e.endDate" (ngModelChange)="markDirty()" [disabled]="!!e.isCurrent" placeholder="2023-08" inputmode="numeric" maxlength="7" pattern="\\d{4}-(0[1-9]|1[0-2])" /></div>
-                  <div class="field"><label [for]="'el' + i">Location</label><input [id]="'el' + i" [(ngModel)]="e.location" (ngModelChange)="markDirty()" maxlength="120" /></div>
-                  <label class="checkbox"><input type="checkbox" [(ngModel)]="e.isCurrent" (ngModelChange)="markDirty()" data-testid="exp-current" /> I currently work here</label>
+                  <div class="field"><label [for]="'ee' + i">Employer *</label>
+                    <input [id]="'ee' + i" #employerCtl="ngModel" data-testid="exp-employer" [(ngModel)]="e.employerName" (ngModelChange)="markDirty()" required minlength="2" maxlength="150" />
+                    <app-field-error [control]="employerCtl" label="Employer" /></div>
+                  <div class="field"><label [for]="'ej' + i">Job title *</label>
+                    <input [id]="'ej' + i" #jobTitleCtl="ngModel" data-testid="exp-title" [(ngModel)]="e.jobTitle" (ngModelChange)="markDirty()" required minlength="2" maxlength="150" />
+                    <app-field-error [control]="jobTitleCtl" label="Job title" /></div>
+                  <div class="field"><label [for]="'es' + i">Start (YYYY-MM) *</label>
+                    <input [id]="'es' + i" #expStartCtl="ngModel" data-testid="exp-start" [(ngModel)]="e.startDate" (ngModelChange)="markDirty()" placeholder="2021-03" inputmode="numeric" required minlength="7" maxlength="7" pattern="\\d{4}-(0[1-9]|1[0-2])" />
+                    <app-field-error [control]="expStartCtl" label="Start date" /></div>
+                  <div class="field"><label [for]="'ed' + i">End (YYYY-MM) *</label>
+                    <input [id]="'ed' + i" #expEndCtl="ngModel" [(ngModel)]="e.endDate" (ngModelChange)="markDirty()" [disabled]="!!e.isCurrent" [required]="!e.isCurrent" placeholder="2023-08" inputmode="numeric" minlength="7" maxlength="7" pattern="\\d{4}-(0[1-9]|1[0-2])" />
+                    <app-field-error [control]="expEndCtl" label="End date" /></div>
+                  <div class="field"><label [for]="'el' + i">Location *</label>
+                    <input [id]="'el' + i" #expLocationCtl="ngModel" [(ngModel)]="e.location" (ngModelChange)="markDirty()" required minlength="2" maxlength="120" />
+                    <app-field-error [control]="expLocationCtl" label="Location" /></div>
+                  <label class="checkbox"><input type="checkbox" [(ngModel)]="e.isCurrent" (ngModelChange)="setCurrent(e, $event)" data-testid="exp-current" /> I currently work here</label>
                 </div>
                 <div class="stack">
                   <div class="group-title"><h3>Bullets</h3>
                     <button class="btn ghost sm" (click)="addBullet(e)"><ion-icon name="add-outline" aria-hidden="true"></ion-icon> Add bullet</button></div>
                   @for (b of e.bullets; track bi; let bi = $index) {
                     <div class="stack">
-                      <div class="field"><label [for]="'eb' + i + '_' + bi">Bullet {{ bi + 1 }}</label>
-                        <textarea [id]="'eb' + i + '_' + bi" data-testid="exp-bullet" [(ngModel)]="b.content" (ngModelChange)="markDirty()" maxlength="600" style="min-height:3.5rem"></textarea></div>
+                      <div class="field"><label [for]="'eb' + i + '_' + bi">Bullet {{ bi + 1 }} *</label>
+                        <textarea [id]="'eb' + i + '_' + bi" #bulletCtl="ngModel" data-testid="exp-bullet" [(ngModel)]="b.content" (ngModelChange)="markDirty()" required minlength="3" maxlength="600" style="min-height:3.5rem"></textarea>
+                        <app-field-error [control]="bulletCtl" label="Bullet" /></div>
                       <div class="row">
                         <select [(ngModel)]="b.kind" (ngModelChange)="markDirty()" [attr.aria-label]="'Bullet ' + (bi + 1) + ' type'" style="min-height:2.25rem">
                           <option value="RESPONSIBILITY">Responsibility</option><option value="ACHIEVEMENT">Achievement</option></select>
@@ -146,11 +176,16 @@ type ListKey = 'links' | 'experiences' | 'skills' | 'educations' | 'projects' | 
               <section class="card" aria-labelledby="skills-h">
             <div class="group-title"><h2 id="skills-h">Skills</h2>
               <button class="btn ghost sm" data-testid="add-skill" (click)="add('skills', { name: '', category: '' })"><ion-icon name="add-outline" aria-hidden="true"></ion-icon> Add skill</button></div>
+            @if (f.skills.length === 0) { <p class="muted">No skills added yet.</p> }
             @for (s of f.skills; track i; let i = $index) {
               <div class="item-card">
                 <div class="form-grid">
-                  <div class="field"><label [for]="'sn' + i">Skill</label><input [id]="'sn' + i" data-testid="skill-name" [(ngModel)]="s.name" (ngModelChange)="markDirty()" required maxlength="80" /></div>
-                  <div class="field"><label [for]="'sc' + i">Category</label><input [id]="'sc' + i" [(ngModel)]="s.category" (ngModelChange)="markDirty()" placeholder="Languages" maxlength="60" /></div>
+                  <div class="field"><label [for]="'sn' + i">Skill *</label>
+                    <input [id]="'sn' + i" #skillNameCtl="ngModel" data-testid="skill-name" [(ngModel)]="s.name" (ngModelChange)="markDirty()" required minlength="1" maxlength="80" />
+                    <app-field-error [control]="skillNameCtl" label="Skill" /></div>
+                  <div class="field"><label [for]="'sc' + i">Category *</label>
+                    <input [id]="'sc' + i" #skillCategoryCtl="ngModel" [(ngModel)]="s.category" (ngModelChange)="markDirty()" placeholder="Languages" required minlength="2" maxlength="60" />
+                    <app-field-error [control]="skillCategoryCtl" label="Category" /></div>
                 </div>
                 <div class="row"><button class="btn ghost sm" (click)="remove('skills', i)" [attr.aria-label]="'Remove skill ' + (i + 1)"><ion-icon name="trash-outline" aria-hidden="true"></ion-icon> Remove</button></div>
               </div>
@@ -164,14 +199,32 @@ type ListKey = 'links' | 'experiences' | 'skills' | 'educations' | 'projects' | 
             <div slot="content">
               <section class="card" aria-labelledby="edu-h">
             <div class="group-title"><h2 id="edu-h">Education</h2>
-              <button class="btn ghost sm" data-testid="add-education" (click)="add('educations', { institution: '', degree: '' })"><ion-icon name="add-outline" aria-hidden="true"></ion-icon> Add education</button></div>
+              <button class="btn ghost sm" data-testid="add-education" (click)="addEducation()"><ion-icon name="add-outline" aria-hidden="true"></ion-icon> Add education</button></div>
+            @if (f.educations.length === 0) { <p class="muted" data-testid="edu-empty">No education added yet.</p> }
             @for (e of f.educations; track i; let i = $index) {
-              <div class="item-card">
+              <div class="item-card" [attr.data-testid]="'education-' + i">
                 <div class="form-grid">
-                  <div class="field"><label [for]="'ei' + i">Institution *</label><input [id]="'ei' + i" data-testid="edu-institution" [(ngModel)]="e.institution" (ngModelChange)="markDirty()" required maxlength="150" /></div>
-                  <div class="field"><label [for]="'eg' + i">Degree *</label><input [id]="'eg' + i" data-testid="edu-degree" [(ngModel)]="e.degree" (ngModelChange)="markDirty()" required maxlength="150" /></div>
-                  <div class="field"><label [for]="'ef' + i">Field</label><input [id]="'ef' + i" [(ngModel)]="e.field" (ngModelChange)="markDirty()" maxlength="150" /></div>
-                  <div class="field"><label [for]="'ey' + i">End (YYYY-MM)</label><input [id]="'ey' + i" [(ngModel)]="e.endDate" (ngModelChange)="markDirty()" maxlength="7" inputmode="numeric" pattern="\\d{4}-(0[1-9]|1[0-2])" /></div>
+                  <div class="field"><label [for]="'ei' + i">Institution *</label>
+                    <input [id]="'ei' + i" #eduInstitutionCtl="ngModel" data-testid="edu-institution" [(ngModel)]="e.institution" (ngModelChange)="markDirty()" required minlength="2" maxlength="150" />
+                    <app-field-error [control]="eduInstitutionCtl" label="Institution" /></div>
+                  <div class="field"><label [for]="'ec' + i">Course *</label>
+                    <select [id]="'ec' + i" #eduCourseCtl="ngModel" data-testid="edu-course" [ngModel]="e.degree" (ngModelChange)="setCourse(e, $event)" required>
+                      <option value="" disabled>Select a course</option>
+                      @for (c of courseOptions(e); track c) { <option [value]="c">{{ c }}</option> }
+                    </select>
+                    <app-field-error [control]="eduCourseCtl" label="Course" /></div>
+                  <div class="field"><label [for]="'ebr' + i">Branch / specialisation *</label>
+                    <select [id]="'ebr' + i" #eduBranchCtl="ngModel" data-testid="edu-branch" [ngModel]="e.field" (ngModelChange)="setBranch(e, $event)" [disabled]="!e.degree" required>
+                      <option value="" disabled>Select a branch</option>
+                      @for (b of branchOptions(e); track b) { <option [value]="b">{{ b }}</option> }
+                    </select>
+                    <app-field-error [control]="eduBranchCtl" label="Branch" /></div>
+                  <div class="field"><label [for]="'est' + i">Start (YYYY-MM) *</label>
+                    <input [id]="'est' + i" #eduStartCtl="ngModel" data-testid="edu-start" [(ngModel)]="e.startDate" (ngModelChange)="markDirty()" placeholder="2018-09" inputmode="numeric" required minlength="7" maxlength="7" pattern="\\d{4}-(0[1-9]|1[0-2])" />
+                    <app-field-error [control]="eduStartCtl" label="Start date" /></div>
+                  <div class="field"><label [for]="'ey' + i">End (YYYY-MM) *</label>
+                    <input [id]="'ey' + i" #eduEndCtl="ngModel" data-testid="edu-end" [(ngModel)]="e.endDate" (ngModelChange)="markDirty()" placeholder="2022-05" inputmode="numeric" required minlength="7" maxlength="7" pattern="\\d{4}-(0[1-9]|1[0-2])" />
+                    <app-field-error [control]="eduEndCtl" label="End date" /></div>
                 </div>
                 <div class="row"><button class="btn ghost sm" (click)="remove('educations', i)" [attr.aria-label]="'Remove education ' + (i + 1)"><ion-icon name="trash-outline" aria-hidden="true"></ion-icon> Remove</button></div>
               </div>
@@ -186,14 +239,23 @@ type ListKey = 'links' | 'experiences' | 'skills' | 'educations' | 'projects' | 
               <section class="card" aria-labelledby="proj-h">
             <div class="group-title"><h2 id="proj-h">Projects</h2>
               <button class="btn ghost sm" data-testid="add-project" (click)="add('projects', { name: '', technologies: [] })"><ion-icon name="add-outline" aria-hidden="true"></ion-icon> Add project</button></div>
+            @if (f.projects.length === 0) { <p class="muted">No projects added yet.</p> }
             @for (x of f.projects; track i; let i = $index) {
               <div class="item-card">
                 <div class="form-grid">
-                  <div class="field"><label [for]="'pn' + i">Name *</label><input [id]="'pn' + i" data-testid="project-name" [(ngModel)]="x.name" (ngModelChange)="markDirty()" required maxlength="150" /></div>
-                  <div class="field"><label [for]="'pu' + i">URL</label><input [id]="'pu' + i" [(ngModel)]="x.url" (ngModelChange)="markDirty()" inputmode="url" type="url" maxlength="500" pattern="https?://\\S+" /></div>
-                  <div class="field full"><label [for]="'pd' + i">Description</label><textarea [id]="'pd' + i" [(ngModel)]="x.description" (ngModelChange)="markDirty()"></textarea></div>
-                  <div class="field full"><label [for]="'pt' + i">Technologies</label>
-                    <input [id]="'pt' + i" [ngModel]="tech(x)" (ngModelChange)="setTech(x, $event)" placeholder="Angular, NestJS" /><span class="hint">Comma separated</span></div>
+                  <div class="field"><label [for]="'pn' + i">Name *</label>
+                    <input [id]="'pn' + i" #projectNameCtl="ngModel" data-testid="project-name" [(ngModel)]="x.name" (ngModelChange)="markDirty()" required minlength="2" maxlength="150" />
+                    <app-field-error [control]="projectNameCtl" label="Name" /></div>
+                  <div class="field"><label [for]="'pu' + i">URL *</label>
+                    <input [id]="'pu' + i" #projectUrlCtl="ngModel" [(ngModel)]="x.url" (ngModelChange)="markDirty()" inputmode="url" type="url" required minlength="10" maxlength="500" pattern="https?://\\S+" />
+                    <app-field-error [control]="projectUrlCtl" label="URL" /></div>
+                  <div class="field full"><label [for]="'pd' + i">Description *</label>
+                    <textarea [id]="'pd' + i" #projectDescriptionCtl="ngModel" [(ngModel)]="x.description" (ngModelChange)="markDirty()" required minlength="10" maxlength="1000"></textarea>
+                    <app-field-error [control]="projectDescriptionCtl" label="Description" /></div>
+                  <div class="field full"><label [for]="'pt' + i">Technologies *</label>
+                    <input [id]="'pt' + i" #projectTechCtl="ngModel" [ngModel]="tech(x)" (ngModelChange)="setTech(x, $event)" placeholder="Angular, NestJS" required minlength="2" maxlength="500" />
+                    <app-field-error [control]="projectTechCtl" label="Technologies" />
+                    <span class="hint">Comma separated</span></div>
                 </div>
                 <div class="row"><button class="btn ghost sm" (click)="remove('projects', i)" [attr.aria-label]="'Remove project ' + (i + 1)"><ion-icon name="trash-outline" aria-hidden="true"></ion-icon> Remove</button></div>
               </div>
@@ -208,11 +270,16 @@ type ListKey = 'links' | 'experiences' | 'skills' | 'educations' | 'projects' | 
               <section class="card" aria-labelledby="cert-h">
             <div class="group-title"><h2 id="cert-h">Certifications</h2>
               <button class="btn ghost sm" (click)="add('certifications', { name: '' })"><ion-icon name="add-outline" aria-hidden="true"></ion-icon> Add certification</button></div>
+            @if (f.certifications.length === 0) { <p class="muted">No certifications added yet.</p> }
             @for (c of f.certifications; track i; let i = $index) {
               <div class="item-card">
                 <div class="form-grid">
-                  <div class="field"><label [for]="'cn' + i">Name *</label><input [id]="'cn' + i" [(ngModel)]="c.name" (ngModelChange)="markDirty()" required maxlength="150" /></div>
-                  <div class="field"><label [for]="'ci' + i">Issuer</label><input [id]="'ci' + i" [(ngModel)]="c.issuer" (ngModelChange)="markDirty()" maxlength="150" /></div>
+                  <div class="field"><label [for]="'cn' + i">Name *</label>
+                    <input [id]="'cn' + i" #certNameCtl="ngModel" [(ngModel)]="c.name" (ngModelChange)="markDirty()" required minlength="2" maxlength="150" />
+                    <app-field-error [control]="certNameCtl" label="Name" /></div>
+                  <div class="field"><label [for]="'ci' + i">Issuer *</label>
+                    <input [id]="'ci' + i" #certIssuerCtl="ngModel" [(ngModel)]="c.issuer" (ngModelChange)="markDirty()" required minlength="2" maxlength="150" />
+                    <app-field-error [control]="certIssuerCtl" label="Issuer" /></div>
                 </div>
                 <div class="row"><button class="btn ghost sm" (click)="remove('certifications', i)" [attr.aria-label]="'Remove certification ' + (i + 1)"><ion-icon name="trash-outline" aria-hidden="true"></ion-icon> Remove</button></div>
               </div>
@@ -227,11 +294,16 @@ type ListKey = 'links' | 'experiences' | 'skills' | 'educations' | 'projects' | 
               <section class="card" aria-labelledby="lang-h">
             <div class="group-title"><h2 id="lang-h">Languages</h2>
               <button class="btn ghost sm" (click)="add('languages', { name: '' })"><ion-icon name="add-outline" aria-hidden="true"></ion-icon> Add language</button></div>
+            @if (f.languages.length === 0) { <p class="muted">No languages added yet.</p> }
             @for (l of f.languages; track i; let i = $index) {
               <div class="item-card">
                 <div class="form-grid">
-                  <div class="field"><label [for]="'ln' + i">Language</label><input [id]="'ln' + i" [(ngModel)]="l.name" (ngModelChange)="markDirty()" required maxlength="60" /></div>
-                  <div class="field"><label [for]="'lp' + i">Proficiency</label><input [id]="'lp' + i" [(ngModel)]="l.proficiency" (ngModelChange)="markDirty()" maxlength="40" /></div>
+                  <div class="field"><label [for]="'ln' + i">Language *</label>
+                    <input [id]="'ln' + i" #languageNameCtl="ngModel" [(ngModel)]="l.name" (ngModelChange)="markDirty()" required minlength="2" maxlength="60" />
+                    <app-field-error [control]="languageNameCtl" label="Language" /></div>
+                  <div class="field"><label [for]="'lp' + i">Proficiency *</label>
+                    <input [id]="'lp' + i" #languageProficiencyCtl="ngModel" [(ngModel)]="l.proficiency" (ngModelChange)="markDirty()" required minlength="2" maxlength="40" />
+                    <app-field-error [control]="languageProficiencyCtl" label="Proficiency" /></div>
                 </div>
                 <div class="row"><button class="btn ghost sm" (click)="remove('languages', i)" [attr.aria-label]="'Remove language ' + (i + 1)"><ion-icon name="trash-outline" aria-hidden="true"></ion-icon> Remove</button></div>
               </div>
@@ -318,8 +390,14 @@ export class ProfilePage implements OnInit, OnDestroy {
   private normalise(p: CareerProfile): Form {
     return {
       ...p,
-      links: p.links ?? [], skills: p.skills ?? [], educations: p.educations ?? [], projects: p.projects ?? [],
-      certifications: p.certifications ?? [], languages: p.languages ?? [],
+      links: p.links ?? [],
+      skills: p.skills ?? [],
+      // A completely empty education row (left behind by an import or an abandoned "Add") is noise,
+      // never data — drop it so the form cannot load blank cards.
+      educations: (p.educations ?? []).filter((e) => !isBlankEducation(e)),
+      projects: p.projects ?? [],
+      certifications: p.certifications ?? [],
+      languages: p.languages ?? [],
       experiences: (p.experiences ?? []).map((e) => ({ ...e, bullets: e.bullets ?? [] })),
     };
   }
@@ -328,6 +406,7 @@ export class ProfilePage implements OnInit, OnDestroy {
 
   /** Debounce autosave whenever changes are made */
   markDirty() {
+    if (this.errors().length) this.errors.set(validateProfileFull(this.f));
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => void this.autosave(), 1500);
   }
@@ -335,7 +414,7 @@ export class ProfilePage implements OnInit, OnDestroy {
   private autosave(): Promise<void> {
     return new Promise((resolve) => {
       if (!this.isDirty() || this.saving()) { resolve(); return; }
-      const errs = validateProfile(this.f);
+      const errs = validateProfileFull(this.f);
       if (errs.length) { resolve(); return; } // Don't show toast for incomplete transient draft typing
       this.saving.set(true);
       this.api.saveProfile(toProfileInput(this.f)).subscribe({
@@ -353,8 +432,34 @@ export class ProfilePage implements OnInit, OnDestroy {
   }
 
   add(key: ListKey, item: Link | Skill | Education | Project | Certification | LanguageItem) { (this.f[key] as unknown[]).push(item); this.markDirty(); }
+  addLink() { this.add('links', { label: '', url: '' }); }
   addExperience() { const e: Experience = { employerName: '', jobTitle: '', startDate: '', isCurrent: false, bullets: [] }; this.f.experiences.push(e); this.markDirty(); }
   addBullet(e: Experience) { (e.bullets ??= []).push({ kind: 'RESPONSIBILITY', content: '' }); this.markDirty(); }
+
+  /** Never stack a second untouched blank education card; blank rows are already ignored on save. */
+  addEducation() {
+    const last = this.f.educations[this.f.educations.length - 1];
+    if (last && isBlankEducation(last)) return;
+    this.add('educations', { institution: '', degree: '', field: '', startDate: '', endDate: '' });
+  }
+
+  courseOptions(e: Education) { return withSavedOption(COURSE_NAMES, e.degree); }
+  branchOptions(e: Education) { return withSavedOption(branchesFor(e.degree), e.field); }
+  setCourse(e: Education, course: string) {
+    e.degree = course ?? '';
+    if (e.field && !this.branchOptions(e).includes(e.field)) e.field = '';
+    this.markDirty();
+  }
+  setBranch(e: Education, branch: string) {
+    e.field = branch ?? '';
+    this.markDirty();
+  }
+  setCurrent(e: Experience, current: boolean) {
+    e.isCurrent = current;
+    if (current) e.endDate = null;
+    this.markDirty();
+  }
+
   remove(key: ListKey, i: number) { (this.f[key] as unknown[]).splice(i, 1); this.markDirty(); }
   shift(key: ListKey, i: number, d: number) { (this.f as unknown as Record<string, unknown[]>)[key] = moveItem(this.f[key] as unknown[], i, i + d); this.markDirty(); }
   move = moveItem;
@@ -362,7 +467,7 @@ export class ProfilePage implements OnInit, OnDestroy {
   setTech(x: Project, v: string) { x.technologies = (v ?? '').split(',').map((t) => t.trim()).filter(Boolean); this.markDirty(); }
 
   save() {
-    const errs = validateProfile(this.f);
+    const errs = validateProfileFull(this.f);
     this.errors.set(errs);
     if (errs.length) return;
     this.saving.set(true);

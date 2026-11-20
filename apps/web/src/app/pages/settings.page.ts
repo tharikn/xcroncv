@@ -66,20 +66,7 @@ import { THEMES, ThemePreference, ThemeService } from '../core/theme.service';
           <div><button class="btn ghost" data-testid="replay-tour" (click)="tour.replay()">{{ 'tour.replay' | t }}</button></div>
         </section>
 
-        <section class="card" aria-labelledby="api-h">
-          <h2 id="api-h">{{ 'settings.server' | t }}</h2>
-          <div class="field" [class.invalid]="!!urlError()">
-            <label for="api">{{ 'settings.apiAddress' | t }}</label>
-            <input id="api" data-testid="api-base" [(ngModel)]="apiBase" inputmode="url" autocapitalize="off" spellcheck="false" />
-            <span class="hint">{{ 'settings.apiHint' | t }}</span>
-            @if (urlError()) { <span class="error" role="alert">{{ urlError() }}</span> }
-          </div>
-          <div class="row">
-            <button class="btn" data-testid="api-save" (click)="saveApi()">{{ 'settings.apiSave' | t }}</button>
-            <button class="btn ghost" data-testid="api-test" (click)="test()">{{ 'settings.apiTest' | t }}</button>
-          </div>
-          @if (status()) { <p class="small" data-testid="api-status" role="status">{{ status() }}</p> }
-        </section>
+        
 
         <section class="card" aria-labelledby="files-h">
           <h2 id="files-h">{{ 'settings.files' | t }}</h2>

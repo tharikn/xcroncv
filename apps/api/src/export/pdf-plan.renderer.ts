@@ -41,21 +41,23 @@ export function renderPlannedPdf(m: RenderModel, plan: LayoutPlan, out: Writable
   const density = plan.density;
   const theme = m.theme;
   const width = plan.page.widthPt - plan.page.marginPt * 2;
-  const header = buildHeaderLines(m, width, density, measurer);
+  const header = buildHeaderLines(m, width, density, measurer, { styles: m.styles });
   const geometryCache = new Map<string, SectionGeometry>();
 
   const geometryFor = (section: RenderSection, variant: SectionVariant, widthPt: number): SectionGeometry => {
-    const key = `${section.type}|${section.title}|${variant}|${widthPt.toFixed(1)}`;
+    const key = `${section.id ?? ''}|${section.type}|${section.title}|${variant}|${widthPt.toFixed(1)}`;
     const hit = geometryCache.get(key);
     if (hit) return hit;
-    const g = buildSectionGeometry({ section, variant, widthPt, theme, density, measurer });
+    const g = buildSectionGeometry({ section, variant, widthPt, theme, density, measurer, styles: m.styles });
     geometryCache.set(key, g);
     return g;
   };
 
   const paintLine = (line: PaintLine, x: number, y: number, widthPt: number, lineGap: number): number => {
     doc.font(line.font).fontSize(line.size).fillColor(line.color);
-    const opts: Record<string, unknown> = { width: Math.max(1, widthPt - line.indentPt), lineGap };
+    const opts: Record<string, unknown> = {
+      width: Math.max(1, widthPt - line.indentPt), lineGap, align: line.align ?? 'left',
+    };
     if (line.link) opts.link = line.link;
     doc.text(line.text, x + line.indentPt, y, opts as never);
     return y + line.heightPt + line.gapAfterPt;
@@ -69,7 +71,9 @@ export function renderPlannedPdf(m: RenderModel, plan: LayoutPlan, out: Writable
       doc.save().rect(x, y, 3, line.heightPt).fill(theme.accent).restore();
     }
     doc.font(line.font).fontSize(line.size).fillColor(line.color);
-    doc.text(line.text, innerX, y, { width: Math.max(1, widthPt - line.indentPt), lineGap });
+    doc.text(line.text, innerX, y, {
+      width: Math.max(1, widthPt - line.indentPt), lineGap, align: line.align ?? 'left',
+    } as never);
     const end = y + line.heightPt;
     if (line.decoration === 'rule') {
       doc.save().moveTo(x, end + 1).lineTo(x + widthPt, end + 1).lineWidth(0.5).strokeColor(theme.accent).stroke().restore();

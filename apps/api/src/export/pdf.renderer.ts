@@ -88,6 +88,9 @@ export function renderPdf(m: RenderModel, out: Writable): void {
   const base = t.baseSizePt;
   const timeline = m.layout === 'timeline';
   const sectionAt = (s: RenderSection, x: number, width: number) => {
+    // A forced break must happen BEFORE the heading is painted, otherwise the heading is orphaned
+    // at the bottom of the previous page and only the body moves to the new one.
+    if (s.pageBreakBefore) { doc.addPage(); doc.x = x; doc.y = margin; }
     const txt = (str: string, font: string, size: number, extra: Record<string, unknown> = {}) => {
       doc.x = x; doc.font(font).fontSize(size).text(str, { width, lineGap, ...extra } as never);
     };
@@ -121,7 +124,6 @@ export function renderPdf(m: RenderModel, out: Writable): void {
       doc.moveTo(x, y).lineTo(x + width, y).lineWidth(0.5).strokeColor(t.accent).stroke();
     }
     doc.moveDown(0.3 * g).fillColor('#111');
-    if (s.pageBreakBefore) { doc.addPage(); doc.x = margin; doc.y = margin; }
     const startPages = pages; const startY = doc.y;
     const ix = timeline ? x + 10 : x; const iw = timeline ? width - 10 : width;
     afterGap(fT.gap);

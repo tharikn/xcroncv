@@ -44,7 +44,8 @@ const LINE = { compact: 1.25, normal: 1.4, relaxed: 1.6 } as const;
     .page-guide { position: absolute; left: 0; right: 0; border-top: 1px dashed #b0b0b0; pointer-events: none; }
     .page-guide span { position: absolute; right: 4px; top: -1.1em; font: 10px sans-serif; color: #888; }
     ul { margin: 3pt 0 3pt 16pt; padding: 0; } p { margin: 3pt 0; } h1 { margin: 0; }
-    .doc-section h2 { margin: 14pt 0 4pt; font-size: 1.05em; }
+    .doc-section h2 { margin: 14pt 0 4pt; font-size: 1.05em; break-after: avoid; page-break-after: avoid; }
+    .doc-item, li { break-inside: avoid; page-break-inside: avoid; }
     .row { display: flex; justify-content: space-between; gap: 8pt; }
     .page-break-spacer { position: relative; width: 100%; pointer-events: none; }
     .page-break-spacer::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; border-top: 1px dashed #b0b0b0; }
@@ -326,13 +327,14 @@ export class VeSheetComponent implements AfterViewChecked {
 
   /**
    * Auto page-break planning: any section whose box crosses the printable content-area bottom
-   * (page height - top padding) is moved to the next page by giving its spacer the remaining height.
+   * (page height - top padding - bottom padding) is moved to the next page by giving its spacer the remaining height.
    * Recomputed after every layout pass; explicit `pageBreakBefore` spacers are honoured alongside these.
    */
   private applyAutoBreaks(root: HTMLElement) {
     const m = this.model(); if (!m) return;
     const pageH = this.pageH();
     const topPad = m.page.marginPt * 4 / 3; // 1pt = 4/3px; sheet padding is authored in pt
+    const verticalPadding = topPad * 2; // top AND bottom printable margins
     const breaks = new Set<string>();
     for (const col of Array.from(root.querySelectorAll<HTMLElement>('[data-col]'))) {
       const colTop = col.offsetTop;
@@ -342,7 +344,7 @@ export class VeSheetComponent implements AfterViewChecked {
         if (!id) continue;
         cands.push({ id, top: sec.offsetTop - colTop, height: sec.offsetHeight });
       }
-      for (const id of planAutoBreaks(cands, pageH, topPad)) breaks.add(id);
+      for (const id of planAutoBreaks(cands, pageH, verticalPadding)) breaks.add(id);
     }
     const cur = this.autoBreaks();
     const same = cur.size === breaks.size && [...cur].every((k) => breaks.has(k));

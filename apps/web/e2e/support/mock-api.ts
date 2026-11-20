@@ -31,7 +31,7 @@ export interface MockState {
   profile: any | null;
   resumes: any[];
   versions: Record<string, any[]>;
-  failNext: { path: RegExp; status: number } | null;
+  failNext: { path: RegExp; status: number; times?: number } | null;
   usageForbidden?: boolean;
   prefs?: { theme: string | null; locale: string | null };
   exportCalls: string[];
@@ -47,7 +47,7 @@ export function sampleProfile(over: Record<string, unknown> = {}) {
     experiences: [{ id: 'e1', employerName: 'Babbage & Co', jobTitle: 'Programmer', startDate: '2020-01', endDate: null, isCurrent: true, location: 'London',
       bullets: [{ id: 'b1', kind: 'ACHIEVEMENT', content: 'Wrote the first published algorithm.', displayOrder: 0 }] }],
     skills: [{ id: 's1', name: 'Mathematics', category: 'Core' }, { id: 's2', name: 'Algorithms', category: 'Core' }],
-    educations: [{ id: 'ed1', institution: 'Home tutored', degree: 'Mathematics' }], projects: [], certifications: [], languages: [],
+    educations: [{ id: 'ed1', institution: 'Home tutored', degree: 'Bachelor of Science (B.Sc)', field: 'Mathematics', startDate: '2014-09', endDate: '2018-05' }], projects: [], certifications: [], languages: [],
     ...over,
   };
 }
@@ -62,7 +62,7 @@ export function starterProfile() {
     experiences: [{ id: 'e1', employerName: 'Example Company', jobTitle: 'Your Job Title', startDate: '2022-01', endDate: null,
       isCurrent: true, location: 'City, Country', bullets: [{ id: 'b1', kind: 'ACHIEVEMENT', content: 'Describe a measurable result.', displayOrder: 0 }] }],
     skills: [{ id: 's1', name: 'Your main skill', category: 'Core' }],
-    educations: [{ id: 'ed1', institution: 'Your University', degree: 'Your Degree' }],
+    educations: [{ id: 'ed1', institution: 'Your University', degree: 'Bachelor of Science (B.Sc)', field: 'Mathematics', startDate: '2018-09', endDate: '2022-05' }],
     projects: [], certifications: [], languages: [],
   };
 }
@@ -120,7 +120,12 @@ export async function mockApi(page: Page, state: MockState = freshState()): Prom
 
     const json = (status: number, data?: unknown) => route.fulfill({ status, headers: { ...CORS, 'content-type': 'application/json' }, body: data === undefined ? '' : JSON.stringify(data) });
 
-    if (state.failNext && state.failNext.path.test(path)) { const f = state.failNext; state.failNext = null; return json(f.status, { message: 'Injected failure' }); }
+    if (state.failNext && state.failNext.path.test(path)) {
+      const f = state.failNext;
+      if (f.times == null) state.failNext = null;
+      else if (--f.times <= 0) state.failNext = null;
+      return json(f.status, { message: 'Injected failure' });
+    }
 
     if (path === '/templates' && method === 'GET') return json(200, TEMPLATES);
     // Dummy-data render model for gallery cards / template preview (never the signed-in user's profile).

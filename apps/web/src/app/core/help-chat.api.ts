@@ -1,8 +1,10 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, OnDestroy, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { DesignPatch, proposeDesignPatch } from './design-patch';
 import { activeLocale, translate } from './i18n/translate';
 import { errorMessage } from './error-message';
+import { ResumeDoc } from './resume-doc';
 import { SettingsService } from './settings.service';
 
 export type HelpChatMode = 'guided' | 'ai';
@@ -87,7 +89,15 @@ export class HelpChatStore implements OnDestroy {
   readonly resumeId = signal('');
   readonly jobId = signal('');
 
-  /** Quick actions shown in the editor chatbot: content check, sentence fixes, ATS corrections. */
+  /**
+   * Ephemeral review card for a bounded design correction. The editor registers a document
+   * provider; a recognised design command produces a patch, but nothing is applied until the
+   * user confirms and the hosting editor applies it through its normal autosave path.
+   */
+  private designDoc: () => ResumeDoc | null = () => null;
+  readonly pendingDesignPatch = signal<DesignPatch | null>(null);
+
+  /** Quick actions shown in the editor chatbot: content check, sentence fixes, ATS and design corrections. */
   readonly showActions = computed(() => this.context() === 'design');
 
   readonly suggestions = computed(() => {
@@ -115,6 +125,19 @@ export class HelpChatStore implements OnDestroy {
   /** Tell the assistant which surface it is serving; pass null to restore the default chips. */
   setContext(next: 'design' | null): void {
     this.context.set(next);
+    if (next !== 'design') {
+      this.designDoc = () => null;
+      this.pendingDesignPatch.set(null);
+    }
+  }
+
+  /** The editor registers its current document so design commands can be checked against real elements. */
+  setDesignDoc(provider: () => ResumeDoc | null): void {
+    this.designDoc = provider;
+  }
+
+  clearDesignPatch(): void {
+    this.pendingDesignPatch.set(null);
   }
 
   /** Attach the resume the assistant should check (content checks from the template editor). */
@@ -126,6 +149,7 @@ export class HelpChatStore implements OnDestroy {
   clearResume(): void {
     this.resumeId.set('');
     this.jobId.set('');
+    this.pendingDesignPatch.set(null);
   }
 
   /** Runs the deterministic content check plus mistakes and ATS corrections for the attached resume. */
@@ -151,6 +175,22 @@ export class HelpChatStore implements OnDestroy {
   /** Runs the fixed ATS check for the job attached to this resume (corrections/upgrades). */
   async checkAts(): Promise<void> {
     this.draft.set(translate(activeLocale(), 'chat.runAts'));
+    await this.send();
+  }
+
+  /** Deterministic design-correction commands; the assistant only proposes, the editor applies after review. */
+  async fixOverflow(): Promise<void> {
+    this.draft.set(translate(activeLocale(), 'chat.runFixOverflow'));
+    await this.send();
+  }
+
+  async accentHeadings(): Promise<void> {
+    this.draft.set(translate(activeLocale(), 'chat.runAccentHeadings'));
+    await this.send();
+  }
+
+  async centerHeader(): Promise<void> {
+    this.draft.set(translate(activeLocale(), 'chat.runCenterHeader'));
     await this.send();
   }
 
@@ -209,6 +249,9 @@ export class HelpChatStore implements OnDestroy {
 
     this.error.set('');
     this.draft.set('');
+    this.pendingDesignPatch.set(
+      this.context() === 'design' ? proposeDesignPatch(text, this.designDoc()) : null,
+    );
     this.pushUser(text);
     this.busy.set(true);
 

@@ -8,6 +8,7 @@ import { IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/ang
 import { addIcons } from 'ionicons';
 import { chatbubbleEllipsesOutline, closeOutline, shieldCheckmarkOutline } from 'ionicons/icons';
 import { ApiService } from '../core/api.service';
+import { DesignPatch } from '../core/design-patch';
 import { ExportService } from '../core/export.service';
 import { HelpChatStore } from '../core/help-chat.api';
 import { HelpChatComponent } from '../shared/help-chat/help-chat.component';
@@ -277,7 +278,7 @@ import { Report as AtsReport } from '../features/ats-engine/ats-engine.format';
            Opens with template design suggestions (colour, layout, typography, sections, saving). -->
       @if (helpChat.available()) {
         <div class="ve-fab-dock">
-          <app-help-chat></app-help-chat>
+          <app-help-chat (applyDesignSuggestion)="applyDesign($event)"></app-help-chat>
           <button
             type="button"
             class="fab fab-chatbot"
@@ -505,6 +506,7 @@ export class ResumeEditorPage implements OnInit, OnDestroy {
     registerFlowIcons();
     this.helpChat.setContext('design');
     this.helpChat.setResume(this.id);
+    this.helpChat.setDesignDoc(() => (this.step() === 3 ? this.ed?.doc() ?? null : null));
     void this.helpChat.load();
     this.sub = this.route.queryParamMap.subscribe((q) => { this.step.set(q.get('step') === 'export' ? 4 : 3); this.panel.set(null); this.viewMenu.set(false); this.shareOpen.set(false); });
   }
@@ -579,6 +581,9 @@ export class ResumeEditorPage implements OnInit, OnDestroy {
 
   /** Hands the user to the assistant for a bounded sentence improvement of the resume. */
   openAssistantFix() { this.helpChat.open.set(true); void this.helpChat.improveResume(); }
+
+  /** Reviewed chat design suggestions go through the visual editor's commit/autosave path. */
+  applyDesign(patch: DesignPatch) { this.ed?.applyDesignPatch(patch); }
   openShare() { this.shareOpen.set(true); this.shareUrl.set(''); }
 
   async createShareLink() {

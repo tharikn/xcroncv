@@ -12,3 +12,10 @@ export function face(family: string, bold: boolean, italic: boolean): string {
 export const boldFace = (family: string) => face(family, true, false);
 export const italicFace = (family: string) => face(family, false, true);
 export const regularFace = (family: string) => face(family, false, false);
+
+/** Reverse lookup used when a visual-editor style changes weight/slant but keeps the template font. */
+export function familyFromFace(font: string): Family {
+  if (font.startsWith('Times')) return 'Times-Roman';
+  if (font.startsWith('Courier')) return 'Courier';
+  return 'Helvetica';
+}

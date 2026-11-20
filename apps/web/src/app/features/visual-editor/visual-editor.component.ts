@@ -5,6 +5,7 @@ import {
 import { RouterLink } from '@angular/router';
 import { IonIcon } from '@ionic/angular/standalone';
 import { ApiService } from '../../core/api.service';
+import { DesignPatch } from '../../core/design-patch';
 import { HelpChatStore } from '../../core/help-chat.api';
 import { LocaleService } from '../../core/i18n/locale.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -256,7 +257,7 @@ export class VisualEditorComponent implements AfterViewInit, OnDestroy {
   readonly kinds = SECTION_KINDS;
   readonly fonts = DOC_FONTS;
   readonly palette = RESUME_PALETTE;
-  readonly tokens = ['accent', 'ink', 'muted'] as const;
+  readonly tokens = ['accent', 'ink', 'muted', 'paper'] as const;
   readonly aligns = ['left', 'center', 'right'] as const;
   readonly sizeMin = SIZE_RANGE.min; readonly sizeMax = SIZE_RANGE.max;
 
@@ -373,6 +374,37 @@ export class VisualEditorComponent implements AfterViewInit, OnDestroy {
     this.rev.update((n) => n + 1);
     this.markDirty();
   }
+  /**
+   * Applies a reviewed chat design patch through the same commit path as toolbar edits:
+   * one undo step, style pruning, and the existing debounced, conflict-checked autosave.
+   */
+  applyDesignPatch(patch: DesignPatch): void {
+    const original = this.doc();
+    if (!original || !patch?.ops?.length) return;
+    let next = original;
+    for (const op of patch.ops) {
+      if (op.kind === 'style') {
+        for (const key of op.keys) {
+          if (this.isDesignStyleKey(next, key)) next = O.setStyle(next, key, op.patch);
+        }
+      } else {
+        const section = next.sections.find((s) => s.id === op.sectionId);
+        if (section && !!section.pageBreakBefore !== op.value) next = O.togglePageBreak(next, section.id);
+      }
+    }
+    if (next === original) return;
+    this.commitDoc(next);
+    this.sel.set(null);
+    this.editing.set(false);
+  }
+
+  private isDesignStyleKey(doc: ResumeDoc, key: string): boolean {
+    if (!/^(header\.(name|headline|contacts)|s\.[A-Za-z0-9_-]{1,40}\.(title|text)|i\.[A-Za-z0-9_-]{1,40}\.(title|subtitle|meta|text|bullets|tags|url))$/.test(key)) return false;
+    if (key.startsWith('header.')) return true;
+    const [kind, id] = key.split('.');
+    return kind === 's' ? doc.sections.some((s) => s.id === id) : doc.sections.some((s) => s.items?.some((i) => i.id === id));
+  }
+
   undo() { const cur = this.doc(); const p = cur && this.history.undo(cur); if (p) { this.doc.set(p); this.rev.update((n) => n + 1); this.sel.set(null); this.editing.set(false); this.markDirty(); } }
   redo() { const cur = this.doc(); const n = cur && this.history.redo(cur); if (n) { this.doc.set(n); this.rev.update((x) => x + 1); this.sel.set(null); this.editing.set(false); this.markDirty(); } }
 

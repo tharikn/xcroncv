@@ -37,7 +37,7 @@ export const DOC_LIMITS = {
 
 const SECTION_TYPES: ReadonlyArray<string> = ['summary', 'experience', 'skills', 'education', 'projects', 'certifications', 'languages', 'custom'];
 const FONTS: ReadonlyArray<string> = ['Helvetica', 'Times-Roman', 'Courier'];
-const THEME_COLORS: ReadonlyArray<string> = ['accent', 'ink', 'muted'];
+const THEME_COLORS: ReadonlyArray<string> = ['accent', 'ink', 'muted', 'paper'];
 const ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
 const KEY_RE = /^(header\.(name|headline|contacts)|s\.[A-Za-z0-9_-]{1,40}\.(title|text)|i\.[A-Za-z0-9_-]{1,40}\.(title|subtitle|meta|text|bullets|tags|url))$/;
 const IMG_RE = /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/;
@@ -127,5 +127,6 @@ export function resolveColor(c: string | undefined, accent: string, fallback: st
   if (c === 'accent') return accent;
   if (c === 'ink') return '#111111';
   if (c === 'muted') return '#555555';
+  if (c === 'paper') return '#ffffff';
   return /^#[0-9a-fA-F]{6}$/.test(c) ? c : fallback;
 }

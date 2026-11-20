@@ -1,6 +1,7 @@
-import { Component, ElementRef, effect, inject, viewChild } from '@angular/core';
+import { Component, ElementRef, effect, inject, output, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { DesignPatch } from '../../core/design-patch';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LocaleService } from '../../core/i18n/locale.service';
 import { HelpChatStore } from '../../core/help-chat.api';
@@ -61,6 +62,15 @@ import { HelpChatStore } from '../../core/help-chat.api';
             <button type="button" class="hc-action" data-testid="hc-action-ats" [disabled]="chat.busy() || chat.cooldownLeft() > 0" (click)="run('ats')">
               <span class="hc-action__dot" aria-hidden="true"></span> {{ 'chat.checkAts' | t }}
             </button>
+            <button type="button" class="hc-action" data-testid="hc-action-overflow" [disabled]="chat.busy() || chat.cooldownLeft() > 0" (click)="run('overflow')">
+              <span class="hc-action__dot" aria-hidden="true"></span> {{ 'chat.fixOverflow' | t }}
+            </button>
+            <button type="button" class="hc-action" data-testid="hc-action-headings" [disabled]="chat.busy() || chat.cooldownLeft() > 0" (click)="run('headings')">
+              <span class="hc-action__dot" aria-hidden="true"></span> {{ 'chat.accentHeadings' | t }}
+            </button>
+            <button type="button" class="hc-action" data-testid="hc-action-center" [disabled]="chat.busy() || chat.cooldownLeft() > 0" (click)="run('center')">
+              <span class="hc-action__dot" aria-hidden="true"></span> {{ 'chat.centerHeader' | t }}
+            </button>
           </div>
         }
 
@@ -93,6 +103,25 @@ import { HelpChatStore } from '../../core/help-chat.api';
                   {{ chip }}
                 </button>
               }
+            </div>
+          }
+
+          @if (chat.pendingDesignPatch(); as patch) {
+            <div class="hc-patch" data-testid="hc-design-patch" [attr.aria-label]="'ve.chatPatch.title' | t">
+              <p class="hc-patch__title">{{ 've.chatPatch.title' | t }}</p>
+              <ul class="hc-patch__list">
+                @for (op of patch.ops; track $index) {
+                  <li>{{ op.labelKey | t: op.labelParams }}</li>
+                }
+              </ul>
+              <div class="hc-patch__actions">
+                <button type="button" class="hc-patch__apply" data-testid="hc-design-apply" (click)="applyPatch()">
+                  {{ 've.chatPatch.apply' | t }}
+                </button>
+                <button type="button" class="hc-patch__dismiss" data-testid="hc-design-dismiss" (click)="chat.clearDesignPatch()">
+                  {{ 've.chatPatch.dismiss' | t }}
+                </button>
+              </div>
             </div>
           }
         </div>
@@ -325,6 +354,27 @@ import { HelpChatStore } from '../../core/help-chat.api';
     .hc-chip:hover:not(:disabled) { background: color-mix(in srgb, var(--c-primary) 16%, var(--c-bg)); border-color: color-mix(in srgb, var(--c-primary) 60%, var(--c-border)); transform: translateY(-1px); }
     .hc-chip:disabled { opacity: 0.55; cursor: not-allowed; }
 
+    .hc-patch {
+      border: 1px solid color-mix(in srgb, var(--c-accent) 45%, var(--c-border));
+      border-radius: 14px;
+      padding: 0.6rem 0.7rem;
+      background: color-mix(in srgb, var(--c-accent) 9%, var(--c-surface));
+    }
+    .hc-patch__title { margin: 0 0 0.35rem; font-size: 0.76rem; font-weight: 800; color: var(--c-text); }
+    .hc-patch__list { margin: 0; padding-left: 1.1rem; color: var(--c-text); font-size: 0.76rem; line-height: 1.4; }
+    .hc-patch__actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.55rem; }
+    .hc-patch__apply, .hc-patch__dismiss {
+      min-height: 44px;
+      padding: 0.45rem 0.75rem;
+      border-radius: 999px;
+      font: inherit;
+      font-size: 0.76rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .hc-patch__apply { border: 0; background: var(--brand-gradient); color: #fff; }
+    .hc-patch__dismiss { border: 1px solid var(--c-border); background: var(--c-bg); color: var(--c-muted); }
+
     .hc-error { margin: 0; padding: 0.35rem 0.95rem 0; color: var(--c-danger); font-size: 0.78rem; font-weight: 500; }
 
     .hc-compose {
@@ -402,6 +452,8 @@ import { HelpChatStore } from '../../core/help-chat.api';
 })
 export class HelpChatComponent {
   readonly chat = inject(HelpChatStore);
+  /** Hosted editor listens and applies the reviewed patch through its own commit/autosave path. */
+  readonly applyDesignSuggestion = output<DesignPatch>();
   private readonly locale = inject(LocaleService);
   private readonly log = viewChild<ElementRef<HTMLElement>>('log');
   private readonly input = viewChild<ElementRef<HTMLTextAreaElement>>('input');
@@ -424,12 +476,23 @@ export class HelpChatComponent {
     void this.chat.send();
   }
 
-  /** Quick actions from the assistant panel (content check / sentence fixes / ATS corrections). */
-  run(action: 'quality' | 'improve' | 'ats'): void {
+  /** Quick actions from the assistant panel (content, ATS and bounded design corrections). */
+  run(action: 'quality' | 'improve' | 'ats' | 'overflow' | 'headings' | 'center'): void {
     if (this.chat.busy() || this.chat.cooldownLeft() > 0) return;
     if (action === 'quality') void this.chat.checkQuality();
     else if (action === 'improve') void this.chat.improveResume();
-    else void this.chat.checkAts();
+    else if (action === 'ats') void this.chat.checkAts();
+    else if (action === 'overflow') void this.chat.fixOverflow();
+    else if (action === 'headings') void this.chat.accentHeadings();
+    else void this.chat.centerHeader();
+  }
+
+  /** Emits the reviewed patch and clears it; persistence remains entirely in the editor. */
+  applyPatch(): void {
+    const patch = this.chat.pendingDesignPatch();
+    if (!patch?.ops.length) return;
+    this.applyDesignSuggestion.emit(patch);
+    this.chat.clearDesignPatch();
   }
 
   onKeydown(event: KeyboardEvent): void {

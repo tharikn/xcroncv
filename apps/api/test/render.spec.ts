@@ -1,5 +1,7 @@
+import { Writable } from 'stream';
 import { buildRenderModel, ProfileInput, sanitizeOverrides } from '../src/render-model/render-model.builder';
 import { renderHtml } from '../src/export/html.renderer';
+import { renderPdf } from '../src/export/pdf.renderer';
 import { safeFilename } from '../src/export/filename';
 import { TEMPLATE_CATALOG } from '../src/templates/template.catalog';
 
@@ -54,6 +56,7 @@ describe('html export', () => {
     const html = renderHtml(m);
     expect(html).toContain('<section class="page-break">');
     expect(html).toContain('section.page-break{break-before:page;page-break-before:always}');
+    expect(html).toContain('.item,li{break-inside:avoid;page-break-inside:avoid}');
   });
   it('preserves pageBreakBefore and newlines through the overrides sanitizer', () => {
     const ov = sanitizeOverrides({ doc: {
@@ -63,6 +66,24 @@ describe('html export', () => {
     } });
     expect(ov.doc?.sections[0].pageBreakBefore).toBe(true);
     expect(ov.doc?.sections[0].text).toBe('a\nb');
+  });
+});
+
+describe('PDF export', () => {
+  const pdfBuffer = (m: ReturnType<typeof buildRenderModel>): Promise<Buffer> => new Promise((resolve) => {
+    const chunks: Buffer[] = [];
+    const out = new Writable({ write(c, _e, cb) { chunks.push(Buffer.from(c)); cb(); } });
+    out.on('finish', () => resolve(Buffer.concat(chunks)));
+    renderPdf(m, out);
+  });
+  it('starts a section on a new page before painting its heading', async () => {
+    const plain = await pdfBuffer(buildRenderModel(profile, TEMPLATE_CATALOG[0], undefined, {}));
+    const forced = buildRenderModel(profile, TEMPLATE_CATALOG[0], undefined, {});
+    forced.sections[0].pageBreakBefore = true;
+    const out = await pdfBuffer(forced);
+    const pageCount = (b: Buffer) => (b.toString('latin1').match(/\/Type\s*\/Page\b/g) ?? []).length;
+    expect(pageCount(plain)).toBe(1);
+    expect(pageCount(out)).toBe(2);
   });
 });
 

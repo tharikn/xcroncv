@@ -4,6 +4,7 @@ import { IonContent, IonIcon } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { chatbubbleEllipsesOutline, closeOutline } from 'ionicons/icons';
 import { ApiService } from '../../core/api.service';
+import { DesignPatch } from '../../core/design-patch';
 import { ExportService } from '../../core/export.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { Resume } from '../../core/models';
@@ -40,7 +41,7 @@ import { HelpChatComponent } from '../../shared/help-chat/help-chat.component';
            assistant console. It opens with design-specific suggested questions. -->
       @if (helpChat.available()) {
         <div class="ve-fab-dock">
-          <app-help-chat></app-help-chat>
+          <app-help-chat (applyDesignSuggestion)="applyDesign($event)"></app-help-chat>
           <button
             type="button"
             class="fab fab-chatbot"
@@ -149,6 +150,7 @@ export class VisualEditorPage implements OnInit, OnDestroy {
     this.id = this.route.snapshot.paramMap.get('id') ?? '';
     this.helpChat.setContext('design');
     this.helpChat.setResume(this.id);
+    this.helpChat.setDesignDoc(() => this.ed?.doc() ?? null);
     this.api.getResume(this.id).subscribe({ next: (res) => this.r.set(res), error: (e) => this.error.set(e.status === 404 ? 'Resume not found.' : errorMessage(e)) });
     void this.helpChat.load();
   }
@@ -158,6 +160,9 @@ export class VisualEditorPage implements OnInit, OnDestroy {
     this.helpChat.setContext(null);
     this.helpChat.clearResume();
   }
+
+  /** Chat suggestions are applied by the editor, which owns commit/undo/autosave conflict handling. */
+  applyDesign(patch: DesignPatch) { this.ed?.applyDesignPatch(patch); }
 
   /** Exports and preview always see the latest edits: flush the autosave first. */
   async preview() { if (await (this.ed?.flush() ?? Promise.resolve(true))) void this.router.navigate(['/resumes', this.id, 'preview']); }

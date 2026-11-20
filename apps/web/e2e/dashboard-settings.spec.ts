@@ -41,27 +41,6 @@ test.describe('Dashboard', () => {
 });
 
 test.describe('Settings', () => {
-  test('validates and saves the API address, then tests the connection', async ({ page }) => {
-    await setup(page);
-    await page.goto('/settings');
-    await page.getByTestId('api-base').fill('javascript:alert(1)');
-    await page.getByTestId('api-save').click();
-    await expect(page.getByRole('alert')).toContainText('valid http(s) URL');
-    await page.getByTestId('api-base').fill('http://localhost:3100/api/v1');
-    await page.getByTestId('api-save').click();
-    await expect(page.getByText('API address saved')).toBeVisible();
-    await page.getByTestId('api-test').click();
-    await expect(page.getByTestId('api-status')).toContainText('Connected. 3 templates available.');
-  });
-
-  test('reports connection failures', async ({ page }) => {
-    const state = await setup(page);
-    await page.goto('/settings');
-    state.failNext = { path: /templates/, status: 500 };
-    await page.getByTestId('api-test').click();
-    await expect(page.getByTestId('api-status')).toContainText('Could not connect');
-  });
-
   test('explains local-only file storage', async ({ page }) => {
     await setup(page);
     await page.goto('/settings');

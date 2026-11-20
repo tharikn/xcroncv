@@ -37,10 +37,37 @@ export const DOC_FONTS: ReadonlyArray<{ id: DocFont; css: string }> = [
 ];
 
 /** Theme-linked colour tokens first (follow the template accent), then a fixed palette of print-safe colours. */
-export const THEME_COLOR_TOKENS = ['accent', 'ink', 'muted'] as const;
+export const THEME_COLOR_TOKENS = ['accent', 'ink', 'muted', 'paper'] as const;
 export const RESUME_PALETTE: ReadonlyArray<string> = ['#111111', '#555555', '#1f4e79', '#0b6b4f', '#8a1c1c', '#6d4ff0', '#b45309', '#0e7490'];
 
 export const SIZE_RANGE = { min: 6, max: 36 } as const;
 export const SPACE_RANGE = { min: 0, max: 36 } as const;
 export const PHOTO_RANGE = { min: 32, max: 120, def: 64 } as const;
 export const LOGO_RANGE = { min: 16, max: 56, def: 28 } as const;
+
+/* ---------- shared style resolution (single source of truth for every web render surface) ---------- */
+
+/** Resolves a theme token or a literal #RRGGBB to a concrete colour. */
+export function resolveColor(c: string | undefined, accent: string): string | undefined {
+  if (!c) return undefined;
+  if (c === 'accent') return accent;
+  if (c === 'ink') return '#111111';
+  if (c === 'muted') return '#555555';
+  if (c === 'paper') return '#ffffff';
+  return /^#[0-9a-fA-F]{6}$/.test(c) ? c : undefined;
+}
+
+/** Converts one allowlisted element style into CSS properties. `null` means "leave the template default". */
+export function cssFor(st: ElementStyle | undefined, accent: string): Record<string, string | null> {
+  if (!st) return {};
+  const font = st.font ? DOC_FONTS.find((f) => f.id === st.font)?.css : undefined;
+  return {
+    'font-family': font ?? null,
+    'font-size': st.sizePt !== undefined ? `${st.sizePt}pt` : null,
+    'font-weight': st.bold === undefined ? null : st.bold ? '700' : '400',
+    'font-style': st.italic === undefined ? null : st.italic ? 'italic' : 'normal',
+    color: resolveColor(st.color, accent) ?? null,
+    'text-align': st.align ?? null,
+    'margin-bottom': st.spaceAfterPt !== undefined ? `${st.spaceAfterPt}pt` : null,
+  };
+}

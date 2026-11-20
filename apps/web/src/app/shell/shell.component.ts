@@ -3,7 +3,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/ro
 import { filter } from 'rxjs';
 import { IonIcon, IonRouterOutlet } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { chatbubbleEllipsesOutline, closeOutline, personOutline, sparklesOutline } from 'ionicons/icons';
+import { chatbubbleEllipsesOutline, closeOutline, flashOutline, personOutline, sparklesOutline } from 'ionicons/icons';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 import { HelpChatStore } from '../core/help-chat.api';
 import { HelpChatComponent } from '../shared/help-chat/help-chat.component';
@@ -201,7 +201,7 @@ export class ShellComponent {
   readonly avatarText = computed(() => this.initials(this.profileLabel()));
 
   constructor() {
-    addIcons({ sparklesOutline, chatbubbleEllipsesOutline, closeOutline, personOutline });
+    addIcons({ sparklesOutline, chatbubbleEllipsesOutline, closeOutline, personOutline, flashOutline });
     void this.chat.load();
     this.currentUrl = this.router.url;
     this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd)).subscribe((e) => {

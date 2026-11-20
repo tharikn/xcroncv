@@ -108,10 +108,12 @@ export function composeSections(
     const variant = opts.variants?.[key as SectionType] ?? 'normal';
     const main = buildSectionGeometry({
       section, variant, widthPt: mainCol.widthPt, theme: model.theme, density: ctx.density, measurer: ctx.measurer,
+      styles: model.styles,
     });
     const side = ctx.twoColumn && sideCol
       ? buildSectionGeometry({
         section, variant, widthPt: sideCol.widthPt, theme: model.theme, density: ctx.density, measurer: ctx.measurer,
+        styles: model.styles,
       })
       : undefined;
     return { index, section, key, policy, variant, main, side };
@@ -347,7 +349,7 @@ export function planResume(
     })()
     : [{ id: 'main' as const, xPt: page.marginPt, widthPt: width, ratio: 1 }];
 
-  const header = buildHeaderLines(model, width, density, measurer);
+  const header = buildHeaderLines(model, width, density, measurer, { styles: model.styles });
   const box = buildPageBox(page, header.heightPt, density.baseSizePt);
 
   const ctx: PlannerContext = {

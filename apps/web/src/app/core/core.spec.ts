@@ -1,9 +1,10 @@
 import { decodeClaims, isExpired, signDevToken, tokenFromFragment, b64urlDecodeToString, b64urlEncode } from './jwt';
-import { emptyProfile, isYearMonth, moveItem, toProfileInput, validateProfile } from './profile-mapper';
+import { emptyProfile, isBlankEducation, isYearMonth, moveItem, toProfileInput, validateProfile, validateProfileFull } from './profile-mapper';
 import { safeFileName } from './file-name';
 import { clamp, fitScale, overflowWarning, pageCount, PAGE_PX } from './preview-layout';
 import { isValidApiUrl } from './url';
 import { NATIVE_HANDOFF_REDIRECT, parseHandoffLink } from './native-handoff.logic';
+import { branchesFor, COURSE_NAMES, OTHER_COURSE, withSavedOption } from './course-catalog';
 
 describe('jwt helpers', () => {
   it('round-trips base64url incl. unicode', () => {
@@ -95,6 +96,159 @@ describe('profile mapper', () => {
     expect(moveItem(a, 0, -1)).toBe(a);
     expect(moveItem(a, 2, 3)).toBe(a);
     expect(a).toEqual([1, 2, 3]);
+  });
+
+  it('detects blank education rows and drops them from the API payload', () => {
+    expect(isBlankEducation({ institution: '', degree: '', field: '', startDate: '', endDate: '', grade: '' })).toBe(true);
+    expect(isBlankEducation({ institution: '  ', degree: '', field: null as any, startDate: null, endDate: undefined, grade: '' })).toBe(true);
+    expect(isBlankEducation({ institution: 'MIT', degree: '', field: '', startDate: '', endDate: '' })).toBe(false);
+    const out: any = toProfileInput({
+      ...emptyProfile(), fullName: 'Ada',
+      educations: [
+        { institution: '', degree: '', field: '', startDate: '', endDate: '' },
+        { institution: 'MIT', degree: 'B.Sc', field: 'Math', startDate: '2018-09', endDate: '2022-05' },
+      ],
+    });
+    expect(out.educations).toEqual([{ institution: 'MIT', degree: 'B.Sc', field: 'Math', startDate: '2018-09', endDate: '2022-05', grade: undefined }]);
+  });
+
+  it('strictly validates every visible /profile field and ignores stray blank education rows', () => {
+    const base = {
+      ...emptyProfile(),
+      fullName: 'Ada Lovelace',
+      headline: 'Engineer',
+      email: 'ada@example.com',
+      phone: '+1 555 0100',
+      location: 'London',
+      summary: 'Pioneer of computing and analytical engines.',
+    };
+    const errs = validateProfileFull(base);
+    expect(errs).toEqual([]);
+
+    const missing = validateProfileFull({ ...emptyProfile(), fullName: '' });
+    expect(missing).toEqual(expect.arrayContaining([
+      'Full name is required.',
+      'Headline is required.',
+      'Email is required.',
+      'Phone is required.',
+      'Location is required.',
+      'Summary is required.',
+    ]));
+
+    const short = validateProfileFull({ ...base, fullName: 'A', headline: 'Hi', summary: 'short' });
+    expect(short).toContain('Full name must be at least 2 characters.');
+    expect(short).toContain('Headline must be at least 3 characters.');
+    expect(short).toContain('Summary must be at least 10 characters.');
+
+    const badContacts = validateProfileFull({ ...base, email: 'nope', phone: 'abc' });
+    expect(badContacts).toContain('Email address looks invalid.');
+    expect(badContacts).toContain('Phone number looks invalid.');
+  });
+
+  it('strictly validates nested profile sections, dates, and conditional experience end dates', () => {
+    const base = {
+      ...emptyProfile(),
+      fullName: 'Ada Lovelace',
+      headline: 'Engineer',
+      email: 'ada@example.com',
+      phone: '+1 555 0100',
+      location: 'London',
+      summary: 'Pioneer of computing and analytical engines.',
+    };
+
+    const linkErrs = validateProfileFull({ ...base, links: [{ label: '', url: 'ftp://bad' }] });
+    expect(linkErrs).toContain('Link 1: label is required.');
+    expect(linkErrs).toContain('Link 1: URL must start with http:// or https://.');
+
+    const expErrs = validateProfileFull({
+      ...base,
+      experiences: [{ employerName: '', jobTitle: '', location: '', startDate: '2020-13', isCurrent: false, endDate: '', bullets: [{ kind: 'RESPONSIBILITY', content: 'x' }] }],
+    });
+    expect(expErrs).toEqual(expect.arrayContaining([
+      'Experience 1: employer is required.',
+      'Experience 1: job title is required.',
+      'Experience 1: location is required.',
+      'Experience 1: start date must be YYYY-MM.',
+      'Experience 1: end date is required (or mark the role as current).',
+      'Experience 1: bullet 1 must be at least 3 characters.',
+    ]));
+
+    const currentOk = validateProfileFull({
+      ...base,
+      experiences: [{ employerName: 'Acme', jobTitle: 'Dev', location: 'NYC', startDate: '2021-01', isCurrent: true, bullets: [{ kind: 'RESPONSIBILITY', content: 'Built systems.' }] }],
+    });
+    expect(currentOk).toEqual([]);
+
+    const dateOrder = validateProfileFull({
+      ...base,
+      experiences: [{ employerName: 'Acme', jobTitle: 'Dev', location: 'NYC', startDate: '2022-05', isCurrent: false, endDate: '2021-01', bullets: [{ kind: 'RESPONSIBILITY', content: 'Built systems.' }] }],
+    });
+    expect(dateOrder).toContain('Experience 1: end date is before start date.');
+
+    const projErrs = validateProfileFull({ ...base, projects: [{ name: 'P', url: '', description: 'tiny', technologies: [] }] });
+    expect(projErrs).toContain('Project 1: name must be at least 2 characters.');
+    expect(projErrs).toContain('Project 1: URL is required.');
+    expect(projErrs).toContain('Project 1: description must be at least 10 characters.');
+    expect(projErrs).toContain('Project 1: add at least one technology.');
+  });
+
+  it('strictly validates education (course/branch) and ignores blank education rows', () => {
+    const base = {
+      ...emptyProfile(),
+      fullName: 'Ada Lovelace',
+      headline: 'Engineer',
+      email: 'ada@example.com',
+      phone: '+1 555 0100',
+      location: 'London',
+      summary: 'Pioneer of computing and analytical engines.',
+    };
+
+    const ignored = validateProfileFull({
+      ...base,
+      educations: [{ institution: '', degree: '', field: '', startDate: '', endDate: '' }],
+    });
+    expect(ignored).toEqual([]);
+
+    const eduErrs = validateProfileFull({
+      ...base,
+      educations: [{ institution: 'M', degree: '', field: '', startDate: 'bad', endDate: '' }],
+    });
+    expect(eduErrs).toEqual(expect.arrayContaining([
+      'Education 1: institution must be at least 2 characters.',
+      'Education 1: course is required.',
+      'Education 1: branch is required.',
+      'Education 1: start date must be YYYY-MM.',
+      'Education 1: end date is required.',
+    ]));
+
+    const eduOk = validateProfileFull({
+      ...base,
+      educations: [{ institution: 'MIT', degree: 'Bachelor of Science (B.Sc)', field: 'Mathematics', startDate: '2018-09', endDate: '2022-05' }],
+    });
+    expect(eduOk).toEqual([]);
+  });
+});
+
+describe('course catalog', () => {
+  it('exposes course names including the "other" fallback', () => {
+    expect(COURSE_NAMES.length).toBeGreaterThan(0);
+    expect(COURSE_NAMES).toContain(OTHER_COURSE);
+    expect(COURSE_NAMES).toContain('Bachelor of Science (B.Sc)');
+  });
+
+  it('returns branches for known courses and none for unknown/legacy values', () => {
+    expect(branchesFor('Bachelor of Science (B.Sc)')).toContain('Mathematics');
+    expect(branchesFor('Unknown Course')).toEqual([]);
+    expect(branchesFor(null)).toEqual([]);
+    expect(branchesFor('')).toEqual([]);
+  });
+
+  it('preserves a saved value that is not in the catalog options', () => {
+    const opts = ['General', 'Finance'];
+    expect(withSavedOption(opts, 'Finance')).toEqual(opts);
+    expect(withSavedOption(opts, 'Legacy Branch')).toEqual(['Legacy Branch', 'General', 'Finance']);
+    expect(withSavedOption(opts, '')).toEqual(opts);
+    expect(withSavedOption(opts, null)).toEqual(opts);
   });
 });
 

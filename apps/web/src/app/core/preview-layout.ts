@@ -13,13 +13,22 @@ const AUTO_BREAK_EPS = 0.5;
 
 /**
  * Automatic page-break planning (content that exceeds the page moves to the next page automatically).
- * A block whose box crosses the printable content-area bottom (page height - top padding) starts on the next page.
+ *
+ * `top` is a flow coordinate measured from the TOP OF THE CONTENT AREA (after the sheet's top padding),
+ * so the printable bottom is `pageH - verticalPadding` where verticalPadding = top + bottom sheet padding.
+ * Coordinates are reduced modulo the page height: a block already starting a page (top % pageH ≈ 0) is
+ * deliberately left alone — moving it again would add a redundant spacer on every following page.
+ *
  * Callers union the returned ids with explicit user-forced breaks (`pageBreakBefore`) so manual control still wins.
  */
-export function planAutoBreaks(cands: BreakCandidate[], pageH: number, topPad: number): Set<string> {
+export function planAutoBreaks(cands: BreakCandidate[], pageH: number, verticalPadding: number): Set<string> {
   const breaks = new Set<string>();
-  const bottom = pageH - topPad;
-  for (const c of cands) if (c.top + c.height > bottom + AUTO_BREAK_EPS) breaks.add(c.id);
+  const printableBottom = pageH - verticalPadding;
+  for (const c of cands) {
+    const topInPage = ((c.top % pageH) + pageH) % pageH;
+    if (topInPage <= AUTO_BREAK_EPS) continue; // already starts a fresh page
+    if (topInPage + c.height > printableBottom + AUTO_BREAK_EPS) breaks.add(c.id);
+  }
   return breaks;
 }
 

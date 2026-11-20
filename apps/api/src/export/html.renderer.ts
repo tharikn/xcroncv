@@ -71,8 +71,8 @@ header{text-align:${t.headerAlign};margin-bottom:12pt}h1{margin:0;font-size:${t.
 header.band{background:${t.accent};color:#fff;padding:12pt 14pt;margin:-18mm -18mm 12pt}header.band h1{color:#fff}
 .hl{margin:2pt 0;font-size:1.1em}.contact{margin:2pt 0;font-size:.95em}a{color:inherit}
 img.photo{float:right;object-fit:cover;margin:0 0 6pt 12pt}img.logo{float:right;object-fit:contain;margin:0 0 4pt 8pt}
-h2{font-size:1.05em;color:${t.accent};margin:14pt 0 4pt;${H2[t.headingStyle ?? 'plain'](t.accent)}${t.sectionRule ? `border-bottom:1px solid ${t.accent};` : ''}}
-.row{display:flex;justify-content:space-between;gap:12pt}.sub{font-style:italic}ul{margin:3pt 0 3pt 16pt;padding:0}p{margin:3pt 0}
+h2{font-size:1.05em;color:${t.accent};margin:14pt 0 4pt;break-after:avoid;page-break-after:avoid;${H2[t.headingStyle ?? 'plain'](t.accent)}${t.sectionRule ? `border-bottom:1px solid ${t.accent};` : ''}}
+.item,li{break-inside:avoid;page-break-inside:avoid}.row{display:flex;justify-content:space-between;gap:12pt}.sub{font-style:italic}ul{margin:3pt 0 3pt 16pt;padding:0}p{margin:3pt 0}
 .cols{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:18pt}
 section.page-break{break-before:page;page-break-before:always}
 ${m.layout === 'timeline' ? `section{border-left:2px solid ${t.accent};padding-left:10pt}` : ''}
